@@ -1,0 +1,427 @@
+using Irooon.Core.Ast;
+using Irooon.Core.Ast.Expressions;
+using Irooon.Core.Ast.Statements;
+
+namespace Irooon.Core.Resolver;
+
+/// <summary>
+/// スコープ解析を行うResolverです。
+/// 変数の宣言・参照解決、let の再代入禁止チェック、未定義変数の検出などを行います。
+/// </summary>
+public class Resolver
+{
+    private Scope _currentScope;
+    private readonly List<ResolveException> _errors = new();
+
+    /// <summary>
+    /// Resolverの新しいインスタンスを初期化します。
+    /// </summary>
+    public Resolver()
+    {
+        _currentScope = new Scope(null); // グローバルスコープ
+    }
+
+    /// <summary>
+    /// プログラム全体を解析します。
+    /// </summary>
+    /// <param name="program">プログラムのAST</param>
+    public void Resolve(BlockExpr program)
+    {
+        ResolveBlockExpr(program);
+    }
+
+    /// <summary>
+    /// エラーのリストを取得します。
+    /// </summary>
+    /// <returns>エラーのリスト</returns>
+    public List<ResolveException> GetErrors() => _errors;
+
+    #region スコープ管理
+
+    /// <summary>
+    /// 新しいスコープを開始します。
+    /// </summary>
+    private void BeginScope()
+    {
+        _currentScope = new Scope(_currentScope);
+    }
+
+    /// <summary>
+    /// 現在のスコープを終了します。
+    /// </summary>
+    private void EndScope()
+    {
+        if (_currentScope.Parent != null)
+        {
+            _currentScope = _currentScope.Parent;
+        }
+    }
+
+    #endregion
+
+    #region 変数管理
+
+    /// <summary>
+    /// 変数を宣言します。
+    /// </summary>
+    /// <param name="name">変数名</param>
+    /// <param name="isReadOnly">読み取り専用かどうか</param>
+    /// <param name="line">行番号</param>
+    /// <param name="column">列番号</param>
+    private void Declare(string name, bool isReadOnly, int line, int column)
+    {
+        // 同じスコープ内で既に宣言されているかチェック
+        if (_currentScope.IsDefined(name))
+        {
+            _errors.Add(new ResolveException(
+                $"Variable '{name}' is already declared in this scope",
+                line, column));
+            return;
+        }
+
+        var info = new VariableInfo(name, isReadOnly, _currentScope.Depth);
+        _currentScope.Define(name, info);
+    }
+
+    /// <summary>
+    /// 変数を解決します（参照）。
+    /// </summary>
+    /// <param name="name">変数名</param>
+    /// <param name="line">行番号</param>
+    /// <param name="column">列番号</param>
+    /// <returns>変数情報（見つからない場合はnull）</returns>
+    private VariableInfo? ResolveVariable(string name, int line, int column)
+    {
+        var varInfo = _currentScope.Resolve(name);
+        if (varInfo == null)
+        {
+            _errors.Add(new ResolveException(
+                $"Undefined variable '{name}'",
+                line, column));
+            return null;
+        }
+
+        varInfo.IsUsed = true;
+        return varInfo;
+    }
+
+    #endregion
+
+    #region Expression解析
+
+    /// <summary>
+    /// Expressionを解析します。
+    /// </summary>
+    private void ResolveExpression(Expression expr)
+    {
+        switch (expr)
+        {
+            case LiteralExpr literalExpr:
+                ResolveLiteralExpr(literalExpr);
+                break;
+            case BinaryExpr binaryExpr:
+                ResolveBinaryExpr(binaryExpr);
+                break;
+            case UnaryExpr unaryExpr:
+                ResolveUnaryExpr(unaryExpr);
+                break;
+            case IdentifierExpr identifierExpr:
+                ResolveIdentifierExpr(identifierExpr);
+                break;
+            case AssignExpr assignExpr:
+                ResolveAssignExpr(assignExpr);
+                break;
+            case CallExpr callExpr:
+                ResolveCallExpr(callExpr);
+                break;
+            case MemberExpr memberExpr:
+                ResolveMemberExpr(memberExpr);
+                break;
+            case IndexExpr indexExpr:
+                ResolveIndexExpr(indexExpr);
+                break;
+            case IfExpr ifExpr:
+                ResolveIfExpr(ifExpr);
+                break;
+            case BlockExpr blockExpr:
+                ResolveBlockExpr(blockExpr);
+                break;
+            case LambdaExpr lambdaExpr:
+                ResolveLambdaExpr(lambdaExpr);
+                break;
+            case NewExpr newExpr:
+                ResolveNewExpr(newExpr);
+                break;
+            default:
+                _errors.Add(new ResolveException(
+                    $"Unknown expression type: {expr.GetType().Name}",
+                    expr.Line, expr.Column));
+                break;
+        }
+    }
+
+    private void ResolveLiteralExpr(LiteralExpr expr)
+    {
+        // リテラルは何もしない
+    }
+
+    private void ResolveBinaryExpr(BinaryExpr expr)
+    {
+        ResolveExpression(expr.Left);
+        ResolveExpression(expr.Right);
+    }
+
+    private void ResolveUnaryExpr(UnaryExpr expr)
+    {
+        ResolveExpression(expr.Operand);
+    }
+
+    private void ResolveIdentifierExpr(IdentifierExpr expr)
+    {
+        ResolveVariable(expr.Name, expr.Line, expr.Column);
+    }
+
+    private void ResolveAssignExpr(AssignExpr expr)
+    {
+        // 右辺を解析
+        ResolveExpression(expr.Value);
+
+        // 左辺の変数を解決
+        var varInfo = _currentScope.Resolve(expr.Name);
+        if (varInfo == null)
+        {
+            _errors.Add(new ResolveException(
+                $"Undefined variable '{expr.Name}'",
+                expr.Line, expr.Column));
+            return;
+        }
+
+        // let変数への再代入チェック
+        if (varInfo.IsReadOnly)
+        {
+            _errors.Add(new ResolveException(
+                $"Cannot assign to 'let' variable '{expr.Name}'",
+                expr.Line, expr.Column));
+        }
+
+        varInfo.IsUsed = true;
+    }
+
+    private void ResolveCallExpr(CallExpr expr)
+    {
+        ResolveExpression(expr.Callee);
+        foreach (var arg in expr.Arguments)
+        {
+            ResolveExpression(arg);
+        }
+    }
+
+    private void ResolveMemberExpr(MemberExpr expr)
+    {
+        ResolveExpression(expr.Target);
+    }
+
+    private void ResolveIndexExpr(IndexExpr expr)
+    {
+        ResolveExpression(expr.Target);
+        ResolveExpression(expr.Index);
+    }
+
+    private void ResolveIfExpr(IfExpr expr)
+    {
+        ResolveExpression(expr.Condition);
+
+        // Then節（新しいスコープ）
+        BeginScope();
+        ResolveExpression(expr.ThenBranch);
+        EndScope();
+
+        // Else節（新しいスコープ）
+        if (expr.ElseBranch != null)
+        {
+            BeginScope();
+            ResolveExpression(expr.ElseBranch);
+            EndScope();
+        }
+    }
+
+    private void ResolveBlockExpr(BlockExpr expr)
+    {
+        // ブロックは新しいスコープを作成
+        BeginScope();
+
+        foreach (var stmt in expr.Statements)
+        {
+            ResolveStatement(stmt);
+        }
+
+        if (expr.Expression != null)
+        {
+            ResolveExpression(expr.Expression);
+        }
+
+        EndScope();
+    }
+
+    private void ResolveLambdaExpr(LambdaExpr expr)
+    {
+        // ラムダは新しいスコープを作成
+        BeginScope();
+
+        // パラメータを宣言
+        foreach (var param in expr.Parameters)
+        {
+            Declare(param.Name, false, param.Line, param.Column);
+        }
+
+        // 本体を解析
+        ResolveExpression(expr.Body);
+
+        EndScope();
+    }
+
+    private void ResolveNewExpr(NewExpr expr)
+    {
+        // クラス名は解決しない（型システムの範囲外）
+        foreach (var arg in expr.Arguments)
+        {
+            ResolveExpression(arg);
+        }
+    }
+
+    #endregion
+
+    #region Statement解析
+
+    /// <summary>
+    /// Statementを解析します。
+    /// </summary>
+    private void ResolveStatement(Statement stmt)
+    {
+        switch (stmt)
+        {
+            case LetStmt letStmt:
+                ResolveLetStmt(letStmt);
+                break;
+            case VarStmt varStmt:
+                ResolveVarStmt(varStmt);
+                break;
+            case ExprStmt exprStmt:
+                ResolveExprStmt(exprStmt);
+                break;
+            case ReturnStmt returnStmt:
+                ResolveReturnStmt(returnStmt);
+                break;
+            case WhileStmt whileStmt:
+                ResolveWhileStmt(whileStmt);
+                break;
+            case FunctionDef functionDef:
+                ResolveFunctionDef(functionDef);
+                break;
+            case ClassDef classDef:
+                ResolveClassDef(classDef);
+                break;
+            default:
+                _errors.Add(new ResolveException(
+                    $"Unknown statement type: {stmt.GetType().Name}",
+                    stmt.Line, stmt.Column));
+                break;
+        }
+    }
+
+    private void ResolveLetStmt(LetStmt stmt)
+    {
+        // 初期化式を先に解析（自己参照を防ぐ）
+        ResolveExpression(stmt.Initializer);
+
+        // 変数を宣言（読み取り専用）
+        Declare(stmt.Name, true, stmt.Line, stmt.Column);
+    }
+
+    private void ResolveVarStmt(VarStmt stmt)
+    {
+        // 初期化式を先に解析
+        ResolveExpression(stmt.Initializer);
+
+        // 変数を宣言（読み取り専用ではない）
+        Declare(stmt.Name, false, stmt.Line, stmt.Column);
+    }
+
+    private void ResolveExprStmt(ExprStmt stmt)
+    {
+        ResolveExpression(stmt.Expression);
+    }
+
+    private void ResolveReturnStmt(ReturnStmt stmt)
+    {
+        if (stmt.Value != null)
+        {
+            ResolveExpression(stmt.Value);
+        }
+    }
+
+    private void ResolveWhileStmt(WhileStmt stmt)
+    {
+        ResolveExpression(stmt.Condition);
+
+        // 本体は新しいスコープ
+        BeginScope();
+        ResolveStatement(stmt.Body);
+        EndScope();
+    }
+
+    private void ResolveFunctionDef(FunctionDef stmt)
+    {
+        // 関数名をスコープに追加
+        Declare(stmt.Name, false, stmt.Line, stmt.Column);
+
+        // 新しいスコープを開始
+        BeginScope();
+
+        // パラメータを宣言
+        foreach (var param in stmt.Parameters)
+        {
+            Declare(param.Name, false, param.Line, param.Column);
+        }
+
+        // 本体を解析
+        ResolveExpression(stmt.Body);
+
+        // スコープを終了
+        EndScope();
+    }
+
+    private void ResolveClassDef(ClassDef stmt)
+    {
+        // クラス名をスコープに追加
+        Declare(stmt.Name, false, stmt.Line, stmt.Column);
+
+        // フィールドの初期化式を解析
+        foreach (var field in stmt.Fields)
+        {
+            if (field.Initializer != null)
+            {
+                ResolveExpression(field.Initializer);
+            }
+        }
+
+        // メソッドを解析
+        foreach (var method in stmt.Methods)
+        {
+            BeginScope();
+
+            // パラメータを宣言
+            foreach (var param in method.Parameters)
+            {
+                Declare(param.Name, false, param.Line, param.Column);
+            }
+
+            // 本体を解析
+            ResolveExpression(method.Body);
+
+            EndScope();
+        }
+    }
+
+    #endregion
+}
