@@ -192,4 +192,99 @@ public static class RuntimeHelpers
     }
 
     #endregion
+
+    #region Function and Member Operations
+
+    /// <summary>
+    /// 関数を呼び出す
+    /// </summary>
+    public static object Invoke(object callee, ScriptContext ctx, object[] args)
+    {
+        if (callee == null)
+            throw new InvalidOperationException("Cannot invoke null");
+
+        if (callee is IroCallable callable)
+        {
+            return callable.Invoke(ctx, args);
+        }
+
+        throw new InvalidOperationException($"Object of type {callee.GetType().Name} is not callable");
+    }
+
+    /// <summary>
+    /// メンバを取得する
+    /// </summary>
+    public static object GetMember(object target, string name)
+    {
+        if (target == null)
+            throw new InvalidOperationException("Cannot get member of null");
+
+        if (target is IroInstance instance)
+        {
+            if (instance.Fields.TryGetValue(name, out var value))
+            {
+                return value;
+            }
+            throw new InvalidOperationException($"Field '{name}' not found on instance of {instance.Class.Name}");
+        }
+
+        throw new InvalidOperationException($"Cannot get member '{name}' on object of type {target.GetType().Name}");
+    }
+
+    /// <summary>
+    /// メンバを設定する
+    /// </summary>
+    public static object SetMember(object target, string name, object value)
+    {
+        if (target == null)
+            throw new InvalidOperationException("Cannot set member of null");
+
+        if (target is IroInstance instance)
+        {
+            instance.Fields[name] = value;
+            return value;
+        }
+
+        throw new InvalidOperationException($"Cannot set member '{name}' on object of type {target.GetType().Name}");
+    }
+
+    /// <summary>
+    /// インスタンスを生成する
+    /// </summary>
+    public static object NewInstance(string className, ScriptContext ctx, object[] args)
+    {
+        if (ctx == null)
+            throw new ArgumentNullException(nameof(ctx));
+
+        if (!ctx.Classes.TryGetValue(className, out var iroClass))
+        {
+            throw new InvalidOperationException($"Class '{className}' not found");
+        }
+
+        // 1. インスタンス生成
+        var instance = new IroInstance(iroClass);
+
+        // 2. フィールド初期化
+        foreach (var field in iroClass.Fields)
+        {
+            if (field.Initializer != null)
+            {
+                instance.Fields[field.Name] = field.Initializer;
+            }
+            else
+            {
+                instance.Fields[field.Name] = null!;
+            }
+        }
+
+        // 3. init メソッド呼び出し（存在する場合）
+        if (iroClass.Methods.TryGetValue("init", out var initMethod))
+        {
+            initMethod.Invoke(ctx, args);
+        }
+
+        return instance;
+    }
+
+    #endregion
 }

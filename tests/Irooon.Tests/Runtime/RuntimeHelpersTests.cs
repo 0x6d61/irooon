@@ -419,4 +419,237 @@ public class RuntimeHelpersTests
     }
 
     #endregion
+
+    #region Invoke Tests
+
+    [Fact]
+    public void Invoke_IroCallableを呼び出せる()
+    {
+        // Arrange
+        var ctx = new ScriptContext();
+        var callable = new TestCallable("result");
+        var args = new object[] { "arg1", "arg2" };
+
+        // Act
+        var result = RuntimeHelpers.Invoke(callable, ctx, args);
+
+        // Assert
+        Assert.Equal("result", result);
+    }
+
+    [Fact]
+    public void Invoke_IroCallableでない場合は例外を投げる()
+    {
+        // Arrange
+        var ctx = new ScriptContext();
+        var notCallable = "not a function";
+        var args = new object[] { };
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() =>
+            RuntimeHelpers.Invoke(notCallable, ctx, args));
+    }
+
+    #endregion
+
+    #region GetMember Tests
+
+    [Fact]
+    public void GetMember_IroInstanceのフィールドを取得できる()
+    {
+        // Arrange
+        var iroClass = new IroClass("TestClass");
+        var instance = new IroInstance(iroClass);
+        instance.Fields["fieldName"] = "fieldValue";
+
+        // Act
+        var result = RuntimeHelpers.GetMember(instance, "fieldName");
+
+        // Assert
+        Assert.Equal("fieldValue", result);
+    }
+
+    [Fact]
+    public void GetMember_存在しないフィールドは例外を投げる()
+    {
+        // Arrange
+        var iroClass = new IroClass("TestClass");
+        var instance = new IroInstance(iroClass);
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() =>
+            RuntimeHelpers.GetMember(instance, "nonExistent"));
+    }
+
+    [Fact]
+    public void GetMember_IroInstanceでない場合は例外を投げる()
+    {
+        // Arrange
+        var notInstance = "not an instance";
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() =>
+            RuntimeHelpers.GetMember(notInstance, "fieldName"));
+    }
+
+    #endregion
+
+    #region SetMember Tests
+
+    [Fact]
+    public void SetMember_IroInstanceのフィールドを設定できる()
+    {
+        // Arrange
+        var iroClass = new IroClass("TestClass");
+        var instance = new IroInstance(iroClass);
+
+        // Act
+        var result = RuntimeHelpers.SetMember(instance, "fieldName", "newValue");
+
+        // Assert
+        Assert.Equal("newValue", result);
+        Assert.Equal("newValue", instance.Fields["fieldName"]);
+    }
+
+    [Fact]
+    public void SetMember_既存フィールドを上書きできる()
+    {
+        // Arrange
+        var iroClass = new IroClass("TestClass");
+        var instance = new IroInstance(iroClass);
+        instance.Fields["fieldName"] = "oldValue";
+
+        // Act
+        var result = RuntimeHelpers.SetMember(instance, "fieldName", "newValue");
+
+        // Assert
+        Assert.Equal("newValue", result);
+        Assert.Equal("newValue", instance.Fields["fieldName"]);
+    }
+
+    [Fact]
+    public void SetMember_IroInstanceでない場合は例外を投げる()
+    {
+        // Arrange
+        var notInstance = "not an instance";
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() =>
+            RuntimeHelpers.SetMember(notInstance, "fieldName", "value"));
+    }
+
+    #endregion
+
+    #region NewInstance Tests
+
+    [Fact]
+    public void NewInstance_インスタンスを生成できる()
+    {
+        // Arrange
+        var ctx = new ScriptContext();
+        var iroClass = new IroClass("TestClass");
+        ctx.Classes["TestClass"] = iroClass;
+
+        // Act
+        var result = RuntimeHelpers.NewInstance("TestClass", ctx, new object[] { });
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.IsType<IroInstance>(result);
+        var instance = (IroInstance)result;
+        Assert.Equal(iroClass, instance.Class);
+    }
+
+    [Fact]
+    public void NewInstance_フィールド初期化が行われる()
+    {
+        // Arrange
+        var ctx = new ScriptContext();
+        var iroClass = new IroClass("TestClass");
+        var field = new FieldDef("testField", isPublic: true, isStatic: false)
+        {
+            Initializer = "initialValue"
+        };
+        iroClass.Fields.Add(field);
+        ctx.Classes["TestClass"] = iroClass;
+
+        // Act
+        var result = RuntimeHelpers.NewInstance("TestClass", ctx, new object[] { });
+
+        // Assert
+        var instance = (IroInstance)result;
+        Assert.Equal("initialValue", instance.Fields["testField"]);
+    }
+
+    [Fact]
+    public void NewInstance_initメソッドが呼ばれる()
+    {
+        // Arrange
+        var ctx = new ScriptContext();
+        var iroClass = new IroClass("TestClass");
+
+        // init メソッドを追加
+        var initCallable = new TestCallableWithSideEffect(ctx, "initCalled", "true");
+        iroClass.Methods["init"] = initCallable;
+
+        ctx.Classes["TestClass"] = iroClass;
+
+        // Act
+        var result = RuntimeHelpers.NewInstance("TestClass", ctx, new object[] { });
+
+        // Assert
+        Assert.Equal("true", ctx.Globals["initCalled"]);
+    }
+
+    [Fact]
+    public void NewInstance_存在しないクラスは例外を投げる()
+    {
+        // Arrange
+        var ctx = new ScriptContext();
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() =>
+            RuntimeHelpers.NewInstance("NonExistentClass", ctx, new object[] { }));
+    }
+
+    #endregion
+
+    #region Test Helper Classes
+
+    private class TestCallable : IroCallable
+    {
+        private readonly string _result;
+
+        public TestCallable(string result = "test result")
+        {
+            _result = result;
+        }
+
+        public object Invoke(ScriptContext ctx, object[] args)
+        {
+            return _result;
+        }
+    }
+
+    private class TestCallableWithSideEffect : IroCallable
+    {
+        private readonly ScriptContext _ctx;
+        private readonly string _key;
+        private readonly string _value;
+
+        public TestCallableWithSideEffect(ScriptContext ctx, string key, string value)
+        {
+            _ctx = ctx;
+            _key = key;
+            _value = value;
+        }
+
+        public object Invoke(ScriptContext ctx, object[] args)
+        {
+            _ctx.Globals[_key] = _value;
+            return null!;
+        }
+    }
+
+    #endregion
 }
