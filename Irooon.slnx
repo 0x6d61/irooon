@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Irooon.Cli/Irooon.Cli.csproj" />
+    <Project Path="src/Irooon.Core/Irooon.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Irooon.Tests/Irooon.Tests.csproj" />
+  </Folder>
+</Solution>
