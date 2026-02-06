@@ -11,7 +11,7 @@ public class IroClassTests
         var className = "TestClass";
 
         // Act
-        var iroClass = new IroClass(className);
+        var iroClass = new IroClass(className, Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
 
         // Assert
         Assert.Equal(className, iroClass.Name);
@@ -21,7 +21,7 @@ public class IroClassTests
     public void IroClass_初期化時にFieldsが空のリストとして作成される()
     {
         // Arrange & Act
-        var iroClass = new IroClass("TestClass");
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
 
         // Assert
         Assert.NotNull(iroClass.Fields);
@@ -32,7 +32,7 @@ public class IroClassTests
     public void IroClass_初期化時にMethodsが空の辞書として作成される()
     {
         // Arrange & Act
-        var iroClass = new IroClass("TestClass");
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
 
         // Assert
         Assert.NotNull(iroClass.Methods);
@@ -43,7 +43,7 @@ public class IroClassTests
     public void IroClass_初期化時にStaticMethodsが空の辞書として作成される()
     {
         // Arrange & Act
-        var iroClass = new IroClass("TestClass");
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
 
         // Assert
         Assert.NotNull(iroClass.StaticMethods);
@@ -54,11 +54,8 @@ public class IroClassTests
     public void IroClass_フィールドを追加できる()
     {
         // Arrange
-        var iroClass = new IroClass("TestClass");
-        var field = new FieldDef("testField", isPublic: true, isStatic: false);
-
-        // Act
-        iroClass.Fields.Add(field);
+        var field = new FieldDef("testField", isPublic: true);
+        var iroClass = new IroClass("TestClass", new[] { field }, Array.Empty<MethodDef>());
 
         // Assert
         Assert.Single(iroClass.Fields);
@@ -69,12 +66,10 @@ public class IroClassTests
     public void IroClass_メソッドを追加できる()
     {
         // Arrange
-        var iroClass = new IroClass("TestClass");
         var methodName = "testMethod";
         var method = new TestCallable();
-
-        // Act
-        iroClass.Methods[methodName] = method;
+        var methodDef = new MethodDef(methodName, isPublic: true, isStatic: false, method);
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), new[] { methodDef });
 
         // Assert
         Assert.Single(iroClass.Methods);
@@ -85,12 +80,10 @@ public class IroClassTests
     public void IroClass_スタティックメソッドを追加できる()
     {
         // Arrange
-        var iroClass = new IroClass("TestClass");
         var methodName = "staticMethod";
         var method = new TestCallable();
-
-        // Act
-        iroClass.StaticMethods[methodName] = method;
+        var methodDef = new MethodDef(methodName, isPublic: true, isStatic: true, method);
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), new[] { methodDef });
 
         // Assert
         Assert.Single(iroClass.StaticMethods);
@@ -101,7 +94,7 @@ public class IroClassTests
     public void IroInstance_クラスを指定して作成できる()
     {
         // Arrange
-        var iroClass = new IroClass("TestClass");
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
 
         // Act
         var instance = new IroInstance(iroClass);
@@ -114,7 +107,7 @@ public class IroClassTests
     public void IroInstance_初期化時にFieldsが空の辞書として作成される()
     {
         // Arrange
-        var iroClass = new IroClass("TestClass");
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
 
         // Act
         var instance = new IroInstance(iroClass);
@@ -128,7 +121,7 @@ public class IroClassTests
     public void IroInstance_フィールド値を設定して取得できる()
     {
         // Arrange
-        var iroClass = new IroClass("TestClass");
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
         var instance = new IroInstance(iroClass);
         var fieldName = "testField";
         var fieldValue = "testValue";
@@ -146,15 +139,14 @@ public class IroClassTests
         // Arrange
         var name = "testField";
         var isPublic = true;
-        var isStatic = false;
 
         // Act
-        var field = new FieldDef(name, isPublic, isStatic);
+        var field = new FieldDef(name, isPublic);
 
         // Assert
         Assert.Equal(name, field.Name);
         Assert.Equal(isPublic, field.IsPublic);
-        Assert.Equal(isStatic, field.IsStatic);
+        Assert.False(field.IsStatic); // v0.1ではstaticフィールド未対応
     }
 
     // テスト用のIroCallable実装

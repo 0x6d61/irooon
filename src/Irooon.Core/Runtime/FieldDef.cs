@@ -22,13 +22,15 @@ public class FieldDef
 
     /// <summary>
     /// 初期化式（オプション）
+    /// ScriptContextを受け取ってobjectを返す関数
     /// </summary>
-    public object? Initializer { get; set; }
+    public Func<ScriptContext, object?>? Initializer { get; set; }
 
-    public FieldDef(string name, bool isPublic, bool isStatic)
+    public FieldDef(string name, bool isPublic, Func<ScriptContext, object?>? initializer = null)
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));
         IsPublic = isPublic;
-        IsStatic = isStatic;
+        IsStatic = false; // v0.1ではstaticフィールド未対応
+        Initializer = initializer;
     }
 }

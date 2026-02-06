@@ -423,10 +423,64 @@ public class CodeGenerator
         throw new NotImplementedException("Task #15: Return statement not implemented yet");
     }
 
-    // Task #16: 関数とクロージャの実装（スタブ）
+    // Task #16: 関数とクロージャの実装（簡易実装）
+    /// <summary>
+    /// 関数呼び出しの変換
+    /// 仕様: RuntimeHelpers.Invoke(callee, ctx, args, thisArg)
+    /// </summary>
     private ExprTree GenerateCallExpr(CallExpr expr)
     {
-        throw new NotImplementedException("Task #16: Function call not implemented yet");
+        ExprTree calleeExpr;
+        ExprTree? thisArg = null;
+
+        // CalleeがMemberExprの場合、インスタンスメソッド呼び出し
+        if (expr.Callee is MemberExpr memberExpr)
+        {
+            var targetExpr = GenerateExpression(memberExpr.Target);
+            thisArg = targetExpr;
+
+            // メソッドを取得
+            calleeExpr = ExprTree.Call(
+                typeof(RuntimeHelpers),
+                "GetMember",
+                null,
+                targetExpr,
+                ExprTree.Constant(memberExpr.Name)
+            );
+        }
+        else
+        {
+            calleeExpr = GenerateExpression(expr.Callee);
+        }
+
+        var argExprs = expr.Arguments.Select(GenerateExpression).ToArray();
+        var argsArray = ExprTree.NewArrayInit(typeof(object), argExprs);
+
+        // RuntimeHelpers.Invoke(callee, ctx, args, thisArg)
+        if (thisArg != null)
+        {
+            return ExprTree.Call(
+                typeof(RuntimeHelpers),
+                "Invoke",
+                null,
+                calleeExpr,
+                _ctxParam,
+                argsArray,
+                thisArg
+            );
+        }
+        else
+        {
+            return ExprTree.Call(
+                typeof(RuntimeHelpers),
+                "Invoke",
+                null,
+                calleeExpr,
+                _ctxParam,
+                argsArray,
+                ExprTree.Constant(null, typeof(object))
+            );
+        }
     }
 
     private ExprTree GenerateLambdaExpr(LambdaExpr expr)
@@ -439,25 +493,179 @@ public class CodeGenerator
         throw new NotImplementedException("Task #16: Function definition not implemented yet");
     }
 
-    // Task #17: クラスとインスタンスの実装（スタブ）
-    private ExprTree GenerateMemberExpr(MemberExpr expr)
-    {
-        throw new NotImplementedException("Task #17: Member access not implemented yet");
-    }
+    // Task #17: クラスとインスタンスの実装
 
-    private ExprTree GenerateIndexExpr(IndexExpr expr)
-    {
-        throw new NotImplementedException("Task #17: Index access not implemented yet");
-    }
-
-    private ExprTree GenerateNewExpr(NewExpr expr)
-    {
-        throw new NotImplementedException("Task #17: New expression not implemented yet");
-    }
-
+    /// <summary>
+    /// クラス定義の変換
+    /// 仕様: IroClass オブジェクトを作成し、ctx.Classes に登録
+    /// </summary>
     private ExprTree GenerateClassDef(ClassDef stmt)
     {
-        throw new NotImplementedException("Task #17: Class definition not implemented yet");
+        // フィールド定義を変換
+        var fieldDefs = stmt.Fields.Select(f =>
+        {
+            ExprTree? initExpr = null;
+            if (f.Initializer != null)
+            {
+                // 初期化式をLambdaにコンパイル
+                var initLambda = ExprTree.Lambda<Func<ScriptContext, object?>>(
+                    GenerateExpression(f.Initializer),
+                    _ctxParam
+                );
+                initExpr = ExprTree.Constant(initLambda.Compile());
+            }
+
+            var nullInit = ExprTree.Constant(null, typeof(Func<ScriptContext, object?>));
+
+            return ExprTree.New(
+                typeof(Runtime.FieldDef).GetConstructor(new[] {
+                    typeof(string),
+                    typeof(bool),
+                    typeof(Func<ScriptContext, object?>)
+                })!,
+                ExprTree.Constant(f.Name),
+                ExprTree.Constant(f.IsPublic),
+                initExpr ?? nullInit
+            );
+        }).ToArray();
+
+        var fieldsArray = ExprTree.NewArrayInit(typeof(Runtime.FieldDef), fieldDefs);
+
+        // メソッド定義を変換
+        var methodDefs = stmt.Methods.Select(m =>
+        {
+            // メソッド本体をClosureにコンパイル
+            var argsParam = ExprTree.Parameter(typeof(object[]), "args");
+            var ctxParamForFunc = ExprTree.Parameter(typeof(ScriptContext), "ctx");
+
+            // 一時的にctxParamを切り替える
+            var savedCtxParam = _ctxParam;
+            _ctxParam = ctxParamForFunc;
+
+            var bodyExprs = new List<ExprTree>();
+
+            // 引数を ctx.Globals に格納
+            for (int i = 0; i < m.Parameters.Count; i++)
+            {
+                var param = m.Parameters[i];
+                var argAccess = ExprTree.ArrayIndex(argsParam, ExprTree.Constant(i));
+                var globalsExpr = ExprTree.Property(ctxParamForFunc, "Globals");
+                var paramName = ExprTree.Constant(param.Name);
+                var itemProperty = ExprTree.Property(globalsExpr, "Item", paramName);
+                bodyExprs.Add(ExprTree.Assign(itemProperty, argAccess));
+            }
+
+            // メソッド本体を追加
+            bodyExprs.Add(GenerateExpression(m.Body));
+
+            // ctxParamを元に戻す
+            _ctxParam = savedCtxParam;
+
+            var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
+            var lambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(
+                bodyBlock,
+                ctxParamForFunc,
+                argsParam
+            );
+
+            var compiled = lambda.Compile();
+            var closure = new Closure(m.Name, compiled);
+
+            return ExprTree.New(
+                typeof(Runtime.MethodDef).GetConstructor(new[] {
+                    typeof(string),
+                    typeof(bool),
+                    typeof(bool),
+                    typeof(IroCallable)
+                })!,
+                ExprTree.Constant(m.Name),
+                ExprTree.Constant(m.IsPublic),
+                ExprTree.Constant(m.IsStatic),
+                ExprTree.Constant(closure, typeof(IroCallable))
+            );
+        }).ToArray();
+
+        var methodsArray = ExprTree.NewArrayInit(typeof(Runtime.MethodDef), methodDefs);
+
+        // IroClass を作成
+        var classNew = ExprTree.New(
+            typeof(IroClass).GetConstructor(new[] {
+                typeof(string),
+                typeof(Runtime.FieldDef[]),
+                typeof(Runtime.MethodDef[])
+            })!,
+            ExprTree.Constant(stmt.Name),
+            fieldsArray,
+            methodsArray
+        );
+
+        // ctx.Classes[name] = class
+        var classesExpr = ExprTree.Property(_ctxParam, "Classes");
+        var nameExpr = ExprTree.Constant(stmt.Name);
+        var itemProperty = ExprTree.Property(classesExpr, "Item", nameExpr);
+
+        return ExprTree.Assign(itemProperty, classNew);
+    }
+
+    /// <summary>
+    /// インスタンス生成の変換
+    /// 仕様: Runtime.NewInstance(className, ctx, args)
+    /// </summary>
+    private ExprTree GenerateNewExpr(NewExpr expr)
+    {
+        var argExprs = expr.Arguments.Select(GenerateExpression).ToArray();
+        var argsArray = ExprTree.NewArrayInit(typeof(object), argExprs);
+
+        // Runtime.NewInstance(className, ctx, args)
+        return ExprTree.Call(
+            typeof(RuntimeHelpers),
+            "NewInstance",
+            null,
+            ExprTree.Constant(expr.ClassName),
+            _ctxParam,
+            argsArray
+        );
+    }
+
+    /// <summary>
+    /// メンバアクセスの変換
+    /// 仕様: Runtime.GetMember(target, name)
+    /// </summary>
+    private ExprTree GenerateMemberExpr(MemberExpr expr)
+    {
+        var targetExpr = GenerateExpression(expr.Target);
+
+        // Runtime.GetMember(target, name)
+        return ExprTree.Call(
+            typeof(RuntimeHelpers),
+            "GetMember",
+            null,
+            targetExpr,
+            ExprTree.Constant(expr.Name)
+        );
+    }
+
+    /// <summary>
+    /// インデックスアクセスの変換
+    /// 仕様: v0.1では RuntimeHelpers.GetMember を使用（簡易実装）
+    /// </summary>
+    private ExprTree GenerateIndexExpr(IndexExpr expr)
+    {
+        var targetExpr = GenerateExpression(expr.Target);
+        var indexExpr = GenerateExpression(expr.Index);
+
+        // indexExprをstringにキャスト
+        var indexAsString = ExprTree.Convert(indexExpr, typeof(string));
+
+        // 配列/辞書アクセスとして扱う（簡易実装）
+        // v0.1では RuntimeHelpers.GetMember を使用
+        return ExprTree.Call(
+            typeof(RuntimeHelpers),
+            "GetMember",
+            null,
+            targetExpr,
+            indexAsString
+        );
     }
 
     #endregion

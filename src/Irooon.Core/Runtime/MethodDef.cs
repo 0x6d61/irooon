@@ -21,20 +21,15 @@ public class MethodDef
     public bool IsStatic { get; }
 
     /// <summary>
-    /// パラメータ名のリスト
-    /// </summary>
-    public List<string> Parameters { get; }
-
-    /// <summary>
     /// メソッド本体（IroCallableとして）
     /// </summary>
-    public IroCallable? Body { get; set; }
+    public IroCallable Body { get; }
 
-    public MethodDef(string name, bool isPublic, bool isStatic, List<string> parameters)
+    public MethodDef(string name, bool isPublic, bool isStatic, IroCallable body)
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));
         IsPublic = isPublic;
         IsStatic = isStatic;
-        Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
+        Body = body ?? throw new ArgumentNullException(nameof(body));
     }
 }

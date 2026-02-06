@@ -197,15 +197,69 @@ public static class RuntimeHelpers
 
     /// <summary>
     /// 関数を呼び出す
+    /// インスタンスメソッドの場合、インスタンスのフィールドをGlobalsに展開する
     /// </summary>
-    public static object Invoke(object callee, ScriptContext ctx, object[] args)
+    public static object Invoke(object callee, ScriptContext ctx, object[] args, object? thisArg = null)
     {
         if (callee == null)
             throw new InvalidOperationException("Cannot invoke null");
 
         if (callee is IroCallable callable)
         {
-            return callable.Invoke(ctx, args);
+            // thisArgがIroInstanceの場合、フィールドをGlobalsに展開
+            Dictionary<string, object>? savedFields = null;
+            IroInstance? instance = thisArg as IroInstance;
+
+            if (instance != null)
+            {
+                // 既存のフィールド名と衝突する場合に備えて保存
+                savedFields = new Dictionary<string, object>();
+                foreach (var field in instance.Fields)
+                {
+                    if (ctx.Globals.TryGetValue(field.Key, out var savedValue))
+                    {
+                        savedFields[field.Key] = savedValue;
+                    }
+                    ctx.Globals[field.Key] = field.Value;
+                }
+            }
+
+            try
+            {
+                var result = callable.Invoke(ctx, args);
+
+                // インスタンスのフィールドをGlobalsから逆反映
+                if (instance != null)
+                {
+                    foreach (var fieldName in instance.Fields.Keys.ToList())
+                    {
+                        if (ctx.Globals.TryGetValue(fieldName, out var newValue))
+                        {
+                            instance.Fields[fieldName] = newValue;
+                        }
+                    }
+                }
+
+                return result;
+            }
+            finally
+            {
+                // フィールドをGlobalsから削除し、元の値を復元
+                if (instance != null && savedFields != null)
+                {
+                    foreach (var fieldName in instance.Fields.Keys)
+                    {
+                        if (savedFields.TryGetValue(fieldName, out var savedValue))
+                        {
+                            ctx.Globals[fieldName] = savedValue;
+                        }
+                        else
+                        {
+                            ctx.Globals.Remove(fieldName);
+                        }
+                    }
+                }
+            }
         }
 
         throw new InvalidOperationException($"Object of type {callee.GetType().Name} is not callable");
@@ -221,11 +275,19 @@ public static class RuntimeHelpers
 
         if (target is IroInstance instance)
         {
-            if (instance.Fields.TryGetValue(name, out var value))
+            // フィールドを優先
+            if (instance.Fields.TryGetValue(name, out var fieldValue))
             {
-                return value;
+                return fieldValue;
             }
-            throw new InvalidOperationException($"Field '{name}' not found on instance of {instance.Class.Name}");
+
+            // メソッドを検索
+            if (instance.Class.Methods.TryGetValue(name, out var method))
+            {
+                return method;
+            }
+
+            throw new InvalidOperationException($"Member '{name}' not found on instance of {instance.Class.Name}");
         }
 
         throw new InvalidOperationException($"Cannot get member '{name}' on object of type {target.GetType().Name}");
@@ -269,7 +331,9 @@ public static class RuntimeHelpers
         {
             if (field.Initializer != null)
             {
-                instance.Fields[field.Name] = field.Initializer;
+                // Initializerを実行して値を取得
+                var value = field.Initializer(ctx);
+                instance.Fields[field.Name] = value ?? null!;
             }
             else
             {
@@ -280,7 +344,7 @@ public static class RuntimeHelpers
         // 3. init メソッド呼び出し（存在する場合）
         if (iroClass.Methods.TryGetValue("init", out var initMethod))
         {
-            initMethod.Invoke(ctx, args);
+            Invoke(initMethod, ctx, args, instance);
         }
 
         return instance;

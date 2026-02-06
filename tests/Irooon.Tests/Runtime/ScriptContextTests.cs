@@ -47,7 +47,7 @@ public class ScriptContextTests
         // Arrange
         var context = new ScriptContext();
         var className = "TestClass";
-        var testClass = new IroClass(className);
+        var testClass = new IroClass(className, Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
 
         // Act
         context.Classes[className] = testClass;

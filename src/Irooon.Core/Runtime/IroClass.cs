@@ -25,11 +25,27 @@ public class IroClass
     /// </summary>
     public Dictionary<string, IroCallable> StaticMethods { get; }
 
-    public IroClass(string name)
+    public IroClass(string name, FieldDef[] fields, MethodDef[] methods)
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));
-        Fields = new List<FieldDef>();
+        Fields = new List<FieldDef>(fields ?? Array.Empty<FieldDef>());
         Methods = new Dictionary<string, IroCallable>();
         StaticMethods = new Dictionary<string, IroCallable>();
+
+        // メソッドを辞書に追加
+        if (methods != null)
+        {
+            foreach (var method in methods)
+            {
+                if (method.IsStatic)
+                {
+                    StaticMethods[method.Name] = method.Body;
+                }
+                else
+                {
+                    Methods[method.Name] = method.Body;
+                }
+            }
+        }
     }
 }

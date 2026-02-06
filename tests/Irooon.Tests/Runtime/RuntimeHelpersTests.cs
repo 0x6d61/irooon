@@ -458,7 +458,7 @@ public class RuntimeHelpersTests
     public void GetMember_IroInstanceのフィールドを取得できる()
     {
         // Arrange
-        var iroClass = new IroClass("TestClass");
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
         var instance = new IroInstance(iroClass);
         instance.Fields["fieldName"] = "fieldValue";
 
@@ -473,7 +473,7 @@ public class RuntimeHelpersTests
     public void GetMember_存在しないフィールドは例外を投げる()
     {
         // Arrange
-        var iroClass = new IroClass("TestClass");
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
         var instance = new IroInstance(iroClass);
 
         // Act & Assert
@@ -500,7 +500,7 @@ public class RuntimeHelpersTests
     public void SetMember_IroInstanceのフィールドを設定できる()
     {
         // Arrange
-        var iroClass = new IroClass("TestClass");
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
         var instance = new IroInstance(iroClass);
 
         // Act
@@ -515,7 +515,7 @@ public class RuntimeHelpersTests
     public void SetMember_既存フィールドを上書きできる()
     {
         // Arrange
-        var iroClass = new IroClass("TestClass");
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
         var instance = new IroInstance(iroClass);
         instance.Fields["fieldName"] = "oldValue";
 
@@ -547,7 +547,7 @@ public class RuntimeHelpersTests
     {
         // Arrange
         var ctx = new ScriptContext();
-        var iroClass = new IroClass("TestClass");
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
         ctx.Classes["TestClass"] = iroClass;
 
         // Act
@@ -565,12 +565,8 @@ public class RuntimeHelpersTests
     {
         // Arrange
         var ctx = new ScriptContext();
-        var iroClass = new IroClass("TestClass");
-        var field = new FieldDef("testField", isPublic: true, isStatic: false)
-        {
-            Initializer = "initialValue"
-        };
-        iroClass.Fields.Add(field);
+        var field = new FieldDef("testField", isPublic: true, initializer: (ctx) => "initialValue");
+        var iroClass = new IroClass("TestClass", new[] { field }, Array.Empty<MethodDef>());
         ctx.Classes["TestClass"] = iroClass;
 
         // Act
@@ -586,11 +582,11 @@ public class RuntimeHelpersTests
     {
         // Arrange
         var ctx = new ScriptContext();
-        var iroClass = new IroClass("TestClass");
 
         // init メソッドを追加
         var initCallable = new TestCallableWithSideEffect(ctx, "initCalled", "true");
-        iroClass.Methods["init"] = initCallable;
+        var initMethod = new MethodDef("init", isPublic: true, isStatic: false, initCallable);
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), new[] { initMethod });
 
         ctx.Classes["TestClass"] = iroClass;
 
