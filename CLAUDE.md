@@ -66,10 +66,10 @@ irooon/
 ### Phase 4: AST ✅
 - [x] Expression/Statement/ClassDef ノード定義
 
-### Phase 5: Parser ⏳
-- [ ] Parser基本式（リテラル、演算子、変数）
-- [ ] Parser制御構造（if, while, block）
-- [ ] Parser関数・クラス
+### Phase 5: Parser ✅
+- [x] Parser基本式（リテラル、演算子、変数）
+- [x] Parser制御構造（if, while, block）
+- [x] Parser関数・クラス
 
 ### Phase 6: Resolver ⏳
 - [ ] スコープ解析
@@ -132,16 +132,26 @@ irooon/
 - ✅ 38個のテスト全て合格
 - ✅ コミット: 1件
 
-**並列作業の成果:**
+**並列作業の成果（第1弾）:**
 3チーム（Runtime, Lexer, AST）を同時に稼働させ、効率的に実装完了！
 - **合計テスト数**: 129個
 - **成功率**: 100%
 
+**Task #9-11: Parser実装（完了）🎉**
+- ✅ Task #9: Parser基本式（リテラル、演算子、変数、関数呼び出し）- 43個のテスト
+- ✅ Task #10: Parser制御構造（if, while, return, block）- 12個のテスト
+- ✅ Task #11: Parser関数・クラス（関数定義、ラムダ、クラス定義）- 33個のテスト
+- ✅ 合計88個の新規テスト、全て合格
+- ✅ コミット: 1件
+
+**並列作業の成果（第2弾）:**
+2チーム（制御構造、関数・クラス）を同時に稼働させ、効率的に実装完了！
+- **全体テスト数**: 221個
+- **成功率**: 100%
+
 #### 次のステップ 📋
-**Phase 5: Parser実装**
-- Task #9: Parser基本式（リテラル、演算子、変数）
-- Task #10: Parser制御構造（if, while, block）
-- Task #11: Parser関数・クラス
+**Phase 6: Resolver実装**
+- Task #12: スコープ解析、変数バインディング
 
 ---
 
@@ -190,5 +200,5 @@ irooon/
 
 ---
 
-**最終更新:** 2026-02-07 19:30 JST
-**進捗**: Phase 1-4 完了（Runtime, Lexer, AST） / Phase 5 Parser開始予定
+**最終更新:** 2026-02-07 21:00 JST
+**進捗**: Phase 1-5 完了（Runtime, Lexer, AST, Parser） / Phase 6 Resolver開始予定
