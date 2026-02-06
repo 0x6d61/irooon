@@ -187,9 +187,10 @@ public class CodeGenerator
         {
             expressions.Add(GenerateExpression(expr.Expression));
         }
-        else
+        else if (expressions.Count == 0 || expr.Statements.Count == 0 ||
+                 expr.Statements[^1] is not ReturnStmt)
         {
-            // 最後が文のみの場合はnull
+            // 最後が文のみの場合（return文以外）はnullを追加
             expressions.Add(ExprTree.Constant(null, typeof(object)));
         }
 
@@ -445,7 +446,8 @@ public class CodeGenerator
     /// </summary>
     private ExprTree GenerateWhileStmt(WhileStmt stmt)
     {
-        var breakLabel = ExprTree.Label(typeof(object));
+        var labelName = $"whileBreak_{_labelCounter++}";
+        var breakLabel = ExprTree.Label(labelName);
         var condExpr = GenerateExpression(stmt.Condition);
         var bodyExpr = GenerateStatement(stmt.Body);
 
@@ -460,7 +462,7 @@ public class CodeGenerator
         // if (!truthy) break;
         var breakIfFalse = ExprTree.IfThen(
             ExprTree.Not(truthyCall),
-            ExprTree.Break(breakLabel, ExprTree.Constant(null, typeof(object)))
+            ExprTree.Break(breakLabel)
         );
 
         // Loop body
@@ -470,11 +472,14 @@ public class CodeGenerator
             bodyExpr
         );
 
-        // Loop + Label
+        // Expression.Loop without break label, then manually add label and null
+        // Loopはbreak labelなしで無限ループを作成
+        // breakは明示的に配置したラベルにジャンプ
         return ExprTree.Block(
             typeof(object),
-            ExprTree.Loop(loopBody, breakLabel),
-            ExprTree.Label(breakLabel, ExprTree.Constant(null, typeof(object)))
+            ExprTree.Loop(loopBody),
+            ExprTree.Label(breakLabel),
+            ExprTree.Constant(null, typeof(object))
         );
     }
 

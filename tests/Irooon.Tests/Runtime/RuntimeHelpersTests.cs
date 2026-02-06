@@ -41,7 +41,7 @@ public class RuntimeHelpersTests
     {
         // Act & Assert
         Assert.True(RuntimeHelpers.IsTruthy(1.0));
-        Assert.True(RuntimeHelpers.IsTruthy(0.0));
+        Assert.False(RuntimeHelpers.IsTruthy(0.0)); // 0はfalsy
         Assert.True(RuntimeHelpers.IsTruthy(-5.5));
     }
 
@@ -50,7 +50,7 @@ public class RuntimeHelpersTests
     {
         // Act & Assert
         Assert.True(RuntimeHelpers.IsTruthy("hello"));
-        Assert.True(RuntimeHelpers.IsTruthy(""));
+        Assert.False(RuntimeHelpers.IsTruthy("")); // 空文字列はfalsy
     }
 
     [Fact]

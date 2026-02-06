@@ -12,6 +12,8 @@ public static class RuntimeHelpers
     /// 値がtruthyかどうかを判定
     /// - null → false
     /// - bool → そのまま
+    /// - 数値0、0.0 → false
+    /// - 空文字列 → false
     /// - それ以外 → true
     /// </summary>
     public static bool IsTruthy(object? v)
@@ -21,6 +23,14 @@ public static class RuntimeHelpers
 
         if (v is bool b)
             return b;
+
+        // 数値0は false
+        if (v is double d && d == 0.0)
+            return false;
+
+        // 空文字列は false
+        if (v is string s && s.Length == 0)
+            return false;
 
         // それ以外は全てtrue
         return true;
