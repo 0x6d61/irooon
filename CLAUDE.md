@@ -71,9 +71,9 @@ irooon/
 - [x] Parser制御構造（if, while, block）
 - [x] Parser関数・クラス
 
-### Phase 6: Resolver ⏳
-- [ ] スコープ解析
-- [ ] 変数バインディング
+### Phase 6: Resolver ✅
+- [x] スコープ解析
+- [x] 変数バインディング
 
 ### Phase 7: CodeGen ⏳
 - [ ] ExpressionTree生成（基本式）
