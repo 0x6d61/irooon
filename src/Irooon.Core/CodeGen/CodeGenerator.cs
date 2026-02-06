@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Irooon.Core.Ast;
 using Irooon.Core.Ast.Expressions;
 using Irooon.Core.Ast.Statements;
+using Irooon.Core.Lexer;
 using Irooon.Core.Runtime;
 using ExprTree = System.Linq.Expressions.Expression;
 using AstExpr = Irooon.Core.Ast.Expression;
@@ -196,18 +197,215 @@ public class CodeGenerator
 
     #endregion
 
-    #region Task #14以降の実装（スタブ）
+    #region Task #14: 演算子の実装
 
-    // Task #14: 演算子の実装（スタブ）
+    /// <summary>
+    /// 二項演算式の変換
+    /// 仕様: すべてRuntimeHelpersに委譲
+    /// </summary>
     private ExprTree GenerateBinaryExpr(BinaryExpr expr)
     {
-        throw new NotImplementedException("Task #14: Binary operators not implemented yet");
+        var left = GenerateExpression(expr.Left);
+        var right = GenerateExpression(expr.Right);
+
+        var runtimeType = typeof(RuntimeHelpers);
+
+        return expr.Operator switch
+        {
+            // 算術演算子
+            TokenType.Plus => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Add),
+                null,
+                left,
+                right
+            ),
+            TokenType.Minus => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Sub),
+                null,
+                left,
+                right
+            ),
+            TokenType.Star => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Mul),
+                null,
+                left,
+                right
+            ),
+            TokenType.Slash => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Div),
+                null,
+                left,
+                right
+            ),
+            TokenType.Percent => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Mod),
+                null,
+                left,
+                right
+            ),
+
+            // 比較演算子
+            TokenType.EqualEqual => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Eq),
+                null,
+                left,
+                right
+            ),
+            TokenType.BangEqual => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Ne),
+                null,
+                left,
+                right
+            ),
+            TokenType.Less => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Lt),
+                null,
+                left,
+                right
+            ),
+            TokenType.LessEqual => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Le),
+                null,
+                left,
+                right
+            ),
+            TokenType.Greater => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Gt),
+                null,
+                left,
+                right
+            ),
+            TokenType.GreaterEqual => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Ge),
+                null,
+                left,
+                right
+            ),
+
+            // 論理演算子（短絡評価）
+            TokenType.And => GenerateAndExpr(expr),
+            TokenType.Or => GenerateOrExpr(expr),
+
+            _ => throw new NotImplementedException($"Operator {expr.Operator} not implemented")
+        };
     }
 
+    /// <summary>
+    /// 論理AND演算子の短絡評価
+    /// 仕様: a and b → truthy(a) ? b : a
+    /// </summary>
+    private ExprTree GenerateAndExpr(BinaryExpr expr)
+    {
+        var left = GenerateExpression(expr.Left);
+        var right = GenerateExpression(expr.Right);
+
+        // 左辺を一時変数に格納（一度だけ評価）
+        var tmpVar = ExprTree.Variable(typeof(object), "tmp");
+        var runtimeType = typeof(RuntimeHelpers);
+
+        // IsTruthy(tmp)
+        var truthyCall = ExprTree.Call(
+            runtimeType,
+            nameof(RuntimeHelpers.IsTruthy),
+            null,
+            tmpVar
+        );
+
+        // truthy(tmp) ? right : tmp
+        var condition = ExprTree.Condition(
+            truthyCall,
+            right,
+            tmpVar,
+            typeof(object)
+        );
+
+        // Block { tmp = left; condition; }
+        return ExprTree.Block(
+            new[] { tmpVar },
+            ExprTree.Assign(tmpVar, left),
+            condition
+        );
+    }
+
+    /// <summary>
+    /// 論理OR演算子の短絡評価
+    /// 仕様: a or b → truthy(a) ? a : b
+    /// </summary>
+    private ExprTree GenerateOrExpr(BinaryExpr expr)
+    {
+        var left = GenerateExpression(expr.Left);
+        var right = GenerateExpression(expr.Right);
+
+        var tmpVar = ExprTree.Variable(typeof(object), "tmp");
+        var runtimeType = typeof(RuntimeHelpers);
+
+        var truthyCall = ExprTree.Call(
+            runtimeType,
+            nameof(RuntimeHelpers.IsTruthy),
+            null,
+            tmpVar
+        );
+
+        // truthy(tmp) ? tmp : right
+        var condition = ExprTree.Condition(
+            truthyCall,
+            tmpVar,
+            right,
+            typeof(object)
+        );
+
+        return ExprTree.Block(
+            new[] { tmpVar },
+            ExprTree.Assign(tmpVar, left),
+            condition
+        );
+    }
+
+    /// <summary>
+    /// 単項演算式の変換
+    /// 仕様: すべてRuntimeHelpersに委譲
+    /// </summary>
     private ExprTree GenerateUnaryExpr(UnaryExpr expr)
     {
-        throw new NotImplementedException("Task #14: Unary operators not implemented yet");
+        var operand = GenerateExpression(expr.Operand);
+        var runtimeType = typeof(RuntimeHelpers);
+
+        return expr.Operator switch
+        {
+            TokenType.Minus => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Sub),
+                null,
+                ExprTree.Convert(
+                    ExprTree.Constant(0.0, typeof(double)),
+                    typeof(object)
+                ),
+                operand
+            ),
+            TokenType.Not => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.Not),
+                null,
+                operand
+            ),
+            _ => throw new NotImplementedException($"Unary operator {expr.Operator} not implemented")
+        };
     }
+
+    #endregion
+
+    #region Task #15以降の実装（スタブ）
 
     // Task #15: 制御構造の実装（スタブ）
     private ExprTree GenerateIfExpr(IfExpr expr)
