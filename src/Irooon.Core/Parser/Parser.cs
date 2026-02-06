@@ -45,8 +45,11 @@ public class Parser
 
         while (!IsAtEnd())
         {
-            // 文をパース
-            if (Check(TokenType.Let) || Check(TokenType.Var))
+            // fn の後が ( ならラムダ式（式として扱う）
+            bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
+
+            // 文をパース（関数定義、クラス定義、変数宣言）
+            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.Return))
             {
                 statements.Add(Statement());
                 // 文の後の改行をスキップ
@@ -264,6 +267,7 @@ public class Parser
 
     /// <summary>
     /// 関数呼び出しの引数リストをパースします。
+    /// 識別子が大文字で始まる場合は NewExpr として扱います。
     /// </summary>
     private Expression FinishCall(Expression callee)
     {
@@ -280,14 +284,47 @@ public class Parser
 
         Consume(TokenType.RightParen, "Expect ')' after arguments.");
 
+        // 識別子が大文字で始まる場合は NewExpr として扱う
+        if (callee is IdentifierExpr identExpr && char.IsUpper(identExpr.Name[0]))
+        {
+            return new NewExpr(identExpr.Name, arguments, paren.Line, paren.Column);
+        }
+
         return new CallExpr(callee, arguments, paren.Line, paren.Column);
     }
 
     /// <summary>
-    /// プライマリ式（リテラル、識別子、括弧式）をパースします。
+    /// プライマリ式（リテラル、識別子、括弧式、if式、ブロック式、ラムダ式）をパースします。
     /// </summary>
     private Expression Primary()
     {
+        // ラムダ式: fn (params) { body }
+        if (Match(TokenType.Fn))
+        {
+            // 次が ( ならラムダ式
+            if (Check(TokenType.LeftParen))
+            {
+                return LambdaExpression();
+            }
+            else
+            {
+                // fnの後に識別子がない場合はエラー（関数定義は式ではなく文）
+                throw Error(Peek(), "Expect '(' for lambda expression.");
+            }
+        }
+
+        // if式
+        if (Match(TokenType.If))
+        {
+            return IfExpression();
+        }
+
+        // ブロック式
+        if (Match(TokenType.LeftBrace))
+        {
+            return BlockExpression();
+        }
+
         // true
         if (Match(TokenType.True))
         {
@@ -341,6 +378,101 @@ public class Parser
         throw Error(Peek(), "Expect expression.");
     }
 
+    /// <summary>
+    /// ブロック式をパースします。
+    /// { stmt* expr? }
+    /// </summary>
+    private BlockExpr BlockExpression()
+    {
+        var leftBrace = Previous();
+        var statements = new List<Statement>();
+        Expression? finalExpr = null;
+
+        // 改行をスキップ
+        while (Match(TokenType.Newline)) { }
+
+        while (!Check(TokenType.RightBrace) && !IsAtEnd())
+        {
+            // fn の後が ( ならラムダ式（式として扱う）
+            bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
+
+            // 文の場合（fn, class, while, return, let, var）
+            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.While) || Check(TokenType.Return) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.Return))
+            {
+                statements.Add(Statement());
+                // 文の後の改行をスキップ
+                while (Match(TokenType.Newline)) { }
+            }
+            else
+            {
+                // 式をパース
+                var expr = Expression();
+
+                // 次が } または EOF なら、これが最後の式
+                if (Check(TokenType.RightBrace) || IsAtEnd())
+                {
+                    finalExpr = expr;
+                    break;
+                }
+
+                // 次が改行なら、その後を確認
+                if (Check(TokenType.Newline))
+                {
+                    while (Match(TokenType.Newline)) { }
+
+                    // 改行の後が } なら、これが最後の式
+                    if (Check(TokenType.RightBrace) || IsAtEnd())
+                    {
+                        finalExpr = expr;
+                        break;
+                    }
+
+                    // 改行の後も続く場合は、この式を式文として扱う
+                    statements.Add(new ExprStmt(expr, expr.Line, expr.Column));
+                }
+                else
+                {
+                    // 次も式が続く場合は、この式を式文として扱う
+                    statements.Add(new ExprStmt(expr, expr.Line, expr.Column));
+                }
+            }
+        }
+
+        Consume(TokenType.RightBrace, "Expect '}' after block.");
+
+        return new BlockExpr(statements, finalExpr, leftBrace.Line, leftBrace.Column);
+    }
+
+    /// <summary>
+    /// if式をパースします。
+    /// if (cond) { thenExpr } else { elseExpr }
+    /// </summary>
+    private IfExpr IfExpression()
+    {
+        var ifToken = Previous();
+
+        // 条件式をパース
+        Consume(TokenType.LeftParen, "Expect '(' after 'if'.");
+        var condition = Expression();
+        Consume(TokenType.RightParen, "Expect ')' after if condition.");
+
+        // then ブランチをパース（必ずブロック）
+        Consume(TokenType.LeftBrace, "Expect '{' after if condition.");
+        var thenBranch = BlockExpression();
+
+        // 改行をスキップ
+        while (Match(TokenType.Newline)) { }
+
+        // else は必須
+        Consume(TokenType.Else, "Expect 'else' after if then branch.");
+
+        // else ブランチをパース（必ずブロック）
+        Consume(TokenType.LeftBrace, "Expect '{' after 'else'.");
+        var elseBranch = BlockExpression();
+
+        return new IfExpr(condition, thenBranch, elseBranch, ifToken.Line, ifToken.Column);
+    }
+
     #endregion
 
     #region 文のパース
@@ -350,6 +482,16 @@ public class Parser
     /// </summary>
     private Statement Statement()
     {
+        if (Match(TokenType.Fn))
+        {
+            return FunctionDefinition();
+        }
+
+        if (Match(TokenType.Class))
+        {
+            return ClassDefinition();
+        }
+
         if (Match(TokenType.Let))
         {
             return LetStatement();
@@ -360,7 +502,58 @@ public class Parser
             return VarStatement();
         }
 
+        if (Match(TokenType.While))
+        {
+            return WhileStatement();
+        }
+
+        if (Match(TokenType.Return))
+        {
+            return ReturnStatement();
+        }
+
         return ExpressionStatement();
+    }
+
+    /// <summary>
+    /// while文をパースします。
+    /// while (cond) { body }
+    /// </summary>
+    private Statement WhileStatement()
+    {
+        var whileToken = Previous();
+
+        // 条件式をパース
+        Consume(TokenType.LeftParen, "Expect '(' after 'while'.");
+        var condition = Expression();
+        Consume(TokenType.RightParen, "Expect ')' after while condition.");
+
+        // body をパース（必ずブロック）
+        Consume(TokenType.LeftBrace, "Expect '{' after while condition.");
+        var bodyExpr = BlockExpression();
+
+        // BlockExpr を ExprStmt でラップ
+        var body = new ExprStmt(bodyExpr, bodyExpr.Line, bodyExpr.Column);
+
+        return new WhileStmt(condition, body, whileToken.Line, whileToken.Column);
+    }
+
+    /// <summary>
+    /// return文をパースします。
+    /// return expr?
+    /// </summary>
+    private Statement ReturnStatement()
+    {
+        var returnToken = Previous();
+        Expression? value = null;
+
+        // 改行、EOF、または } の前でない場合は、式をパース
+        if (!Check(TokenType.Newline) && !IsAtEnd() && !Check(TokenType.RightBrace))
+        {
+            value = Expression();
+        }
+
+        return new ReturnStmt(value, returnToken.Line, returnToken.Column);
     }
 
     /// <summary>
@@ -400,6 +593,194 @@ public class Parser
 
     #endregion
 
+    #region 関数・クラスのパース
+
+    /// <summary>
+    /// 関数定義をパースします。
+    /// fn name(params) { body }
+    /// </summary>
+    private FunctionDef FunctionDefinition()
+    {
+        var fnToken = Previous();
+        var name = Consume(TokenType.Identifier, "Expect function name.");
+
+        // パラメータリストをパース
+        var parameters = Parameters();
+
+        // body をパース（必ずブロック）
+        Consume(TokenType.LeftBrace, "Expect '{' before function body.");
+        var body = BlockExpression();
+
+        return new FunctionDef(name.Lexeme, parameters, body, fnToken.Line, fnToken.Column);
+    }
+
+    /// <summary>
+    /// ラムダ式をパースします。
+    /// fn (params) { body }
+    /// </summary>
+    private LambdaExpr LambdaExpression()
+    {
+        var fnToken = Previous();
+
+        // パラメータリストをパース
+        var parameters = Parameters();
+
+        // body をパース（必ずブロック）
+        Consume(TokenType.LeftBrace, "Expect '{' before lambda body.");
+        var body = BlockExpression();
+
+        return new LambdaExpr(parameters, body, fnToken.Line, fnToken.Column);
+    }
+
+    /// <summary>
+    /// パラメータリストをパースします（関数定義・ラムダ式・メソッド定義共通）。
+    /// (param1, param2, ...)
+    /// </summary>
+    private List<Parameter> Parameters()
+    {
+        Consume(TokenType.LeftParen, "Expect '(' before parameters.");
+
+        var parameters = new List<Parameter>();
+
+        if (!Check(TokenType.RightParen))
+        {
+            do
+            {
+                var paramToken = Consume(TokenType.Identifier, "Expect parameter name.");
+                parameters.Add(new Parameter(paramToken.Lexeme, paramToken.Line, paramToken.Column));
+            } while (Match(TokenType.Comma));
+        }
+
+        Consume(TokenType.RightParen, "Expect ')' after parameters.");
+
+        return parameters;
+    }
+
+    /// <summary>
+    /// クラス定義をパースします。
+    /// class Name { fields methods }
+    /// </summary>
+    private ClassDef ClassDefinition()
+    {
+        var classToken = Previous();
+        var name = Consume(TokenType.Identifier, "Expect class name.");
+
+        Consume(TokenType.LeftBrace, "Expect '{' before class body.");
+
+        var fields = new List<FieldDef>();
+        var methods = new List<MethodDef>();
+
+        // 改行をスキップ
+        while (Match(TokenType.Newline)) { }
+
+        while (!Check(TokenType.RightBrace) && !IsAtEnd())
+        {
+            // フィールドまたはメソッドをパース
+            if (Check(TokenType.Var) || Check(TokenType.Public) || Check(TokenType.Private) || Check(TokenType.Static) || Check(TokenType.Fn) || Check(TokenType.Init))
+            {
+                // 修飾子を先読み
+                bool isPublic = false;
+                bool isStatic = false;
+
+                if (Match(TokenType.Public))
+                {
+                    isPublic = true;
+                }
+                else if (Match(TokenType.Private))
+                {
+                    isPublic = false;
+                }
+
+                // static修飾子
+                if (Match(TokenType.Static))
+                {
+                    isStatic = true;
+                }
+
+                // フィールドかメソッドか判定
+                if (Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.Return))
+                {
+                    // フィールド定義
+                    fields.Add(FieldDefinition(isPublic));
+                }
+                else if (Check(TokenType.Fn) || Check(TokenType.Init))
+                {
+                    // メソッド定義
+                    methods.Add(MethodDefinition(isPublic, isStatic));
+                }
+                else
+                {
+                    throw Error(Peek(), "Expect field or method definition in class body.");
+                }
+            }
+            else
+            {
+                throw Error(Peek(), "Expect field or method definition in class body.");
+            }
+
+            // 改行をスキップ
+            while (Match(TokenType.Newline)) { }
+        }
+
+        Consume(TokenType.RightBrace, "Expect '}' after class body.");
+
+        return new ClassDef(name.Lexeme, fields, methods, classToken.Line, classToken.Column);
+    }
+
+    /// <summary>
+    /// フィールド定義をパースします。
+    /// [public|private] var name = expr
+    /// </summary>
+    private FieldDef FieldDefinition(bool isPublic)
+    {
+        var varToken = Consume(TokenType.Var, "Expect 'var' for field definition.");
+        var name = Consume(TokenType.Identifier, "Expect field name.");
+        Consume(TokenType.Equal, "Expect '=' after field name.");
+        var initializer = Expression();
+
+        return new FieldDef(name.Lexeme, isPublic, initializer, varToken.Line, varToken.Column);
+    }
+
+    /// <summary>
+    /// メソッド定義をパースします。
+    /// [public|private] [static] fn name(params) { body }
+    /// または
+    /// init(params) { body }
+    /// </summary>
+    private MethodDef MethodDefinition(bool isPublic, bool isStatic)
+    {
+        Token methodToken;
+        string methodName;
+
+        if (Match(TokenType.Init))
+        {
+            // init コンストラクタ
+            methodToken = Previous();
+            methodName = "init";
+            isPublic = false; // init は常に private
+            isStatic = false; // init は常に非static
+        }
+        else
+        {
+            // 通常のメソッド
+            Consume(TokenType.Fn, "Expect 'fn' for method definition.");
+            methodToken = Previous();
+            var nameToken = Consume(TokenType.Identifier, "Expect method name.");
+            methodName = nameToken.Lexeme;
+        }
+
+        // パラメータリストをパース
+        var parameters = Parameters();
+
+        // body をパース（必ずブロック）
+        Consume(TokenType.LeftBrace, "Expect '{' before method body.");
+        var body = BlockExpression();
+
+        return new MethodDef(methodName, isPublic, isStatic, parameters, body, methodToken.Line, methodToken.Column);
+    }
+
+    #endregion
+
     #region ヘルパーメソッド
 
     /// <summary>
@@ -420,6 +801,18 @@ public class Parser
     private Token Peek()
     {
         return _tokens[_current];
+    }
+
+    /// <summary>
+    /// 次のトークンを返します（消費しない）。
+    /// </summary>
+    private Token PeekNext()
+    {
+        if (_current + 1 >= _tokens.Count)
+        {
+            return _tokens[_tokens.Count - 1]; // EOF
+        }
+        return _tokens[_current + 1];
     }
 
     /// <summary>
