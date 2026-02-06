@@ -52,19 +52,19 @@ irooon/
 
 ## 実装フェーズ
 
-### Phase 1: 基盤セットアップ ⏳
-- [ ] プロジェクト構造とソリューション作成
+### Phase 1: 基盤セットアップ ✅
+- [x] プロジェクト構造とソリューション作成
 
-### Phase 2: Runtime基盤 ⏳
-- [ ] Runtime基本型（ScriptContext, IroCallable, IroClass/Instance）
-- [ ] RuntimeHelpers（演算・比較・論理）
+### Phase 2: Runtime基盤 ✅
+- [x] Runtime基本型（ScriptContext, IroCallable, IroClass/Instance）
+- [x] RuntimeHelpers（演算・比較・論理）
 
-### Phase 3: Lexer ⏳
-- [ ] トークン定義
-- [ ] Lexer実装
+### Phase 3: Lexer ✅
+- [x] トークン定義
+- [x] Lexer実装
 
-### Phase 4: AST ⏳
-- [ ] Expression/Statement/ClassDef ノード定義
+### Phase 4: AST ✅
+- [x] Expression/Statement/ClassDef ノード定義
 
 ### Phase 5: Parser ⏳
 - [ ] Parser基本式（リテラル、演算子、変数）
@@ -94,29 +94,54 @@ irooon/
 ### 2026-02-07
 
 #### 完了したこと ✅
+
+**初期セットアップ:**
 - プロジェクトディレクトリ作成
 - 仕様書のドキュメント化
   - `docs/language-spec.md` - 言語構文仕様
   - `docs/expression-tree-mapping.md` - ExpressionTree変換仕様
   - `docs/README.md` - ドキュメント索引
 - CLAUDE.md 作成（このファイル）
-- **タスクリスト作成完了（21タスク）**
-  - Task #1-2: プロジェクトセットアップ
-  - Task #3-5: Runtime基盤
-  - Task #6: Lexer
-  - Task #7-8: AST定義
-  - Task #9-11: Parser実装
-  - Task #12: Resolver
-  - Task #13-17: CodeGen実装
-  - Task #18: コンパイルエンジン
-  - Task #19: CLI
-  - Task #20-21: テストとドキュメント
+- タスクリスト作成完了（21タスク）
+
+**Task #1-2: プロジェクト基盤（完了）**
+- ✅ Git リポジトリ初期化
+- ✅ .gitignore 作成
+- ✅ README.md 作成
+- ✅ .NET ソリューション作成（Irooon.sln）
+- ✅ プロジェクト構造作成（Core, Cli, Tests）
+- ✅ ビルド確認
+
+**Task #3-5: Runtime基盤（完了）🎉**
+- ✅ ScriptContext, IroCallable, IroClass, IroInstance実装
+- ✅ FieldDef, MethodDef実装
+- ✅ RuntimeHelpers完全実装（算術・比較・論理・関数呼び出し・メンバアクセス）
+- ✅ 66個のテスト全て合格
+- ✅ コミット: 3件
+
+**Task #6: Lexer実装（完了）🎉**
+- ✅ TokenType定義（57種類のトークン）
+- ✅ Token クラス実装
+- ✅ Lexer 完全実装（字句解析器）
+- ✅ 36個のテスト全て合格
+- ✅ コミット: 1件
+
+**Task #7-8: AST定義（完了）🎉**
+- ✅ 基本ASTノード定義（Expression, Statement等）
+- ✅ 25個のASTノードクラス実装
+- ✅ 38個のテスト全て合格
+- ✅ コミット: 1件
+
+**並列作業の成果:**
+3チーム（Runtime, Lexer, AST）を同時に稼働させ、効率的に実装完了！
+- **合計テスト数**: 129個
+- **成功率**: 100%
 
 #### 次のステップ 📋
-- Task #1: Git リポジトリ初期化とプロジェクト基盤セットアップ
-  - Gitリポジトリ初期化
-  - .gitignore 作成
-  - README.md 作成
+**Phase 5: Parser実装**
+- Task #9: Parser基本式（リテラル、演算子、変数）
+- Task #10: Parser制御構造（if, while, block）
+- Task #11: Parser関数・クラス
 
 ---
 
@@ -130,10 +155,16 @@ irooon/
 5. **CLR相互運用** - リフレクションベースで実装
 
 ### 実装時の注意
-- [ ] テストファースト！実装前に必ずテストを書く
-- [ ] 各ASTノードに line, column を保持させる
+- [x] テストファースト！実装前に必ずテストを書く ← **実践済み！**
+- [x] 各ASTノードに line, column を保持させる ← **実装済み！**
 - [ ] エラーメッセージには必ず位置情報を含める
 - [ ] 破壊的な操作は実装しない（v0.1）
+
+### 学んだこと（実装中）
+1. **並列作業の効果**: 3チーム同時稼働で効率的に実装完了
+2. **TDDの徹底**: すべてのチームがテストファーストを実践
+3. **型システムの統一**: Runtime で object 型に統一し、型変換を一箇所に集約
+4. **位置情報の重要性**: すべてのトークン・ASTノードに line, column を保持
 
 ---
 
@@ -159,4 +190,5 @@ irooon/
 
 ---
 
-**最終更新:** 2026-02-07
+**最終更新:** 2026-02-07 19:30 JST
+**進捗**: Phase 1-4 完了（Runtime, Lexer, AST） / Phase 5 Parser開始予定
