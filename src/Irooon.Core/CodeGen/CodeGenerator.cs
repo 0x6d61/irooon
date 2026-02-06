@@ -16,6 +16,7 @@ namespace Irooon.Core.CodeGen;
 public class CodeGenerator
 {
     private ParameterExpression _ctxParam; // ScriptContext ctx
+    private int _labelCounter = 0; // ラベルの一意性確保用
 
     public CodeGenerator()
     {
@@ -405,23 +406,98 @@ public class CodeGenerator
 
     #endregion
 
-    #region Task #15以降の実装（スタブ）
+    #region Task #15: 制御構造の実装
 
-    // Task #15: 制御構造の実装（スタブ）
+    /// <summary>
+    /// if式の変換
+    /// 仕様（expression-tree-mapping.md セクション7）:
+    /// condTruth = Runtime.IsTruthy(condObj)
+    /// Expression.Condition(condTruth, thenObj, elseObj)
+    /// </summary>
     private ExprTree GenerateIfExpr(IfExpr expr)
     {
-        throw new NotImplementedException("Task #15: If expression not implemented yet");
+        var condExpr = GenerateExpression(expr.Condition);
+        var thenExpr = GenerateExpression(expr.ThenBranch);
+        var elseExpr = GenerateExpression(expr.ElseBranch);
+
+        // IsTruthy で真偽値判定
+        var truthyCall = ExprTree.Call(
+            typeof(RuntimeHelpers),
+            nameof(RuntimeHelpers.IsTruthy),
+            null,
+            condExpr
+        );
+
+        // Expression.Condition
+        return ExprTree.Condition(
+            truthyCall,
+            thenExpr,
+            elseExpr,
+            typeof(object)
+        );
     }
 
+    /// <summary>
+    /// while文の変換
+    /// 仕様（expression-tree-mapping.md セクション8）:
+    /// Expression.Loop + LabelBreak
+    /// while全体の値は null
+    /// </summary>
     private ExprTree GenerateWhileStmt(WhileStmt stmt)
     {
-        throw new NotImplementedException("Task #15: While statement not implemented yet");
+        var breakLabel = ExprTree.Label(typeof(object));
+        var condExpr = GenerateExpression(stmt.Condition);
+        var bodyExpr = GenerateStatement(stmt.Body);
+
+        // IsTruthy で真偽値判定
+        var truthyCall = ExprTree.Call(
+            typeof(RuntimeHelpers),
+            nameof(RuntimeHelpers.IsTruthy),
+            null,
+            condExpr
+        );
+
+        // if (!truthy) break;
+        var breakIfFalse = ExprTree.IfThen(
+            ExprTree.Not(truthyCall),
+            ExprTree.Break(breakLabel, ExprTree.Constant(null, typeof(object)))
+        );
+
+        // Loop body
+        var loopBody = ExprTree.Block(
+            typeof(void),
+            breakIfFalse,
+            bodyExpr
+        );
+
+        // Loop + Label
+        return ExprTree.Block(
+            typeof(object),
+            ExprTree.Loop(loopBody, breakLabel),
+            ExprTree.Label(breakLabel, ExprTree.Constant(null, typeof(object)))
+        );
     }
 
+    /// <summary>
+    /// return文の変換
+    /// v0.1では単純に式を返す
+    /// （関数内でのreturnは後で実装）
+    /// </summary>
     private ExprTree GenerateReturnStmt(ReturnStmt stmt)
     {
-        throw new NotImplementedException("Task #15: Return statement not implemented yet");
+        if (stmt.Value != null)
+        {
+            return GenerateExpression(stmt.Value);
+        }
+        else
+        {
+            return ExprTree.Constant(null, typeof(object));
+        }
     }
+
+    #endregion
+
+    #region Task #15以降の実装（スタブ）
 
     // Task #16: 関数とクロージャの実装（簡易実装）
     /// <summary>
@@ -483,14 +559,115 @@ public class CodeGenerator
         }
     }
 
+    /// <summary>
+    /// ラムダ式の変換
+    /// 仕様（expression-tree-mapping.md セクション9）:
+    /// Closureオブジェクトを生成し、IroCallableとして扱う
+    /// </summary>
     private ExprTree GenerateLambdaExpr(LambdaExpr expr)
     {
-        throw new NotImplementedException("Task #16: Lambda expression not implemented yet");
+        // 関数本体を Func<ScriptContext, object[], object> にコンパイル
+        var argsParam = ExprTree.Parameter(typeof(object[]), "args");
+        var ctxParamForFunc = ExprTree.Parameter(typeof(ScriptContext), "ctx");
+
+        var bodyExprs = new List<ExprTree>();
+
+        // パラメータを args[0], args[1], ... にバインド
+        for (int i = 0; i < expr.Parameters.Count; i++)
+        {
+            var param = expr.Parameters[i];
+            var argAccess = ExprTree.ArrayIndex(argsParam, ExprTree.Constant(i));
+            var globalsForParam = ExprTree.Property(ctxParamForFunc, "Globals");
+            var paramName = ExprTree.Constant(param.Name);
+            var itemForParam = ExprTree.Property(globalsForParam, "Item", paramName);
+            bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
+        }
+
+        // 本体を実行（一時的に _ctxParam を切り替える）
+        var savedCtxParam = _ctxParam;
+        _ctxParam = ctxParamForFunc;
+        var bodyExpr = GenerateExpression(expr.Body);
+        _ctxParam = savedCtxParam;
+
+        bodyExprs.Add(bodyExpr);
+
+        var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
+
+        // Lambda<Func<ScriptContext, object[], object>> を作成
+        var lambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(
+            bodyBlock,
+            ctxParamForFunc,
+            argsParam
+        );
+
+        var compiled = lambda.Compile();
+
+        // Closure オブジェクトを作成
+        var closureNew = ExprTree.New(
+            typeof(Closure).GetConstructor(new[] { typeof(string), typeof(Func<ScriptContext, object[], object>) })!,
+            ExprTree.Constant("<lambda>"),
+            ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>))
+        );
+
+        return ExprTree.Convert(closureNew, typeof(object));
     }
 
+    /// <summary>
+    /// 関数定義の変換
+    /// 仕様（expression-tree-mapping.md セクション9）:
+    /// Closureオブジェクトを生成し、ctx.Globals[name] に登録
+    /// </summary>
     private ExprTree GenerateFunctionDef(FunctionDef stmt)
     {
-        throw new NotImplementedException("Task #16: Function definition not implemented yet");
+        // 関数本体を Func<ScriptContext, object[], object> にコンパイル
+        var argsParam = ExprTree.Parameter(typeof(object[]), "args");
+        var ctxParamForFunc = ExprTree.Parameter(typeof(ScriptContext), "ctx");
+
+        var bodyExprs = new List<ExprTree>();
+
+        // パラメータを args[0], args[1], ... にバインド
+        for (int i = 0; i < stmt.Parameters.Count; i++)
+        {
+            var param = stmt.Parameters[i];
+            var argAccess = ExprTree.ArrayIndex(argsParam, ExprTree.Constant(i));
+            var globalsForParam = ExprTree.Property(ctxParamForFunc, "Globals");
+            var paramName = ExprTree.Constant(param.Name);
+            var itemForParam = ExprTree.Property(globalsForParam, "Item", paramName);
+            bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
+        }
+
+        // 本体を実行（一時的に _ctxParam を切り替える）
+        var savedCtxParam = _ctxParam;
+        _ctxParam = ctxParamForFunc;
+        var bodyExpr = GenerateExpression(stmt.Body);
+        _ctxParam = savedCtxParam;
+
+        bodyExprs.Add(bodyExpr);
+
+        var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
+
+        // Lambda<Func<ScriptContext, object[], object>> を作成
+        var lambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(
+            bodyBlock,
+            ctxParamForFunc,
+            argsParam
+        );
+
+        var compiled = lambda.Compile();
+
+        // Closure オブジェクトを作成
+        var closureNew = ExprTree.New(
+            typeof(Closure).GetConstructor(new[] { typeof(string), typeof(Func<ScriptContext, object[], object>) })!,
+            ExprTree.Constant(stmt.Name),
+            ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>))
+        );
+
+        // ctx.Globals[name] = closure
+        var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
+        var nameExpr = ExprTree.Constant(stmt.Name);
+        var itemProperty = ExprTree.Property(globalsExpr, "Item", nameExpr);
+
+        return ExprTree.Assign(itemProperty, ExprTree.Convert(closureNew, typeof(object)));
     }
 
     // Task #17: クラスとインスタンスの実装

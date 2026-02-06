@@ -32,8 +32,7 @@ public class Closure : IroCallable
     /// </summary>
     public object Invoke(ScriptContext ctx, object[] args)
     {
-        var result = _body(ctx, args);
-        return result ?? throw new InvalidOperationException("Closure returned null");
+        return _body(ctx, args);
     }
 
     public override string ToString()
