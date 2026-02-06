@@ -76,7 +76,7 @@ irooon/
 - [x] 変数バインディング
 
 ### Phase 7: CodeGen ⏳
-- [ ] ExpressionTree生成（基本式）
+- [x] ExpressionTree生成（基本式）
 - [ ] ExpressionTree生成（制御構造）
 - [ ] ExpressionTree生成（関数・クラス）
 
@@ -149,9 +149,32 @@ irooon/
 - **全体テスト数**: 221個
 - **成功率**: 100%
 
+**Task #12: Resolver実装（完了）🎉**
+- ✅ スコープ解析実装
+- ✅ 変数バインディング
+- ✅ let の再代入禁止チェック
+- ✅ 未定義変数の検出
+- ✅ 16個のテスト全て合格
+- ✅ コミット: 1件
+
+**Task #13: CodeGen基本式実装（完了）🎉**
+- ✅ CodeGenerator クラスの基本構造
+- ✅ リテラル式の変換（数値、文字列、真偽値、null）
+- ✅ 識別子式の変換（変数参照）
+- ✅ 代入式の変換
+- ✅ let/var文の変換
+- ✅ 式文の変換
+- ✅ ブロック式の変換
+- ✅ 23個のテスト全て合格
+- ✅ 全体テスト数: 260個
+- ✅ コミット: 1件
+
 #### 次のステップ 📋
-**Phase 6: Resolver実装**
-- Task #12: スコープ解析、変数バインディング
+**Phase 7: CodeGen実装続き**
+- Task #14: 演算子実装
+- Task #15: 制御構造実装
+- Task #16: 関数とクロージャ実装
+- Task #17: クラスとインスタンス実装
 
 ---
 
@@ -175,14 +198,14 @@ irooon/
 2. **TDDの徹底**: すべてのチームがテストファーストを実践
 3. **型システムの統一**: Runtime で object 型に統一し、型変換を一箇所に集約
 4. **位置情報の重要性**: すべてのトークン・ASTノードに line, column を保持
+5. **名前空間衝突の対策**: `Irooon.Core.Ast.Expression` と `System.Linq.Expressions.Expression` の衝突を避けるため、エイリアス (`using ExprTree = ...`) を使用
 
 ---
 
 ## TODO / 課題
 
 ### 現在のタスク
-- Git リポジトリ初期化
-- プロジェクト構造セットアップ
+- Task #14: CodeGen演算子実装（次のタスク）
 
 ### 将来の拡張（v0.2以降）
 - 型推論・型注釈
@@ -200,5 +223,5 @@ irooon/
 
 ---
 
-**最終更新:** 2026-02-07 21:00 JST
-**進捗**: Phase 1-5 完了（Runtime, Lexer, AST, Parser） / Phase 6 Resolver開始予定
+**最終更新:** 2026-02-07 22:30 JST
+**進捗**: Phase 1-6 完了（Runtime, Lexer, AST, Parser, Resolver） / Phase 7 CodeGen進行中（基本式完了）
