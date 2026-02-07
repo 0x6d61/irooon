@@ -482,10 +482,10 @@ public class RuntimeHelpersTests
     }
 
     [Fact]
-    public void GetMember_IroInstanceでない場合は例外を投げる()
+    public void GetMember_IroInstanceでも文字列でもない場合は例外を投げる()
     {
         // Arrange
-        var notInstance = "not an instance";
+        var notInstance = 42.0; // 数値は文字列でもIroInstanceでもない
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() =>

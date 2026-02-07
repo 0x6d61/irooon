@@ -1,0 +1,57 @@
+// 文字列メソッドのサンプル
+
+// 基本的な文字列操作
+let greeting = "  Hello, World!  "
+
+// length - 文字列の長さを取得
+println("Original:", greeting)
+println("Length:", greeting.length())
+
+// trim - 前後の空白を削除
+let trimmed = greeting.trim()
+println("Trimmed:", trimmed)
+
+// toUpper / toLower - 大文字・小文字変換
+let upper = trimmed.toUpper()
+let lower = trimmed.toLower()
+println("Upper:", upper)
+println("Lower:", lower)
+
+// substring - 部分文字列を取得
+let hello = trimmed.substring(0, 5)
+let world = trimmed.substring(7, 5)
+println("Substring (0, 5):", hello)
+println("Substring (7, 5):", world)
+
+// substring - 開始位置のみ指定
+let fromSeven = trimmed.substring(7)
+println("Substring from 7:", fromSeven)
+
+// split - 文字列を分割
+let text = "apple,banana,cherry,date"
+let fruits = text.split(",")
+println("Split result:")
+var i = 0
+while (i < 4) {
+    println("  -", fruits[i])
+    i = i + 1
+}
+
+// contains / startsWith / endsWith - 検索
+let message = "Welcome to irooon!"
+println("Contains 'irooon':", message.contains("irooon"))
+println("Starts with 'Welcome':", message.startsWith("Welcome"))
+println("Ends with '!':", message.endsWith("!"))
+
+// replace - 置換
+let original = "I love cats. Cats are great!"
+let replaced = original.replace("cats", "dogs").replace("Cats", "Dogs")
+println("Original:", original)
+println("Replaced:", replaced)
+
+// メソッドチェーン
+let data = "  HELLO WORLD  "
+let result = data.trim().toLower().replace("world", "irooon")
+println("Method chaining result:", result)
+
+result
