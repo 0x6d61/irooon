@@ -1,0 +1,75 @@
+// ループ構造のサンプル
+
+// foreach - リスト
+println("foreach with list:")
+let numbers = [1, 2, 3, 4, 5]
+foreach (n in numbers) {
+    println("  Number:", n)
+}
+
+// foreach - ハッシュ
+println("")
+println("foreach with hash:")
+let person = {name: "Alice", age: 30, city: "Tokyo"}
+foreach (pair in person) {
+    println("  Entry:", pair)
+}
+
+// while + break
+println("")
+println("while with break:")
+var i = 0
+var sum = 0
+while (i < 100) {
+    i = i + 1
+    if (i > 5) { break } else { }
+    sum = sum + i
+}
+println("  Sum (1 to 5):", sum)
+
+// while + continue
+println("")
+println("while with continue (odd numbers):")
+i = 0
+sum = 0
+while (i < 10) {
+    i = i + 1
+    if (i % 2 == 0) { continue } else { }
+    sum = sum + i
+}
+println("  Sum (odd 1-9):", sum)
+
+// foreach + break
+println("")
+println("foreach with break:")
+let items = [10, 20, 30, 40, 50]
+sum = 0
+foreach (item in items) {
+    if (item >= 40) { break } else { }
+    sum = sum + item
+}
+println("  Sum (< 40):", sum)
+
+// foreach + continue
+println("")
+println("foreach with continue (skip even):")
+sum = 0
+foreach (n in numbers) {
+    if (n % 2 == 0) { continue } else { }
+    sum = sum + n
+}
+println("  Sum (odd):", sum)
+
+// ネストしたループ
+println("")
+println("nested foreach:")
+let matrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+sum = 0
+foreach (row in matrix) {
+    foreach (val in row) {
+        sum = sum + val
+    }
+}
+println("  Matrix sum:", sum)
+
+sum

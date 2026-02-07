@@ -18,6 +18,9 @@ public class CodeGenerator
     private ParameterExpression _ctxParam; // ScriptContext ctx
     private int _labelCounter = 0; // ラベルの一意性確保用
 
+    // ループのbreak/continueラベルを管理するスタック
+    private Stack<(LabelTarget breakLabel, LabelTarget? continueLabel)> _loopLabels = new();
+
     public CodeGenerator()
     {
         _ctxParam = ExprTree.Parameter(typeof(ScriptContext), "ctx");
@@ -85,6 +88,9 @@ public class CodeGenerator
             ExprStmt s => GenerateExprStmt(s),
             ReturnStmt s => GenerateReturnStmt(s),
             WhileStmt s => GenerateWhileStmt(s),
+            ForeachStmt s => GenerateForeachStmt(s),
+            BreakStmt s => GenerateBreakStmt(s),
+            ContinueStmt s => GenerateContinueStmt(s),
             FunctionDef s => GenerateFunctionDef(s),
             ClassDef s => GenerateClassDef(s),
             _ => throw new NotImplementedException($"Unknown statement type: {stmt.GetType()}")
@@ -451,10 +457,17 @@ public class CodeGenerator
     /// </summary>
     private ExprTree GenerateWhileStmt(WhileStmt stmt)
     {
-        var labelName = $"whileBreak_{_labelCounter++}";
-        var breakLabel = ExprTree.Label(labelName);
+        var breakLabel = ExprTree.Label($"whileBreak_{_labelCounter}");
+        var continueLabel = ExprTree.Label($"whileContinue_{_labelCounter++}");
+
+        // ループラベルをスタックにプッシュ
+        _loopLabels.Push((breakLabel, continueLabel));
+
         var condExpr = GenerateExpression(stmt.Condition);
         var bodyExpr = GenerateStatement(stmt.Body);
+
+        // ループラベルをポップ
+        _loopLabels.Pop();
 
         // IsTruthy で真偽値判定
         var truthyCall = ExprTree.Call(
@@ -477,15 +490,115 @@ public class CodeGenerator
             bodyExpr
         );
 
-        // Expression.Loop without break label, then manually add label and null
-        // Loopはbreak labelなしで無限ループを作成
-        // breakは明示的に配置したラベルにジャンプ
+        // Expression.Loop with break and continue labels
         return ExprTree.Block(
             typeof(object),
-            ExprTree.Loop(loopBody),
-            ExprTree.Label(breakLabel),
+            ExprTree.Loop(loopBody, breakLabel, continueLabel),
             ExprTree.Constant(null, typeof(object))
         );
+    }
+
+    /// <summary>
+    /// foreach文の変換
+    /// foreach (item in collection) { body }
+    /// </summary>
+    private ExprTree GenerateForeachStmt(ForeachStmt stmt)
+    {
+        var breakLabel = ExprTree.Label($"foreachBreak_{_labelCounter}");
+        var continueLabel = ExprTree.Label($"foreachContinue_{_labelCounter++}");
+
+        // コレクション式を評価
+        var collectionExpr = GenerateExpression(stmt.Collection);
+
+        // IEnumerable にキャスト
+        var enumerableVar = ExprTree.Variable(typeof(System.Collections.IEnumerable), "enumerable");
+        var enumeratorVar = ExprTree.Variable(typeof(System.Collections.IEnumerator), "enumerator");
+        var currentVar = ExprTree.Variable(typeof(object), "current");
+
+        // ループ変数をctx.Globalsに登録
+        var setLoopVar = ExprTree.Call(
+            ExprTree.Property(_ctxParam, nameof(ScriptContext.Globals)),
+            typeof(Dictionary<string, object?>).GetMethod("set_Item")!,
+            ExprTree.Constant(stmt.Variable),
+            currentVar
+        );
+
+        // ループラベルをスタックにプッシュ
+        _loopLabels.Push((breakLabel, continueLabel));
+
+        var bodyExpr = GenerateStatement(stmt.Body);
+
+        // ループラベルをポップ
+        _loopLabels.Pop();
+
+        // ループ本体
+        var loopBody = ExprTree.Block(
+            typeof(void),
+            // if (!enumerator.MoveNext()) break;
+            ExprTree.IfThen(
+                ExprTree.Not(ExprTree.Call(enumeratorVar, typeof(System.Collections.IEnumerator).GetMethod("MoveNext")!)),
+                ExprTree.Break(breakLabel)
+            ),
+            // current = enumerator.Current
+            ExprTree.Assign(currentVar, ExprTree.Property(enumeratorVar, nameof(System.Collections.IEnumerator.Current))),
+            // ctx.Globals[variable] = current
+            setLoopVar,
+            // body
+            bodyExpr
+        );
+
+        // foreach全体
+        return ExprTree.Block(
+            typeof(object),
+            new[] { enumerableVar, enumeratorVar, currentVar },
+            // enumerable = (IEnumerable)collection
+            ExprTree.Assign(
+                enumerableVar,
+                ExprTree.Convert(collectionExpr, typeof(System.Collections.IEnumerable))
+            ),
+            // enumerator = enumerable.GetEnumerator()
+            ExprTree.Assign(
+                enumeratorVar,
+                ExprTree.Call(enumerableVar, typeof(System.Collections.IEnumerable).GetMethod("GetEnumerator")!)
+            ),
+            // loop
+            ExprTree.Loop(loopBody, breakLabel, continueLabel),
+            // return null
+            ExprTree.Constant(null, typeof(object))
+        );
+    }
+
+    /// <summary>
+    /// break文の変換
+    /// </summary>
+    private ExprTree GenerateBreakStmt(BreakStmt stmt)
+    {
+        if (_loopLabels.Count == 0)
+        {
+            throw new InvalidOperationException("break statement outside of loop");
+        }
+
+        var (breakLabel, _) = _loopLabels.Peek();
+        return ExprTree.Break(breakLabel, typeof(void));
+    }
+
+    /// <summary>
+    /// continue文の変換
+    /// </summary>
+    private ExprTree GenerateContinueStmt(ContinueStmt stmt)
+    {
+        if (_loopLabels.Count == 0)
+        {
+            throw new InvalidOperationException("continue statement outside of loop");
+        }
+
+        var (_, continueLabel) = _loopLabels.Peek();
+        if (continueLabel == null)
+        {
+            throw new InvalidOperationException("continue not supported in this context");
+        }
+
+        return ExprTree.Continue(continueLabel, typeof(void));
     }
 
     /// <summary>

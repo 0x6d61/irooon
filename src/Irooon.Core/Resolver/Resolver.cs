@@ -388,6 +388,15 @@ public class Resolver
             case WhileStmt whileStmt:
                 ResolveWhileStmt(whileStmt);
                 break;
+            case ForeachStmt foreachStmt:
+                ResolveForeachStmt(foreachStmt);
+                break;
+            case BreakStmt breakStmt:
+                ResolveBreakStmt(breakStmt);
+                break;
+            case ContinueStmt continueStmt:
+                ResolveContinueStmt(continueStmt);
+                break;
             case FunctionDef functionDef:
                 ResolveFunctionDef(functionDef);
                 break;
@@ -441,6 +450,31 @@ public class Resolver
         BeginScope();
         ResolveStatement(stmt.Body);
         EndScope();
+    }
+
+    private void ResolveForeachStmt(ForeachStmt stmt)
+    {
+        // コレクション式を先に解析
+        ResolveExpression(stmt.Collection);
+
+        // 新しいスコープを作成してループ変数を宣言
+        BeginScope();
+        Declare(stmt.Variable, false, stmt.Line, stmt.Column);
+
+        // 本体を解析
+        ResolveStatement(stmt.Body);
+
+        EndScope();
+    }
+
+    private void ResolveBreakStmt(BreakStmt stmt)
+    {
+        // break文は特に解析する必要はないが、将来的にループ内チェックを追加可能
+    }
+
+    private void ResolveContinueStmt(ContinueStmt stmt)
+    {
+        // continue文は特に解析する必要はないが、将来的にループ内チェックを追加可能
     }
 
     private void ResolveFunctionDef(FunctionDef stmt)

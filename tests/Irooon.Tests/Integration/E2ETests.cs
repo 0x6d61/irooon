@@ -546,4 +546,140 @@ let greeting = ""Hello, ${first} ${last}!""
     }
 
     #endregion
+
+    #region foreach/break/continueのテスト
+
+    [Fact]
+    public void TestForeach_List()
+    {
+        var source = @"
+let numbers = [1, 2, 3, 4, 5]
+var sum = 0
+foreach (n in numbers) {
+    sum = sum + n
+}
+sum
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(15.0, result);
+    }
+
+    [Fact]
+    public void TestForeach_Hash()
+    {
+        var source = @"
+let person = {name: ""Alice"", age: 30}
+var count = 0
+foreach (pair in person) {
+    count = count + 1
+}
+count
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(2.0, result);
+    }
+
+    [Fact]
+    public void TestWhile_WithBreak()
+    {
+        var source = @"
+var i = 0
+var sum = 0
+while (i < 10) {
+    i = i + 1
+    if (i > 5) { break } else { }
+    sum = sum + i
+}
+sum
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        // 1 + 2 + 3 + 4 + 5 = 15
+        Assert.Equal(15.0, result);
+    }
+
+    [Fact]
+    public void TestWhile_WithContinue()
+    {
+        var source = @"
+var i = 0
+var sum = 0
+while (i < 10) {
+    i = i + 1
+    if (i % 2 == 0) { continue } else { }
+    sum = sum + i
+}
+sum
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        // 1 + 3 + 5 + 7 + 9 = 25
+        Assert.Equal(25.0, result);
+    }
+
+    [Fact]
+    public void TestForeach_WithBreak()
+    {
+        var source = @"
+let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+var sum = 0
+foreach (n in numbers) {
+    if (n > 5) { break } else { }
+    sum = sum + n
+}
+sum
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        // 1 + 2 + 3 + 4 + 5 = 15
+        Assert.Equal(15.0, result);
+    }
+
+    [Fact]
+    public void TestForeach_WithContinue()
+    {
+        var source = @"
+let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+var sum = 0
+foreach (n in numbers) {
+    if (n % 2 == 0) { continue } else { }
+    sum = sum + n
+}
+sum
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        // 1 + 3 + 5 + 7 + 9 = 25
+        Assert.Equal(25.0, result);
+    }
+
+    [Fact]
+    public void TestForeach_Nested()
+    {
+        var source = @"
+let matrix = [[1, 2], [3, 4], [5, 6]]
+var sum = 0
+foreach (row in matrix) {
+    foreach (val in row) {
+        sum = sum + val
+    }
+}
+sum
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        // 1 + 2 + 3 + 4 + 5 + 6 = 21
+        Assert.Equal(21.0, result);
+    }
+
+    #endregion
 }

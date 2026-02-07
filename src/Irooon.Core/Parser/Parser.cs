@@ -49,7 +49,7 @@ public class Parser
             bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
 
             // 文をパース（関数定義、クラス定義、変数宣言）
-            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.Return))
+            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return))
             {
                 statements.Add(Statement());
                 // 文の後の改行をスキップ
@@ -412,8 +412,8 @@ public class Parser
             // fn の後が ( ならラムダ式（式として扱う）
             bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
 
-            // 文の場合（fn, class, while, return, let, var）
-            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.While) || Check(TokenType.Return) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.Return))
+            // 文の場合（fn, class, while, foreach, break, continue, return, let, var）
+            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.While) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Let) || Check(TokenType.Var))
             {
                 statements.Add(Statement());
                 // 文の後の改行をスキップ
@@ -624,6 +624,21 @@ public class Parser
             return WhileStatement();
         }
 
+        if (Match(TokenType.Foreach))
+        {
+            return ForeachStatement();
+        }
+
+        if (Match(TokenType.Break))
+        {
+            return BreakStatement();
+        }
+
+        if (Match(TokenType.Continue))
+        {
+            return ContinueStatement();
+        }
+
         if (Match(TokenType.Return))
         {
             return ReturnStatement();
@@ -653,6 +668,57 @@ public class Parser
         var body = new ExprStmt(bodyExpr, bodyExpr.Line, bodyExpr.Column);
 
         return new WhileStmt(condition, body, whileToken.Line, whileToken.Column);
+    }
+
+    /// <summary>
+    /// foreach文をパースします。
+    /// foreach (item in collection) { body }
+    /// </summary>
+    private Statement ForeachStatement()
+    {
+        var foreachToken = Previous();
+
+        // ( を期待
+        Consume(TokenType.LeftParen, "Expect '(' after 'foreach'.");
+
+        // ループ変数名をパース
+        var variable = Consume(TokenType.Identifier, "Expect variable name in foreach.");
+
+        // in を期待
+        Consume(TokenType.In, "Expect 'in' after variable name.");
+
+        // コレクション式をパース
+        var collection = Expression();
+
+        // ) を期待
+        Consume(TokenType.RightParen, "Expect ')' after foreach collection.");
+
+        // body をパース（必ずブロック）
+        Consume(TokenType.LeftBrace, "Expect '{' after foreach header.");
+        var bodyExpr = BlockExpression();
+
+        // BlockExpr を ExprStmt でラップ
+        var body = new ExprStmt(bodyExpr, bodyExpr.Line, bodyExpr.Column);
+
+        return new ForeachStmt(variable.Lexeme, collection, body, foreachToken.Line, foreachToken.Column);
+    }
+
+    /// <summary>
+    /// break文をパースします。
+    /// </summary>
+    private Statement BreakStatement()
+    {
+        var breakToken = Previous();
+        return new BreakStmt(breakToken.Line, breakToken.Column);
+    }
+
+    /// <summary>
+    /// continue文をパースします。
+    /// </summary>
+    private Statement ContinueStatement()
+    {
+        var continueToken = Previous();
+        return new ContinueStmt(continueToken.Line, continueToken.Column);
     }
 
     /// <summary>
