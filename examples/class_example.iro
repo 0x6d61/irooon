@@ -1,0 +1,7 @@
+class Point {
+    public var x = 0
+    public var y = 0
+}
+
+let p = Point()
+p.x + p.y

@@ -14,12 +14,12 @@
 
 ### 必要要件
 
-- .NET 8.0 SDK 以上
+- .NET 10.0 SDK 以上
 
 ### インストール
 
 ```bash
-git clone https://github.com/yourusername/irooon.git
+git clone https://github.com/0x6d61/irooon.git
 cd irooon
 dotnet build
 ```
@@ -27,7 +27,28 @@ dotnet build
 ### 使い方
 
 ```bash
+# スクリプトを実行
 dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj script.iro
+
+# または、ビルドしてから実行
+dotnet build
+./src/Irooon.Cli/bin/Debug/net10.0/Irooon.Cli script.iro
+```
+
+### サンプル
+
+```bash
+# Hello World
+dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/hello.iro
+
+# 階乗の計算
+dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/factorial.iro
+
+# while ループ
+dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/loop.iro
+
+# クラスとオブジェクト
+dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/class_example.iro
 ```
 
 ## サンプルコード
@@ -76,6 +97,12 @@ counter.get()  // 1
 現在 **v0.1** を開発中です。
 
 進捗状況は [CLAUDE.md](./CLAUDE.md) で確認できます。
+
+### 既知の制限事項（v0.1）
+
+- **Fibonacci など複雑な再帰関数**: 計算結果が不正確な場合があります（要調査）
+- **クラスメソッド内でのフィールドアクセス**: 現在、メソッド内で直接フィールドにアクセスできません
+- **メンバへの代入**: プロパティへの代入（`obj.field = value`）は現在サポートされていません
 
 ## ライセンス
 

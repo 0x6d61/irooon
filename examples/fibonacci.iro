@@ -1,0 +1,11 @@
+// Note: fibonacci has a known issue with calculation results
+// fibonacci(10) should be 55, but currently returns -80
+fn fibonacci(n) {
+    if (n <= 1) {
+        n
+    } else {
+        fibonacci(n - 1) + fibonacci(n - 2)
+    }
+}
+
+fibonacci(5)
