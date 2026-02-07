@@ -372,3 +372,62 @@ irooon/
 - マージ: main ← 両ブランチ
 - 次: v0.2.1タグ作成、GitHubプッシュ
 
+
+### 2026-02-07 (v0.3開発開始)
+
+#### v0.3 開発計画作成 ✅
+
+**タスク作成:**
+- Task #35: for/foreach/break/continue実装
+- Task #36: 文字列補間実装
+- Task #37: 文字列メソッド実装
+- Task #38: 標準出力（print/println）実装
+- Task #39: try/catch/finally実装
+- Task #40: スタックトレース実装
+- Task #41: import/export実装
+- Task #42: パッケージ管理実装
+- Task #43: REPL実装
+- Task #44: v0.3テスト・サンプル・ドキュメント更新
+
+**開発計画:**
+- Phase 1: 基礎機能（標準出力、ループ、文字列）
+- Phase 2: エラー処理（例外処理、スタックトレース）
+- Phase 3: モジュールシステム（import/export、パッケージ管理）
+- Phase 4: REPL
+- Phase 5: 完成（テスト・ドキュメント）
+
+#### Phase 1: 基礎機能（進行中）
+
+**完了したタスク:**
+- ✅ Task #38: 標準出力（print/println）実装
+  - BuiltinFunctionクラス実装
+  - RuntimeHelpers.Print/Println実装
+  - ScriptContextとResolverに自動登録
+  - 487個のテスト全て成功
+  - Issue #3 クローズ
+
+- ✅ Task #37: 文字列メソッド実装
+  - StringMethodWrapperクラス実装
+  - length, toUpper, toLower, trim, substring, split, contains, startsWith, endsWith, replace
+  - CLR相互運用で.NET Stringメソッドを呼び出し
+  - 520個のテスト全て成功
+  - Issue #6 クローズ
+
+**作業中のタスク:**
+- 🔄 Task #35: for/foreach/break/continue実装
+  - 範囲（Range）実装完了（.. 演算子、RangeExpr、RuntimeHelpers.CreateRange）
+  - for/foreach/break/continue AST作成中
+  - ブランチ: feature/35-implement-loops
+
+- 🔄 Task #36: 文字列補間実装
+  - StringInterpolationExpr実装中
+  - ブランチ: feature/36-string-interpolation, feature/5-string-interpolation（重複）
+
+**GitHubプッシュ:**
+- mainブランチ: e00efd6
+- 作業中ブランチ: feature/35-implement-loops, feature/36-string-interpolation
+
+**次のステップ:**
+- Task #35, #36を完了させる
+- Phase 2（例外処理）に進む
+
