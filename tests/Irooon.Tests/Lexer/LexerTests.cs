@@ -181,6 +181,19 @@ public class LexerTests
     }
 
     [Fact]
+    public void TestKeywords_Exception()
+    {
+        var lexer = new Core.Lexer.Lexer("try catch finally throw");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(5, tokens.Count);
+        Assert.Equal(TokenType.Try, tokens[0].Type);
+        Assert.Equal(TokenType.Catch, tokens[1].Type);
+        Assert.Equal(TokenType.Finally, tokens[2].Type);
+        Assert.Equal(TokenType.Throw, tokens[3].Type);
+    }
+
+    [Fact]
     public void TestKeywords_Boolean()
     {
         var lexer = new Core.Lexer.Lexer("true false null");

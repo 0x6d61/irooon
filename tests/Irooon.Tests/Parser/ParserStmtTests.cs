@@ -354,4 +354,52 @@ if (x < 0) {
         Assert.NotNull(blockExpr.Expression);
         Assert.IsType<BinaryExpr>(blockExpr.Expression);
     }
+
+    [Fact(Skip = "Task #39 で実装予定")]
+    public void TestParseThrowStmt()
+    {
+        // throw "error message"
+        var source = "throw \"error message\"";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        // トップレベルはBlockExpr
+        Assert.IsType<BlockExpr>(ast);
+        var block = (BlockExpr)ast;
+
+        // throw文が最初の文
+        Assert.Single(block.Statements);
+        Assert.IsType<ThrowStmt>(block.Statements[0]);
+        var throwStmt = (ThrowStmt)block.Statements[0];
+
+        // Value が文字列リテラル
+        Assert.NotNull(throwStmt.Value);
+        Assert.IsType<LiteralExpr>(throwStmt.Value);
+        var literal = (LiteralExpr)throwStmt.Value;
+        Assert.Equal("error message", literal.Value);
+    }
+
+    [Fact(Skip = "Task #39 で実装予定")]
+    public void TestParseThrowStmt_Expression()
+    {
+        // throw x + 1
+        var source = "throw x + 1";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        // トップレベルはBlockExpr
+        Assert.IsType<BlockExpr>(ast);
+        var block = (BlockExpr)ast;
+
+        // throw文が最初の文
+        Assert.Single(block.Statements);
+        Assert.IsType<ThrowStmt>(block.Statements[0]);
+        var throwStmt = (ThrowStmt)block.Statements[0];
+
+        // Value が x + 1
+        Assert.NotNull(throwStmt.Value);
+        Assert.IsType<BinaryExpr>(throwStmt.Value);
+    }
 }
