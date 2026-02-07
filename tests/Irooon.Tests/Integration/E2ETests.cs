@@ -300,4 +300,178 @@ true
         // Cleanup
         Console.SetOut(Console.Out);
     }
+
+    #region String Methods Tests
+
+    [Fact]
+    public void TestStringLength()
+    {
+        var source = @"
+let str = ""Hello""
+str.length()
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(5.0, result);
+    }
+
+    [Fact]
+    public void TestStringToUpper()
+    {
+        var source = @"
+let str = ""hello world""
+str.toUpper()
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("HELLO WORLD", result);
+    }
+
+    [Fact]
+    public void TestStringToLower()
+    {
+        var source = @"
+let str = ""HELLO WORLD""
+str.toLower()
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("hello world", result);
+    }
+
+    [Fact]
+    public void TestStringTrim()
+    {
+        var source = @"
+let str = ""  hello  ""
+str.trim()
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("hello", result);
+    }
+
+    [Fact]
+    public void TestStringSubstring()
+    {
+        var source = @"
+let str = ""Hello World""
+str.substring(0, 5)
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("Hello", result);
+    }
+
+    [Fact]
+    public void TestStringSubstring_StartOnly()
+    {
+        var source = @"
+let str = ""Hello World""
+str.substring(6)
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("World", result);
+    }
+
+    [Fact]
+    public void TestStringSplit()
+    {
+        var source = @"
+let str = ""apple,banana,cherry""
+let parts = str.split("","")
+parts[1]
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("banana", result);
+    }
+
+    [Fact]
+    public void TestStringContains_True()
+    {
+        var source = @"
+let str = ""Hello World""
+str.contains(""World"")
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(true, result);
+    }
+
+    [Fact]
+    public void TestStringContains_False()
+    {
+        var source = @"
+let str = ""Hello World""
+str.contains(""Test"")
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(false, result);
+    }
+
+    [Fact]
+    public void TestStringStartsWith()
+    {
+        var source = @"
+let str = ""Hello World""
+str.startsWith(""Hello"")
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(true, result);
+    }
+
+    [Fact]
+    public void TestStringEndsWith()
+    {
+        var source = @"
+let str = ""Hello World""
+str.endsWith(""World"")
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(true, result);
+    }
+
+    [Fact]
+    public void TestStringReplace()
+    {
+        var source = @"
+let str = ""Hello World""
+str.replace(""World"", ""Universe"")
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("Hello Universe", result);
+    }
+
+    [Fact]
+    public void TestStringMethodChaining()
+    {
+        var source = @"
+let str = ""  Hello World  ""
+str.trim().toLower().replace(""world"", ""universe"")
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("hello universe", result);
+    }
+
+    #endregion
 }

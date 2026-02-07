@@ -319,6 +319,12 @@ public static class RuntimeHelpers
         if (target == null)
             throw new InvalidOperationException("Cannot get member of null");
 
+        // 文字列の場合、StringMethodWrapperを返す
+        if (target is string str)
+        {
+            return new StringMethodWrapper(str, name);
+        }
+
         if (target is IroInstance instance)
         {
             // フィールドを優先
