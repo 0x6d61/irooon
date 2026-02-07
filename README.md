@@ -1,5 +1,9 @@
 # irooon
 
+[![.NET](https://img.shields.io/badge/.NET-10.0-purple)](https://dotnet.microsoft.com/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-0x6d61%2Firooon-black)](https://github.com/0x6d61/irooon)
+
 **irooon** は .NET 上で動作する動的スクリプト言語です。
 
 ## 特徴
@@ -49,6 +53,57 @@ dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/loop.iro
 
 # クラスとオブジェクト
 dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/class_example.iro
+
+# ラムダと高階関数
+dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/lambda_example.iro
+
+# 演算子と条件分岐
+dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/operators.iro
+```
+
+## 言語機能
+
+### 変数
+```irooon
+let x = 10  // 再代入不可
+var y = 20  // 再代入可能
+```
+
+### 関数
+```irooon
+fn add(a, b) {
+    a + b
+}
+
+let multiply = fn (x, y) { x * y }
+```
+
+### クラス
+```irooon
+class Counter {
+    public var value = 0
+
+    public fn increment() {
+        value = value + 1
+    }
+
+    init(initialValue) {
+        value = initialValue
+    }
+}
+```
+
+### 制御構造
+```irooon
+if (x > 0) {
+    "positive"
+} else {
+    "non-positive"
+}
+
+while (i < 10) {
+    i = i + 1
+}
 ```
 
 ## サンプルコード
@@ -94,9 +149,10 @@ counter.get()  // 1
 
 ## 開発状況
 
-現在 **v0.1** を開発中です。
+**v0.1.0** リリース済み（2026-02-07）
 
-進捗状況は [CLAUDE.md](./CLAUDE.md) で確認できます。
+変更履歴は [CHANGELOG.md](./CHANGELOG.md) を参照してください。
+開発の詳細は [CLAUDE.md](./CLAUDE.md) で確認できます。
 
 ### 既知の制限事項（v0.1）
 

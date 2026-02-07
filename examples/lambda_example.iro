@@ -1,0 +1,8 @@
+let double = fn (x) { x * 2 }
+let triple = fn (x) { x * 3 }
+
+let applyTwice = fn (f, x) {
+    f(f(x))
+}
+
+applyTwice(double, 5)
