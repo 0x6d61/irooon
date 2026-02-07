@@ -49,7 +49,7 @@ public class Parser
             bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
 
             // 文をパース（関数定義、クラス定義、変数宣言）
-            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return))
+            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw))
             {
                 statements.Add(Statement());
                 // 文の後の改行をスキップ
@@ -329,6 +329,12 @@ public class Parser
             return IfExpression();
         }
 
+        // try/catch/finally式
+        if (Match(TokenType.Try))
+        {
+            return TryExpression();
+        }
+
         // リストリテラル: [...]
         if (Match(TokenType.LeftBracket))
         {
@@ -412,8 +418,8 @@ public class Parser
             // fn の後が ( ならラムダ式（式として扱う）
             bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
 
-            // 文の場合（fn, class, while, foreach, break, continue, return, let, var）
-            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.While) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Let) || Check(TokenType.Var))
+            // 文の場合（fn, class, while, foreach, break, continue, return, throw, let, var）
+            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.While) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Let) || Check(TokenType.Var))
             {
                 statements.Add(Statement());
                 // 文の後の改行をスキップ
@@ -487,6 +493,63 @@ public class Parser
         var elseBranch = BlockExpression();
 
         return new IfExpr(condition, thenBranch, elseBranch, ifToken.Line, ifToken.Column);
+    }
+
+    /// <summary>
+    /// try/catch/finally式をパースします。
+    /// try { body } catch (e) { handler } finally { cleanup }
+    /// </summary>
+    private TryExpr TryExpression()
+    {
+        var tryToken = Previous();
+
+        // try ブロックをパース（必ずブロック）
+        Consume(TokenType.LeftBrace, "Expect '{' after 'try'.");
+        var tryBody = BlockExpression();
+
+        // 改行をスキップ
+        while (Match(TokenType.Newline)) { }
+
+        CatchClause? catchClause = null;
+        Expression? finallyBody = null;
+
+        // catch 句（オプション）
+        if (Match(TokenType.Catch))
+        {
+            string? exceptionVariable = null;
+
+            // ( がある場合、例外変数を取得
+            if (Match(TokenType.LeftParen))
+            {
+                var varToken = Consume(TokenType.Identifier, "Expect exception variable name.");
+                exceptionVariable = varToken.Lexeme;
+                Consume(TokenType.RightParen, "Expect ')' after exception variable.");
+            }
+
+            // catch ブロックをパース
+            Consume(TokenType.LeftBrace, "Expect '{' after 'catch'.");
+            var catchBody = BlockExpression();
+
+            catchClause = new CatchClause(exceptionVariable, catchBody);
+
+            // 改行をスキップ
+            while (Match(TokenType.Newline)) { }
+        }
+
+        // finally 句（オプション）
+        if (Match(TokenType.Finally))
+        {
+            Consume(TokenType.LeftBrace, "Expect '{' after 'finally'.");
+            finallyBody = BlockExpression();
+        }
+
+        // catch または finally のどちらかは必須
+        if (catchClause == null && finallyBody == null)
+        {
+            throw Error(tryToken, "Expect 'catch' or 'finally' after try block.");
+        }
+
+        return new TryExpr(tryBody, catchClause, finallyBody, tryToken.Line, tryToken.Column);
     }
 
     /// <summary>
@@ -644,6 +707,12 @@ public class Parser
             return ReturnStatement();
         }
 
+        // TODO: Task #39 で実装予定
+        // if (Match(TokenType.Throw))
+        // {
+        //     return ThrowStatement();
+        // }
+
         return ExpressionStatement();
     }
 
@@ -737,6 +806,23 @@ public class Parser
         }
 
         return new ReturnStmt(value, returnToken.Line, returnToken.Column);
+    }
+
+    /// <summary>
+    /// throw文をパースします。
+    /// </summary>
+    private Statement ThrowStatement()
+    {
+        var throwToken = Previous();
+
+        // 改行、EOF、または } の前でない場合は、式をパース（必須）
+        if (Check(TokenType.Newline) || IsAtEnd() || Check(TokenType.RightBrace))
+        {
+            throw Error(throwToken, "Expect expression after 'throw'.");
+        }
+
+        var value = Expression();
+        return new ThrowStmt(value, throwToken.Line, throwToken.Column);
     }
 
     /// <summary>

@@ -17,6 +17,16 @@ public class Closure : IroCallable
     public List<string> ParameterNames { get; }
 
     /// <summary>
+    /// 関数が定義された行番号
+    /// </summary>
+    public int Line { get; }
+
+    /// <summary>
+    /// 関数が定義された列番号
+    /// </summary>
+    public int Column { get; }
+
+    /// <summary>
     /// 関数本体
     /// </summary>
     private readonly Func<ScriptContext, object[], object> _body;
@@ -27,11 +37,15 @@ public class Closure : IroCallable
     /// <param name="name">関数名</param>
     /// <param name="body">関数本体</param>
     /// <param name="parameterNames">パラメータ名のリスト（省略可能）</param>
-    public Closure(string name, Func<ScriptContext, object[], object> body, List<string>? parameterNames = null)
+    /// <param name="line">関数定義の行番号</param>
+    /// <param name="column">関数定義の列番号</param>
+    public Closure(string name, Func<ScriptContext, object[], object> body, List<string>? parameterNames = null, int line = 0, int column = 0)
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));
         _body = body ?? throw new ArgumentNullException(nameof(body));
         ParameterNames = parameterNames ?? new List<string>();
+        Line = line;
+        Column = column;
     }
 
     /// <summary>
@@ -39,7 +53,17 @@ public class Closure : IroCallable
     /// </summary>
     public object Invoke(ScriptContext ctx, object[] args)
     {
-        return _body(ctx, args);
+        // スタックトレースに関数呼び出しを追加
+        CallStack.Push(Name, Line, Column);
+        try
+        {
+            return _body(ctx, args);
+        }
+        finally
+        {
+            // 関数から戻る際にスタックから削除
+            CallStack.Pop();
+        }
     }
 
     public override string ToString()

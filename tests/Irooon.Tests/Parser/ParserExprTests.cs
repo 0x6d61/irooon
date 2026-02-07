@@ -1193,4 +1193,77 @@ public class ParserExprTests
     }
 
     #endregion
+
+    #region try/catch/finally のテスト
+
+    [Fact(Skip = "Task #39 で実装予定")]
+    public void TestParseTry_OnlyCatch()
+    {
+        // try { 1 } catch (e) { 2 }
+        var tokens = new Core.Lexer.Lexer("try { 1 } catch (e) { 2 }").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<TryExpr>(ast.Expression);
+        var tryExpr = (TryExpr)ast.Expression;
+
+        Assert.NotNull(tryExpr.TryBody);
+        Assert.NotNull(tryExpr.Catch);
+        Assert.Equal("e", tryExpr.Catch.ExceptionVariable);
+        Assert.Null(tryExpr.Finally);
+    }
+
+    [Fact(Skip = "Task #39 で実装予定")]
+    public void TestParseTry_OnlyFinally()
+    {
+        // try { 1 } finally { 2 }
+        var tokens = new Core.Lexer.Lexer("try { 1 } finally { 2 }").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<TryExpr>(ast.Expression);
+        var tryExpr = (TryExpr)ast.Expression;
+
+        Assert.NotNull(tryExpr.TryBody);
+        Assert.Null(tryExpr.Catch);
+        Assert.NotNull(tryExpr.Finally);
+    }
+
+    [Fact(Skip = "Task #39 で実装予定")]
+    public void TestParseTry_CatchAndFinally()
+    {
+        // try { 1 } catch (e) { 2 } finally { 3 }
+        var tokens = new Core.Lexer.Lexer("try { 1 } catch (e) { 2 } finally { 3 }").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<TryExpr>(ast.Expression);
+        var tryExpr = (TryExpr)ast.Expression;
+
+        Assert.NotNull(tryExpr.TryBody);
+        Assert.NotNull(tryExpr.Catch);
+        Assert.Equal("e", tryExpr.Catch.ExceptionVariable);
+        Assert.NotNull(tryExpr.Finally);
+    }
+
+    [Fact(Skip = "Task #39 で実装予定")]
+    public void TestParseTry_CatchWithoutVariable()
+    {
+        // try { 1 } catch { 2 }
+        var tokens = new Core.Lexer.Lexer("try { 1 } catch { 2 }").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<TryExpr>(ast.Expression);
+        var tryExpr = (TryExpr)ast.Expression;
+
+        Assert.NotNull(tryExpr.Catch);
+        Assert.Null(tryExpr.Catch.ExceptionVariable);
+    }
+
+    #endregion
 }

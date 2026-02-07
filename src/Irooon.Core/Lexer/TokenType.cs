@@ -30,6 +30,10 @@ public enum TokenType
     Private,
     Static,
     Init,
+    Try,
+    Catch,
+    Finally,
+    Throw,
 
     // 演算子
     Plus,           // +
