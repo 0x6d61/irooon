@@ -474,4 +474,76 @@ str.trim().toLower().replace(""world"", ""universe"")
     }
 
     #endregion
+
+    #region 文字列補間のテスト
+
+    [Fact]
+    public void TestStringInterpolation_Simple()
+    {
+        var source = @"
+let name = ""Alice""
+""Hello, ${name}!""
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("Hello, Alice!", result);
+    }
+
+    [Fact]
+    public void TestStringInterpolation_MultipleVariables()
+    {
+        var source = @"
+let x = 10
+let y = 20
+""${x} + ${y} = ${x + y}""
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("10 + 20 = 30", result);
+    }
+
+    [Fact]
+    public void TestStringInterpolation_WithExpressions()
+    {
+        var source = @"
+let value = 42
+""The answer is ${value * 2}""
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("The answer is 84", result);
+    }
+
+    [Fact]
+    public void TestStringInterpolation_WithMethodCall()
+    {
+        var source = @"
+let str = ""hello""
+""Upper: ${str.toUpper()}""
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("Upper: HELLO", result);
+    }
+
+    [Fact]
+    public void TestStringInterpolation_Nested()
+    {
+        var source = @"
+let first = ""John""
+let last = ""Doe""
+let greeting = ""Hello, ${first} ${last}!""
+""Message: ${greeting}""
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("Message: Hello, John Doe!", result);
+    }
+
+    #endregion
 }
