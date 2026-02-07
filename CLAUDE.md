@@ -328,3 +328,47 @@ irooon/
 **進捗**: **v0.2.1 バグ修正完了** 🎉
 **全フェーズ完了**: Phase 1-10 + リスト・ハッシュ拡張 + バグ修正
 **テスト統計**: 476個（474個成功、2個スキップ）
+
+### 2026-02-07 (午後)
+
+#### v0.2.1 リリース - 既知の問題修正 ✅
+
+**完了したタスク:**
+- ✅ Task #27: Fibonacci再帰の計算結果修正
+- ✅ Task #28: メソッド内フィールドアクセスのサポート
+- ✅ Task #29: スキップされたテストの有効化
+
+**Issue対応:**
+- ✅ Issue #1: Fix Fibonacci recursion calculation bug
+- ✅ Issue #2: Support field access within class methods
+
+**修正内容:**
+
+1. **Fibonacci再帰バグ修正** (feature/1-fix-fibonacci-recursion)
+   - 原因: 再帰呼び出し時にパラメータがグローバルスコープで上書きされていた
+   - 解決: Closureにパラメータ保存・復元機能を実装
+   - 結果: fibonacci(10) = 55（正しい値）
+
+2. **メソッド内フィールドアクセス** (feature/2-support-field-access-in-methods)
+   - 原因: Resolverがメソッドスコープでフィールドを認識していなかった
+   - 解決: メソッドスコープにクラスフィールドを宣言
+   - 結果: `value = value + 1` が動作
+
+**テスト結果:**
+- ✅ 全テスト数: 476個
+- ✅ 成功: 476個
+- ✅ スキップ: 0個
+- ✅ 失敗: 0個
+- ✅ 成功率: 100%
+
+**ドキュメント更新:**
+- ✅ README.md - 既知の制限事項を「修正済み」に更新
+- ✅ CHANGELOG.md - v0.2.1セクション追加
+- ✅ CLAUDE.md - 進捗記録追加（このファイル）
+
+**Gitワークフロー:**
+- ブランチ: feature/1-fix-fibonacci-recursion
+- ブランチ: feature/2-support-field-access-in-methods
+- マージ: main ← 両ブランチ
+- 次: v0.2.1タグ作成、GitHubプッシュ
+

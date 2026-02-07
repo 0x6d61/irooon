@@ -7,12 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-02-07
+
 ### Fixed
-- 🐛 **メソッド内フィールドアクセスのサポート**
+- 🐛 **Fibonacci再帰の計算結果修正** (#1)
+  - fibonacci(10)が正しく55を返すようになりました（以前は-80を返していた）
+  - 再帰呼び出し時にパラメータが上書きされる問題を修正
+  - Closureクラスにパラメータの保存・復元機能を実装
+  - RuntimeHelpers.Invokeでパラメータの保存・復元を実行
+  - TestExecute_Fibonacciのスキップを解除
+
+- 🐛 **メソッド内フィールドアクセスのサポート** (#2)
   - クラスメソッド内でフィールドに直接アクセスできるようになりました
   - `value = value + 1` のようなフィールド代入が動作するようになりました
   - Resolverがメソッドスコープにクラスフィールドを登録するように改善
+  - TestExecute_MultipleClasses, TestMemberAssign_Fieldのスキップを解除
   - 新しいテストケースを2つ追加（複数フィールドの操作、フィールド入れ替え）
+
+### Changed
+- ✅ **全テスト成功**: 476個のテスト全てが成功（スキップ0）
+- 📖 README.mdの既知の制限事項を「修正済み」に更新
 
 ## [0.2.0] - 2026-02-07
 
@@ -64,10 +78,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - サンプルスクリプト
 - 🧪 包括的なテストスイート（381テスト）
 
-### Known Issues
+### Known Issues (All fixed in v0.2.1 ✅)
 - ~~Fibonacci など複雑な再帰関数の計算結果が不正確な場合があります~~ → v0.2.1で修正済み
 - ~~クラスメソッド内でのフィールド直接アクセスに制限があります~~ → v0.2.1で修正済み
-- メンバへの代入（`obj.field = value`）は現在サポートされていません
+- ~~メンバへの代入（`obj.field = value`）は現在サポートされていません~~ → v0.2.0で実装済み
 
 ### Future Plans (v0.2)
 - 型推論・型注釈

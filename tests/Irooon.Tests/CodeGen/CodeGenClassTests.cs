@@ -158,7 +158,7 @@ public class CodeGenClassTests
         Assert.Equal(42.0, result);
     }
 
-    [Fact(Skip = "Parser does not support member assignment yet")]
+    [Fact]
     public void TestMemberAssign_Field()
     {
         var source = @"
