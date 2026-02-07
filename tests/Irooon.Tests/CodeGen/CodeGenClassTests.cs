@@ -419,4 +419,67 @@ public class CodeGenClassTests
     }
 
     #endregion
+
+    #region メソッド内フィールドアクセステスト
+
+    [Fact]
+    public void TestMethodFieldAccess_MultipleFields()
+    {
+        var source = @"
+        class Rectangle {
+            public var width = 0
+            public var height = 0
+
+            public fn setDimensions(w, h) {
+                width = w
+                height = h
+            }
+
+            public fn area() {
+                width * height
+            }
+
+            public fn perimeter() {
+                (width + height) * 2
+            }
+        }
+        let rect = Rectangle()
+        rect.setDimensions(5, 3)
+        rect.area() + rect.perimeter()
+        ";
+
+        var result = CompileAndRun(source);
+        Assert.Equal(31.0, result); // area=15, perimeter=16, total=31
+    }
+
+    [Fact]
+    public void TestMethodFieldAccess_FieldReassignment()
+    {
+        var source = @"
+        class Point {
+            public var x = 0
+            public var y = 0
+
+            public fn swap() {
+                let temp = x
+                x = y
+                y = temp
+            }
+
+            public fn sum() {
+                x + y
+            }
+        }
+        let p = Point()
+        p.x = 3
+        p.y = 7
+        p.swap()
+        p.sum()
+        ";
+
+        var result = CompileAndRun(source);
+        Assert.Equal(10.0, result); // x=7, y=3, sum=10
+    }
+
+    #endregion
 }

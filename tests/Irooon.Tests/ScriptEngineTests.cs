@@ -328,7 +328,7 @@ public class ScriptEngineTests
         Assert.Equal(2.0, result);
     }
 
-    [Fact(Skip = "v0.1ではメンバー代入とメソッド内フィールドアクセスが未サポート")]
+    [Fact]
     public void TestExecute_MultipleClasses()
     {
         var engine = new ScriptEngine();
