@@ -288,4 +288,69 @@ public class CodeGenBasicTests
     }
 
     #endregion
+
+    #region 文字列補間のテスト
+
+    [Fact]
+    public void TestStringInterpolation_Simple()
+    {
+        var result = ExecuteScript(@"
+            let name = ""Alice""
+            ""Hello, ${name}!""
+        ");
+        Assert.Equal("Hello, Alice!", result);
+    }
+
+    [Fact]
+    public void TestStringInterpolation_MultipleVariables()
+    {
+        var result = ExecuteScript(@"
+            let x = 10
+            let y = 20
+            ""${x} + ${y} = ${x + y}""
+        ");
+        Assert.Equal("10 + 20 = 30", result);
+    }
+
+    [Fact]
+    public void TestStringInterpolation_ComplexExpression()
+    {
+        var result = ExecuteScript(@"
+            let value = 42
+            ""The answer is ${value * 2}""
+        ");
+        Assert.Equal("The answer is 84", result);
+    }
+
+    [Fact]
+    public void TestStringInterpolation_MethodCall()
+    {
+        var result = ExecuteScript(@"
+            let str = ""hello""
+            ""Upper: ${str.toUpper()}""
+        ");
+        Assert.Equal("Upper: HELLO", result);
+    }
+
+    [Fact]
+    public void TestStringInterpolation_OnlyExpression()
+    {
+        var result = ExecuteScript(@"
+            let value = 123
+            ""${value}""
+        ");
+        Assert.Equal("123", result);
+    }
+
+    [Fact]
+    public void TestStringInterpolation_EmptyString()
+    {
+        var result = ExecuteScript(@"
+            let empty = """"
+            ""Text: ${empty}End""
+        ");
+        Assert.Equal("Text: End", result);
+    }
+
+    #endregion
 }

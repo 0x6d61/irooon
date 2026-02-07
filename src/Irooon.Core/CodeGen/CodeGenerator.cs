@@ -64,6 +64,7 @@ public class CodeGenerator
             HashExpr e => GenerateHashExpr(e),
             IndexAssignExpr e => GenerateIndexAssignExpr(e),
             MemberAssignExpr e => GenerateMemberAssignExpr(e),
+            StringInterpolationExpr e => GenerateStringInterpolationExpr(e),
             _ => throw new NotImplementedException($"Unknown expression type: {expr.GetType()}")
         };
     }
@@ -955,6 +956,39 @@ public class CodeGenerator
             nameExpr,
             valExpr
         );
+    }
+
+    /// <summary>
+    /// 文字列補間の変換
+    /// 仕様: "Hello, ${name}!" → string.Concat("Hello, ", name.ToString(), "!")
+    /// </summary>
+    private ExprTree GenerateStringInterpolationExpr(StringInterpolationExpr expr)
+    {
+        // 各パートを式に変換
+        var partExprs = expr.Parts.Select<object, ExprTree>(part =>
+        {
+            if (part is string str)
+            {
+                // 文字列パートはそのまま
+                return ExprTree.Constant(str, typeof(object));
+            }
+            else
+            {
+                // 式パートはToString()を呼び出す
+                var partExpr = GenerateExpression((AstExpr)part);
+                var toStringMethod = typeof(object).GetMethod("ToString")!;
+                return ExprTree.Call(partExpr, toStringMethod);
+            }
+        }).ToArray();
+
+        // string.Concat(object[]) を呼び出す
+        var concatMethod = typeof(string).GetMethod(
+            nameof(string.Concat),
+            new[] { typeof(object[]) }
+        )!;
+
+        var arrayExpr = ExprTree.NewArrayInit(typeof(object), partExprs);
+        return ExprTree.Call(concatMethod, arrayExpr);
     }
 
     #endregion
