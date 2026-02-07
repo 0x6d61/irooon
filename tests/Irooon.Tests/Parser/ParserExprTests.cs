@@ -1060,4 +1060,137 @@ public class ParserExprTests
     }
 
     #endregion
+
+    #region 文字列補間のテスト
+
+    [Fact]
+    public void TestParseStringInterpolation_Simple()
+    {
+        // 単純な文字列補間: "Hello, ${name}!"
+        var tokens = new Core.Lexer.Lexer("\"Hello, ${name}!\"").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<StringInterpolationExpr>(ast.Expression);
+        var interp = (StringInterpolationExpr)ast.Expression;
+
+        // 3つのパート: "Hello, ", name, "!"
+        Assert.Equal(3, interp.Parts.Count);
+
+        Assert.IsType<string>(interp.Parts[0]);
+        Assert.Equal("Hello, ", (string)interp.Parts[0]);
+
+        Assert.IsType<IdentifierExpr>(interp.Parts[1]);
+        var nameExpr = (IdentifierExpr)interp.Parts[1];
+        Assert.Equal("name", nameExpr.Name);
+
+        Assert.IsType<string>(interp.Parts[2]);
+        Assert.Equal("!", (string)interp.Parts[2]);
+    }
+
+    [Fact]
+    public void TestParseStringInterpolation_NoInterpolation()
+    {
+        // 補間なしの文字列: "Hello"
+        var tokens = new Core.Lexer.Lexer("\"Hello\"").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        // 補間がない場合は LiteralExpr のまま
+        Assert.IsType<LiteralExpr>(ast.Expression);
+        var literal = (LiteralExpr)ast.Expression;
+        Assert.Equal("Hello", literal.Value);
+    }
+
+    [Fact]
+    public void TestParseStringInterpolation_MultipleExpressions()
+    {
+        // 複数の式: "${x} + ${y} = ${x + y}"
+        var tokens = new Core.Lexer.Lexer("\"${x} + ${y} = ${x + y}\"").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<StringInterpolationExpr>(ast.Expression);
+        var interp = (StringInterpolationExpr)ast.Expression;
+
+        // 5つのパート: x, " + ", y, " = ", x+y
+        Assert.Equal(5, interp.Parts.Count);
+
+        Assert.IsType<IdentifierExpr>(interp.Parts[0]);
+        var xExpr = (IdentifierExpr)interp.Parts[0];
+        Assert.Equal("x", xExpr.Name);
+
+        Assert.IsType<string>(interp.Parts[1]);
+        Assert.Equal(" + ", (string)interp.Parts[1]);
+
+        Assert.IsType<IdentifierExpr>(interp.Parts[2]);
+        var yExpr = (IdentifierExpr)interp.Parts[2];
+        Assert.Equal("y", yExpr.Name);
+
+        Assert.IsType<string>(interp.Parts[3]);
+        Assert.Equal(" = ", (string)interp.Parts[3]);
+
+        Assert.IsType<BinaryExpr>(interp.Parts[4]);
+        var addExpr = (BinaryExpr)interp.Parts[4];
+        Assert.Equal(TokenType.Plus, addExpr.Operator);
+    }
+
+    [Fact]
+    public void TestParseStringInterpolation_OnlyExpression()
+    {
+        // 式だけ: "${value}"
+        var tokens = new Core.Lexer.Lexer("\"${value}\"").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<StringInterpolationExpr>(ast.Expression);
+        var interp = (StringInterpolationExpr)ast.Expression;
+
+        // 1つのパート: value
+        Assert.Single(interp.Parts);
+
+        Assert.IsType<IdentifierExpr>(interp.Parts[0]);
+        var valueExpr = (IdentifierExpr)interp.Parts[0];
+        Assert.Equal("value", valueExpr.Name);
+    }
+
+    [Fact]
+    public void TestParseStringInterpolation_ComplexExpression()
+    {
+        // 複雑な式: "Result: ${obj.method(a, b)}"
+        var tokens = new Core.Lexer.Lexer("\"Result: ${obj.method(a, b)}\"").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<StringInterpolationExpr>(ast.Expression);
+        var interp = (StringInterpolationExpr)ast.Expression;
+
+        // 2つのパート: "Result: ", obj.method(a, b)
+        Assert.Equal(2, interp.Parts.Count);
+
+        Assert.IsType<string>(interp.Parts[0]);
+        Assert.Equal("Result: ", (string)interp.Parts[0]);
+
+        Assert.IsType<CallExpr>(interp.Parts[1]);
+        var callExpr = (CallExpr)interp.Parts[1];
+        Assert.IsType<MemberExpr>(callExpr.Callee);
+        Assert.Equal(2, callExpr.Arguments.Count);
+    }
+
+    [Fact]
+    public void TestParseStringInterpolation_UnclosedError()
+    {
+        // エラー: 閉じていない ${
+        var tokens = new Core.Lexer.Lexer("\"Hello ${name\"").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+
+        Assert.Throws<ParseException>(() => parser.Parse());
+    }
+
+    #endregion
 }

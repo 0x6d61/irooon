@@ -176,6 +176,9 @@ public class Resolver
             case MemberAssignExpr memberAssignExpr:
                 ResolveMemberAssignExpr(memberAssignExpr);
                 break;
+            case StringInterpolationExpr stringInterpolationExpr:
+                ResolveStringInterpolationExpr(stringInterpolationExpr);
+                break;
             default:
                 _errors.Add(new ResolveException(
                     $"Unknown expression type: {expr.GetType().Name}",
@@ -344,6 +347,19 @@ public class Resolver
         // 対象と値を解析（メンバ名は文字列なので解析不要）
         ResolveExpression(expr.Target);
         ResolveExpression(expr.Value);
+    }
+
+    private void ResolveStringInterpolationExpr(StringInterpolationExpr expr)
+    {
+        // 各パートの式を解析
+        foreach (var part in expr.Parts)
+        {
+            if (part is Expression exprPart)
+            {
+                ResolveExpression(exprPart);
+            }
+            // string パートは何もしない
+        }
     }
 
     #endregion

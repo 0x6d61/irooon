@@ -373,7 +373,7 @@ public class Parser
         if (Match(TokenType.String))
         {
             var token = Previous();
-            return new LiteralExpr(token.Value, token.Line, token.Column);
+            return ParseStringLiteral(token.Value as string ?? "", token.Line, token.Column);
         }
 
         // 識別子
@@ -991,6 +991,82 @@ public class Parser
     private ParseException Error(Token token, string message)
     {
         return new ParseException(token, message);
+    }
+
+    #endregion
+
+    #region 文字列補間のパース
+
+    /// <summary>
+    /// 文字列リテラルをパースし、補間が含まれている場合は StringInterpolationExpr を返します。
+    /// 補間がない場合は LiteralExpr を返します。
+    /// </summary>
+    /// <param name="value">文字列の値</param>
+    /// <param name="line">行番号</param>
+    /// <param name="column">列番号</param>
+    /// <returns>パースされた式</returns>
+    private Expression ParseStringLiteral(string value, int line, int column)
+    {
+        // ${...} が含まれていない場合は通常のリテラルとして返す
+        if (!value.Contains("${"))
+        {
+            return new LiteralExpr(value, line, column);
+        }
+
+        var parts = new List<object>();
+        var current = 0;
+
+        while (current < value.Length)
+        {
+            var start = value.IndexOf("${", current);
+            if (start == -1)
+            {
+                // 残りの文字列を追加
+                var remaining = value.Substring(current);
+                if (remaining.Length > 0)
+                {
+                    parts.Add(remaining);
+                }
+                break;
+            }
+
+            // ${ の前の文字列を追加
+            if (start > current)
+            {
+                parts.Add(value.Substring(current, start - current));
+            }
+
+            // ${ ... } 内の式をパース
+            var end = value.IndexOf("}", start + 2);
+            if (end == -1)
+            {
+                throw new ParseException(new Token(TokenType.String, value, null, line, column), "Unclosed ${ in string interpolation");
+            }
+
+            var exprText = value.Substring(start + 2, end - start - 2);
+
+            // 式をパース
+            var exprTokens = new Core.Lexer.Lexer(exprText).ScanTokens();
+            var exprParser = new Parser(exprTokens);
+            var expr = exprParser.Expression();
+            parts.Add(expr);
+
+            current = end + 1;
+        }
+
+        // パーツが空の場合は空文字列を返す
+        if (parts.Count == 0)
+        {
+            return new LiteralExpr("", line, column);
+        }
+
+        // パーツが1つで文字列の場合は通常のリテラルとして返す
+        if (parts.Count == 1 && parts[0] is string)
+        {
+            return new LiteralExpr(parts[0], line, column);
+        }
+
+        return new StringInterpolationExpr(parts, line, column);
     }
 
     #endregion
