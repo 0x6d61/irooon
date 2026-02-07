@@ -611,11 +611,19 @@ public class CodeGenerator
 
         var compiled = lambda.Compile();
 
+        // パラメータ名のリストを作成
+        var paramNames = expr.Parameters.Select(p => p.Name).ToList();
+        var paramNamesListNew = ExprTree.New(
+            typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
+            ExprTree.NewArrayInit(typeof(string), paramNames.Select(n => ExprTree.Constant(n)))
+        );
+
         // Closure オブジェクトを作成
         var closureNew = ExprTree.New(
-            typeof(Closure).GetConstructor(new[] { typeof(string), typeof(Func<ScriptContext, object[], object>) })!,
+            typeof(Closure).GetConstructor(new[] { typeof(string), typeof(Func<ScriptContext, object[], object>), typeof(List<string>) })!,
             ExprTree.Constant("<lambda>"),
-            ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>))
+            ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>)),
+            paramNamesListNew
         );
 
         return ExprTree.Convert(closureNew, typeof(object));
@@ -664,11 +672,19 @@ public class CodeGenerator
 
         var compiled = lambda.Compile();
 
+        // パラメータ名のリストを作成
+        var paramNames = stmt.Parameters.Select(p => p.Name).ToList();
+        var paramNamesListNew = ExprTree.New(
+            typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
+            ExprTree.NewArrayInit(typeof(string), paramNames.Select(n => ExprTree.Constant(n)))
+        );
+
         // Closure オブジェクトを作成
         var closureNew = ExprTree.New(
-            typeof(Closure).GetConstructor(new[] { typeof(string), typeof(Func<ScriptContext, object[], object>) })!,
+            typeof(Closure).GetConstructor(new[] { typeof(string), typeof(Func<ScriptContext, object[], object>), typeof(List<string>) })!,
             ExprTree.Constant(stmt.Name),
-            ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>))
+            ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>)),
+            paramNamesListNew
         );
 
         // ctx.Globals[name] = closure
@@ -755,7 +771,10 @@ public class CodeGenerator
             );
 
             var compiled = lambda.Compile();
-            var closure = new Closure(m.Name, compiled);
+
+            // パラメータ名のリストを作成
+            var paramNames = m.Parameters.Select(p => p.Name).ToList();
+            var closure = new Closure(m.Name, compiled, paramNames);
 
             return ExprTree.New(
                 typeof(Runtime.MethodDef).GetConstructor(new[] {

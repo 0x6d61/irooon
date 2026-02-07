@@ -208,6 +208,7 @@ public static class RuntimeHelpers
     /// <summary>
     /// 関数を呼び出す
     /// インスタンスメソッドの場合、インスタンスのフィールドをGlobalsに展開する
+    /// 再帰呼び出しの正確性のため、関数のパラメータのみを保存/復元する
     /// </summary>
     public static object Invoke(object callee, ScriptContext ctx, object[] args, object? thisArg = null)
     {
@@ -216,6 +217,25 @@ public static class RuntimeHelpers
 
         if (callee is IroCallable callable)
         {
+            // Closureの場合、パラメータ名のみを保存/復元する
+            // これにより、再帰呼び出しでパラメータが上書きされるのを防ぎつつ、
+            // グローバル変数の変更は維持される
+            Dictionary<string, object>? savedParams = null;
+            List<string>? paramNames = null;
+
+            if (callable is Closure closure && closure.ParameterNames.Count > 0)
+            {
+                paramNames = closure.ParameterNames;
+                savedParams = new Dictionary<string, object>();
+                foreach (var paramName in paramNames)
+                {
+                    if (ctx.Globals.TryGetValue(paramName, out var value))
+                    {
+                        savedParams[paramName] = value;
+                    }
+                }
+            }
+
             // thisArgがIroInstanceの場合、フィールドをGlobalsに展開
             Dictionary<string, object>? savedFields = null;
             IroInstance? instance = thisArg as IroInstance;
@@ -254,6 +274,22 @@ public static class RuntimeHelpers
             }
             finally
             {
+                // パラメータを元の値に復元（または削除）
+                if (savedParams != null && paramNames != null)
+                {
+                    foreach (var paramName in paramNames)
+                    {
+                        if (savedParams.TryGetValue(paramName, out var savedValue))
+                        {
+                            ctx.Globals[paramName] = savedValue;
+                        }
+                        else
+                        {
+                            ctx.Globals.Remove(paramName);
+                        }
+                    }
+                }
+
                 // フィールドをGlobalsから削除し、元の値を復元
                 if (instance != null && savedFields != null)
                 {
