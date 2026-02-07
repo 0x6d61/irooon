@@ -1,0 +1,42 @@
+// print_example.iro
+// ビルトイン関数 print/println のデモ
+
+// 1. 基本的な使い方
+println("Hello, World!")
+
+// 2. 複数の値を出力
+print("Sum: ")
+print(10, "+", 5, "=", 15)
+println()  // 改行のみ
+
+// 3. 変数と組み合わせ
+let name = "Alice"
+let age = 30
+println("Name:", name, "Age:", age)
+
+// 4. 計算結果の表示
+let x = 10
+let y = 20
+println("x + y =", x + y)
+println("x * y =", x * y)
+
+// 5. 真偽値の表示
+let isActive = true
+println("Active:", isActive)
+
+// 6. nullの表示
+let emptyValue = null
+println("Empty value:", emptyValue)
+
+// 7. 関数呼び出しの中で計算
+println("Result:", (10 + 5) * 2)
+
+// 8. 条件式と組み合わせ
+if (x > y) {
+    println("x is greater")
+} else {
+    println("y is greater")
+}
+
+// 最後の式の値が戻り値
+"Demo complete"

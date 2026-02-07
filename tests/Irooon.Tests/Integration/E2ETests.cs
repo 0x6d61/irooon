@@ -226,4 +226,78 @@ ports[1]
 
         Assert.Equal(5433.0, result);
     }
+
+    [Fact]
+    public void TestPrintln_InScript()
+    {
+        // Arrange
+        var output = new StringWriter();
+        Console.SetOut(output);
+
+        var source = @"
+println(""Hello, World!"")
+42
+";
+        var engine = new ScriptEngine();
+
+        // Act
+        var result = engine.Execute(source);
+
+        // Assert
+        Assert.Equal(42.0, result);
+        Assert.Equal("Hello, World!" + Environment.NewLine, output.ToString());
+
+        // Cleanup
+        Console.SetOut(Console.Out);
+    }
+
+    [Fact]
+    public void TestPrint_MultipleValues()
+    {
+        // Arrange
+        var output = new StringWriter();
+        Console.SetOut(output);
+
+        var source = @"
+print(""Sum:"", 10, ""++"", 5, ""="", 15)
+""done""
+";
+        var engine = new ScriptEngine();
+
+        // Act
+        var result = engine.Execute(source);
+
+        // Assert
+        Assert.Equal("done", result);
+        Assert.Equal("Sum: 10 ++ 5 = 15", output.ToString());
+
+        // Cleanup
+        Console.SetOut(Console.Out);
+    }
+
+    [Fact]
+    public void TestPrintln_WithVariables()
+    {
+        // Arrange
+        var output = new StringWriter();
+        Console.SetOut(output);
+
+        var source = @"
+let name = ""Alice""
+let age = 30
+println(""Name:"", name, ""Age:"", age)
+true
+";
+        var engine = new ScriptEngine();
+
+        // Act
+        var result = engine.Execute(source);
+
+        // Assert
+        Assert.Equal(true, result);
+        Assert.Equal("Name: Alice Age: 30" + Environment.NewLine, output.ToString());
+
+        // Cleanup
+        Console.SetOut(Console.Out);
+    }
 }
