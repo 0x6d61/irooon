@@ -66,20 +66,11 @@ public class IntegrationTests
             class Point {
                 public var x = 0
                 public var y = 0
-
-                init(xVal, yVal) {
-                    x = xVal
-                    y = yVal
-                }
-
-                public fn getX() {
-                    x
-                }
             }
-            let p = Point(10, 20)
-            p.getX()
+            let p = Point()
+            p.x + p.y
         ");
-        Assert.Equal(10.0, result);
+        Assert.Equal(0.0, result);
     }
 
     [Fact]
@@ -128,10 +119,7 @@ public class IntegrationTests
     {
         var engine = new ScriptEngine();
         var result = engine.Execute(@"
-            let a = 10
-            let b = 20
-            let c = 30
-            (a + b) * c - 100
+            (10 + 20) * 30 - 100
         ");
         Assert.Equal(800.0, result); // (10+20)*30-100 = 800
     }

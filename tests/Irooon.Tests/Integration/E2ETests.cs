@@ -8,9 +8,23 @@ public class E2ETests
 {
     private string GetExamplePath(string filename)
     {
-        var currentDir = Directory.GetCurrentDirectory();
-        var projectRoot = Path.GetFullPath(Path.Combine(currentDir, "../../../.."));
-        return Path.Combine(projectRoot, "examples", filename);
+        // Start from the test assembly location
+        var assemblyLocation = System.Reflection.Assembly.GetExecutingAssembly().Location;
+        var assemblyDir = Path.GetDirectoryName(assemblyLocation);
+
+        // Navigate up to find the project root (look for examples directory)
+        var currentDir = assemblyDir;
+        while (currentDir != null)
+        {
+            var examplesPath = Path.Combine(currentDir, "examples");
+            if (Directory.Exists(examplesPath))
+            {
+                return Path.Combine(examplesPath, filename);
+            }
+            currentDir = Directory.GetParent(currentDir)?.FullName;
+        }
+
+        throw new DirectoryNotFoundException("Could not find examples directory");
     }
 
     [Fact]
