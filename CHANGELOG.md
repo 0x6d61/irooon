@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 🔄 **ループ構造: foreach/break/continue** (#7, #35)
+  - `foreach (item in collection) { ... }` - コレクション（リスト・ハッシュ）の反復処理
+  - `break` - ループを中断
+  - `continue` - 次の反復へスキップ
+  - ネストしたループのサポート
+  - ループ変数の適切なスコープ処理
+  - ForeachStmt, BreakStmt, ContinueStmt ASTノードを追加
+  - Lexerに foreach, in, break, continue キーワードを追加
+  - CodeGeneratorにループラベルスタック管理機構を実装
+  - Resolverにループ変数スコープ処理を追加
+- 📚 **新しいサンプルスクリプト**
+  - `examples/loops.iro` - foreach/break/continueのデモ
+- 🧪 **テストの拡充**
+  - E2Eテスト（7個の新規テスト）
+    - TestForeach_List, TestForeach_Hash
+    - TestForeach_WithBreak, TestForeach_WithContinue
+    - TestForeach_Nested
+    - TestWhile_WithBreak, TestWhile_WithContinue
+
 - ✨ **ビルトイン関数: print/println** (#38)
   - `print(...args)` - 標準出力に値を出力（改行なし）
   - `println(...args)` - 標準出力に値を出力（改行あり）
@@ -26,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - README.md にビルトイン関数セクションを追加
 
 ### Changed
-- ✅ **全テスト成功**: 487個のテスト全てが成功（スキップ0）
+- ✅ **全テスト成功**: 544個のテスト全てが成功（スキップ0）
 
 ## [0.2.1] - 2026-02-07
 
