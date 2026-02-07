@@ -455,6 +455,13 @@ public class Resolver
         {
             BeginScope();
 
+            // クラスのフィールドをメソッドスコープに宣言
+            // これにより、メソッド内でフィールドに直接アクセスできる（暗黙のthis参照）
+            foreach (var field in stmt.Fields)
+            {
+                Declare(field.Name, false, field.Line, field.Column);
+            }
+
             // パラメータを宣言
             foreach (var param in method.Parameters)
             {

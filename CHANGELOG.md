@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- 🐛 **メソッド内フィールドアクセスのサポート**
+  - クラスメソッド内でフィールドに直接アクセスできるようになりました
+  - `value = value + 1` のようなフィールド代入が動作するようになりました
+  - Resolverがメソッドスコープにクラスフィールドを登録するように改善
+  - 新しいテストケースを2つ追加（複数フィールドの操作、フィールド入れ替え）
+
 ## [0.2.0] - 2026-02-07
 
 ### Added
@@ -56,8 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🧪 包括的なテストスイート（381テスト）
 
 ### Known Issues
-- Fibonacci など複雑な再帰関数の計算結果が不正確な場合があります
-- クラスメソッド内でのフィールド直接アクセスに制限があります
+- ~~Fibonacci など複雑な再帰関数の計算結果が不正確な場合があります~~ → v0.2.1で修正済み
+- ~~クラスメソッド内でのフィールド直接アクセスに制限があります~~ → v0.2.1で修正済み
 - メンバへの代入（`obj.field = value`）は現在サポートされていません
 
 ### Future Plans (v0.2)
