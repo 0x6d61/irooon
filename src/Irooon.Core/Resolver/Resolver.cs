@@ -152,6 +152,18 @@ public class Resolver
             case NewExpr newExpr:
                 ResolveNewExpr(newExpr);
                 break;
+            case ListExpr listExpr:
+                ResolveListExpr(listExpr);
+                break;
+            case HashExpr hashExpr:
+                ResolveHashExpr(hashExpr);
+                break;
+            case IndexAssignExpr indexAssignExpr:
+                ResolveIndexAssignExpr(indexAssignExpr);
+                break;
+            case MemberAssignExpr memberAssignExpr:
+                ResolveMemberAssignExpr(memberAssignExpr);
+                break;
             default:
                 _errors.Add(new ResolveException(
                     $"Unknown expression type: {expr.GetType().Name}",
@@ -287,6 +299,39 @@ public class Resolver
         {
             ResolveExpression(arg);
         }
+    }
+
+    private void ResolveListExpr(ListExpr expr)
+    {
+        // リストの各要素を解析
+        foreach (var element in expr.Elements)
+        {
+            ResolveExpression(element);
+        }
+    }
+
+    private void ResolveHashExpr(HashExpr expr)
+    {
+        // ハッシュの各値を解析（キーは文字列リテラルなので解析不要）
+        foreach (var pair in expr.Pairs)
+        {
+            ResolveExpression(pair.Value);
+        }
+    }
+
+    private void ResolveIndexAssignExpr(IndexAssignExpr expr)
+    {
+        // 対象、インデックス、値を解析
+        ResolveExpression(expr.Target);
+        ResolveExpression(expr.Index);
+        ResolveExpression(expr.Value);
+    }
+
+    private void ResolveMemberAssignExpr(MemberAssignExpr expr)
+    {
+        // 対象と値を解析（メンバ名は文字列なので解析不要）
+        ResolveExpression(expr.Target);
+        ResolveExpression(expr.Value);
     }
 
     #endregion

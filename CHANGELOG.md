@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-02-07
+
+### Added
+- ✨ **リストとハッシュのサポート**
+  - リストリテラル: `[1, 2, 3]`
+  - ハッシュリテラル: `{name: "Alice", age: 30}`
+  - インデックスアクセス: `list[0]`, `hash["key"]`
+  - インデックス代入: `list[0] = value`, `hash["key"] = value`
+  - ネストしたデータ構造のサポート
+- 📚 **新しいサンプルスクリプト**
+  - `examples/list_example.iro` - リストの基本操作
+  - `examples/hash_example.iro` - ハッシュの基本操作
+  - `examples/data_structures.iro` - ネストしたデータ構造
+- 🧪 **E2Eテストの拡充**
+  - リスト操作のテスト（8個追加）
+  - ハッシュ操作のテスト
+  - ネストしたデータ構造のテスト
+- 📖 **ドキュメント更新**
+  - README.md にリスト・ハッシュの説明を追加
+  - language-spec.md にリテラル構文を追加
+
+### Changed
+- 🔧 Lexer: 左角括弧・右角括弧・コロンのトークンを追加
+- 🔧 Parser: リスト・ハッシュのパース機能を追加
+- 🔧 AST: ListExpr, HashExpr, IndexExpr ノードを追加
+- 🔧 CodeGen: リスト・ハッシュの ExpressionTree 生成機能を追加
+- 🔧 Runtime: リスト・ハッシュの実行時サポートを追加
+
 ## [0.1.0] - 2026-02-07
 
 ### Added

@@ -742,6 +742,291 @@ public class ParserExprTests
 
     #endregion
 
+    #region リストリテラルのテスト
+
+    [Fact]
+    public void TestParseListLiteral_Empty()
+    {
+        // 空のリスト: []
+        var tokens = new Core.Lexer.Lexer("[]").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<ListExpr>(ast.Expression);
+        var list = (ListExpr)ast.Expression;
+        Assert.Empty(list.Elements);
+    }
+
+    [Fact]
+    public void TestParseListLiteral_SingleElement()
+    {
+        // リスト: [1]
+        var tokens = new Core.Lexer.Lexer("[1]").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<ListExpr>(ast.Expression);
+        var list = (ListExpr)ast.Expression;
+        Assert.Single(list.Elements);
+
+        Assert.IsType<LiteralExpr>(list.Elements[0]);
+        var elem = (LiteralExpr)list.Elements[0];
+        Assert.Equal(1.0, elem.Value);
+    }
+
+    [Fact]
+    public void TestParseListLiteral_MultipleElements()
+    {
+        // リスト: [1, 2, 3]
+        var tokens = new Core.Lexer.Lexer("[1, 2, 3]").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<ListExpr>(ast.Expression);
+        var list = (ListExpr)ast.Expression;
+        Assert.Equal(3, list.Elements.Count);
+
+        var elem1 = (LiteralExpr)list.Elements[0];
+        Assert.Equal(1.0, elem1.Value);
+
+        var elem2 = (LiteralExpr)list.Elements[1];
+        Assert.Equal(2.0, elem2.Value);
+
+        var elem3 = (LiteralExpr)list.Elements[2];
+        Assert.Equal(3.0, elem3.Value);
+    }
+
+    [Fact]
+    public void TestParseListLiteral_MixedTypes()
+    {
+        // リスト: [1, "hello", true]
+        var tokens = new Core.Lexer.Lexer("[1, \"hello\", true]").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<ListExpr>(ast.Expression);
+        var list = (ListExpr)ast.Expression;
+        Assert.Equal(3, list.Elements.Count);
+
+        var elem1 = (LiteralExpr)list.Elements[0];
+        Assert.Equal(1.0, elem1.Value);
+
+        var elem2 = (LiteralExpr)list.Elements[1];
+        Assert.Equal("hello", elem2.Value);
+
+        var elem3 = (LiteralExpr)list.Elements[2];
+        Assert.Equal(true, elem3.Value);
+    }
+
+    [Fact]
+    public void TestParseListLiteral_Nested()
+    {
+        // ネストしたリスト: [[1, 2], [3, 4]]
+        var tokens = new Core.Lexer.Lexer("[[1, 2], [3, 4]]").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<ListExpr>(ast.Expression);
+        var list = (ListExpr)ast.Expression;
+        Assert.Equal(2, list.Elements.Count);
+
+        Assert.IsType<ListExpr>(list.Elements[0]);
+        var subList1 = (ListExpr)list.Elements[0];
+        Assert.Equal(2, subList1.Elements.Count);
+
+        Assert.IsType<ListExpr>(list.Elements[1]);
+        var subList2 = (ListExpr)list.Elements[1];
+        Assert.Equal(2, subList2.Elements.Count);
+    }
+
+    #endregion
+
+    #region ハッシュリテラルのテスト
+
+    [Fact]
+    public void TestParseHashLiteral_Empty()
+    {
+        // 空のハッシュ: {}
+        var tokens = new Core.Lexer.Lexer("{}").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        // 空の {} はブロック式として解釈される
+        Assert.IsType<BlockExpr>(ast.Expression);
+        var block = (BlockExpr)ast.Expression;
+        Assert.Empty(block.Statements);
+        Assert.Null(block.Expression);
+    }
+
+    [Fact]
+    public void TestParseHashLiteral_SinglePair()
+    {
+        // ハッシュ: {name: "Alice"}
+        var tokens = new Core.Lexer.Lexer("{name: \"Alice\"}").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<HashExpr>(ast.Expression);
+        var hash = (HashExpr)ast.Expression;
+        Assert.Single(hash.Pairs);
+
+        Assert.Equal("name", hash.Pairs[0].Key);
+        Assert.IsType<LiteralExpr>(hash.Pairs[0].Value);
+        var value = (LiteralExpr)hash.Pairs[0].Value;
+        Assert.Equal("Alice", value.Value);
+    }
+
+    [Fact]
+    public void TestParseHashLiteral_MultiplePairs()
+    {
+        // ハッシュ: {name: "Alice", age: 30, active: true}
+        var tokens = new Core.Lexer.Lexer("{name: \"Alice\", age: 30, active: true}").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<HashExpr>(ast.Expression);
+        var hash = (HashExpr)ast.Expression;
+        Assert.Equal(3, hash.Pairs.Count);
+
+        Assert.Equal("name", hash.Pairs[0].Key);
+        var value1 = (LiteralExpr)hash.Pairs[0].Value;
+        Assert.Equal("Alice", value1.Value);
+
+        Assert.Equal("age", hash.Pairs[1].Key);
+        var value2 = (LiteralExpr)hash.Pairs[1].Value;
+        Assert.Equal(30.0, value2.Value);
+
+        Assert.Equal("active", hash.Pairs[2].Key);
+        var value3 = (LiteralExpr)hash.Pairs[2].Value;
+        Assert.Equal(true, value3.Value);
+    }
+
+    [Fact]
+    public void TestParseHashLiteral_NestedHash()
+    {
+        // ネストしたハッシュ: {person: {name: "Bob"}}
+        var tokens = new Core.Lexer.Lexer("{person: {name: \"Bob\"}}").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<HashExpr>(ast.Expression);
+        var hash = (HashExpr)ast.Expression;
+        Assert.Single(hash.Pairs);
+
+        Assert.Equal("person", hash.Pairs[0].Key);
+        Assert.IsType<HashExpr>(hash.Pairs[0].Value);
+        var nestedHash = (HashExpr)hash.Pairs[0].Value;
+        Assert.Single(nestedHash.Pairs);
+        Assert.Equal("name", nestedHash.Pairs[0].Key);
+    }
+
+    #endregion
+
+    #region インデックス代入のテスト
+
+    [Fact]
+    public void TestParseIndexAssignment()
+    {
+        // arr[0] = 10
+        var tokens = new Core.Lexer.Lexer("arr[0] = 10").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<IndexAssignExpr>(ast.Expression);
+        var assign = (IndexAssignExpr)ast.Expression;
+
+        Assert.IsType<IdentifierExpr>(assign.Target);
+        var target = (IdentifierExpr)assign.Target;
+        Assert.Equal("arr", target.Name);
+
+        Assert.IsType<LiteralExpr>(assign.Index);
+        var index = (LiteralExpr)assign.Index;
+        Assert.Equal(0.0, index.Value);
+
+        Assert.IsType<LiteralExpr>(assign.Value);
+        var value = (LiteralExpr)assign.Value;
+        Assert.Equal(10.0, value.Value);
+    }
+
+    [Fact]
+    public void TestParseIndexAssignment_StringKey()
+    {
+        // map["key"] = "value"
+        var tokens = new Core.Lexer.Lexer("map[\"key\"] = \"value\"").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<IndexAssignExpr>(ast.Expression);
+        var assign = (IndexAssignExpr)ast.Expression;
+
+        Assert.IsType<LiteralExpr>(assign.Index);
+        var index = (LiteralExpr)assign.Index;
+        Assert.Equal("key", index.Value);
+
+        Assert.IsType<LiteralExpr>(assign.Value);
+        var value = (LiteralExpr)assign.Value;
+        Assert.Equal("value", value.Value);
+    }
+
+    #endregion
+
+    #region メンバ代入のテスト
+
+    [Fact]
+    public void TestParseMemberAssignment()
+    {
+        // obj.field = 42
+        var tokens = new Core.Lexer.Lexer("obj.field = 42").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<MemberAssignExpr>(ast.Expression);
+        var assign = (MemberAssignExpr)ast.Expression;
+
+        Assert.IsType<IdentifierExpr>(assign.Target);
+        var target = (IdentifierExpr)assign.Target;
+        Assert.Equal("obj", target.Name);
+
+        Assert.Equal("field", assign.MemberName);
+
+        Assert.IsType<LiteralExpr>(assign.Value);
+        var value = (LiteralExpr)assign.Value;
+        Assert.Equal(42.0, value.Value);
+    }
+
+    [Fact]
+    public void TestParseMemberAssignment_ChainedMember()
+    {
+        // obj.outer.inner = 100
+        var tokens = new Core.Lexer.Lexer("obj.outer.inner = 100").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<MemberAssignExpr>(ast.Expression);
+        var assign = (MemberAssignExpr)ast.Expression;
+
+        Assert.Equal("inner", assign.MemberName);
+
+        Assert.IsType<MemberExpr>(assign.Target);
+        var target = (MemberExpr)assign.Target;
+        Assert.Equal("outer", target.Name);
+    }
+
+    #endregion
+
     #region エラーケースのテスト
 
     [Fact]

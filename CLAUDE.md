@@ -211,6 +211,40 @@ irooon/
 - ✅ サンプルスクリプト8個
 - ✅ リリース準備完了
 
+#### v0.2 開発開始（リスト・ハッシュサポート）
+
+**Task #22-25: リスト・ハッシュ実装（完了）🎉**
+- ✅ Task #22: Lexer/AST拡張（リスト・ハッシュ対応）
+- ✅ Task #23: Parser拡張（リスト・ハッシュのパース）
+- ✅ Task #24: Runtime拡張（リスト・ハッシュ操作）
+- ✅ Task #25: CodeGen拡張（リスト・ハッシュ生成）
+
+**Task #26: テスト・サンプル・ドキュメント更新（完了）🎉**
+- ✅ E2Eテストの追加（8個の新規テスト）
+  - TestListExample, TestHashExample, TestDataStructuresExample
+  - TestListOperations, TestHashOperations
+  - TestNestedDataStructures, TestListWithHashElements
+  - TestComplexNestedStructure
+- ✅ サンプルスクリプトの作成
+  - `examples/list_example.iro` - リストの基本操作
+  - `examples/hash_example.iro` - ハッシュの基本操作
+  - `examples/data_structures.iro` - ネストしたデータ構造
+- ✅ ドキュメント更新
+  - `README.md` - リスト・ハッシュセクション追加、サンプル追加
+  - `docs/language-spec.md` - リテラル構文追加、インデックス操作追加
+  - `CHANGELOG.md` - v0.2.0セクション追加
+  - `CLAUDE.md` - v0.2進捗記録追加
+
+#### v0.2.0 完成準備中
+
+**現在の統計:**
+- ✅ 全フェーズ完了（Phase 1-10 + リスト・ハッシュ拡張）
+- ✅ 全26タスク完了
+- ✅ テスト数: 474個（471個成功、3個スキップ）
+- ✅ サンプルスクリプト: 12個（9個既存 + 3個新規）
+  - 新規: `list_example.iro`, `hash_example.iro`, `data_structures.iro`
+- ✅ ドキュメント: 7個（README, CHANGELOG, CLAUDE, RELEASE_NOTES + docs/3個）
+
 ---
 
 ## 学んだこと・注意点 💡
@@ -244,13 +278,18 @@ irooon/
 - クラスメソッド内でのフィールド直接アクセスに制限があります
 - メンバへの代入（`obj.field = value`）は現在サポートされていません
 
-### 将来の拡張（v0.2以降）
+### v0.2.0で実装済み
+- ✅ リストとハッシュのサポート
+- ✅ インデックスアクセス・代入
+- ✅ ネストしたデータ構造
+
+### 将来の拡張（v0.3以降）
 - 型推論・型注釈
 - 継承
 - import/モジュールシステム
 - REPL
 - 演算子オーバーロード
-- 上記既知の問題の修正
+- v0.1の既知の問題の修正
 
 ---
 
@@ -261,7 +300,7 @@ irooon/
 
 ---
 
-**最終更新:** 2026-02-07（v0.1.0 リリース）
-**進捗**: **v0.1.0 完成・リリース済み** 🎉
-**全フェーズ完了**: Phase 1-10（Runtime, Lexer, AST, Parser, Resolver, CodeGen, CLI, 統合テスト, リリース準備）
-**テスト統計**: 381個（100%成功）
+**最終更新:** 2026-02-07（v0.2.0 開発中）
+**進捗**: **v0.2.0 テスト・ドキュメント更新完了** 🎉
+**全フェーズ完了**: Phase 1-10 + リスト・ハッシュ拡張
+**テスト統計**: 474個（471個成功、3個スキップ）

@@ -103,6 +103,16 @@ public class Parser
             {
                 return new AssignExpr(identExpr.Name, value, equals.Line, equals.Column);
             }
+            else if (expr is IndexExpr indexExpr)
+            {
+                // arr[0] = value
+                return new IndexAssignExpr(indexExpr.Target, indexExpr.Index, value, equals.Line, equals.Column);
+            }
+            else if (expr is MemberExpr memberExpr)
+            {
+                // obj.field = value
+                return new MemberAssignExpr(memberExpr.Target, memberExpr.Name, value, equals.Line, equals.Column);
+            }
 
             throw Error(equals, "Invalid assignment target.");
         }
@@ -294,7 +304,7 @@ public class Parser
     }
 
     /// <summary>
-    /// プライマリ式（リテラル、識別子、括弧式、if式、ブロック式、ラムダ式）をパースします。
+    /// プライマリ式（リテラル、識別子、括弧式、if式、ブロック式、ラムダ式、リスト、ハッシュ）をパースします。
     /// </summary>
     private Expression Primary()
     {
@@ -319,10 +329,16 @@ public class Parser
             return IfExpression();
         }
 
-        // ブロック式
+        // リストリテラル: [...]
+        if (Match(TokenType.LeftBracket))
+        {
+            return ListLiteral();
+        }
+
+        // ブロック式またはハッシュリテラル: {...}
         if (Match(TokenType.LeftBrace))
         {
-            return BlockExpression();
+            return BlockOrHashExpression();
         }
 
         // true
@@ -471,6 +487,107 @@ public class Parser
         var elseBranch = BlockExpression();
 
         return new IfExpr(condition, thenBranch, elseBranch, ifToken.Line, ifToken.Column);
+    }
+
+    /// <summary>
+    /// リストリテラルをパースします。
+    /// [elem1, elem2, ...]
+    /// </summary>
+    private ListExpr ListLiteral()
+    {
+        var leftBracket = Previous();
+        var elements = new List<Expression>();
+
+        // 改行をスキップ
+        while (Match(TokenType.Newline)) { }
+
+        if (!Check(TokenType.RightBracket))
+        {
+            do
+            {
+                // 改行をスキップ
+                while (Match(TokenType.Newline)) { }
+
+                elements.Add(Expression());
+
+                // 改行をスキップ
+                while (Match(TokenType.Newline)) { }
+            } while (Match(TokenType.Comma));
+        }
+
+        Consume(TokenType.RightBracket, "Expect ']' after list elements.");
+
+        return new ListExpr(elements, leftBracket.Line, leftBracket.Column);
+    }
+
+    /// <summary>
+    /// ブロック式またはハッシュリテラルをパースします。
+    /// ブロック式: { stmt* expr? }
+    /// ハッシュリテラル: {key1: value1, key2: value2, ...}
+    ///
+    /// 最初の要素を見て判定:
+    /// - 空 {} → ブロック式
+    /// - identifier : → ハッシュリテラル
+    /// - それ以外 → ブロック式
+    /// </summary>
+    private Expression BlockOrHashExpression()
+    {
+        var leftBrace = Previous();
+
+        // 改行をスキップ
+        while (Match(TokenType.Newline)) { }
+
+        // 空の {} はブロック式
+        if (Check(TokenType.RightBrace))
+        {
+            Advance();
+            return new BlockExpr(new List<Statement>(), null, leftBrace.Line, leftBrace.Column);
+        }
+
+        // 最初がidentifierで、その次が : ならハッシュリテラル
+        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon)
+        {
+            return HashLiteral(leftBrace);
+        }
+
+        // それ以外はブロック式
+        return BlockExpression();
+    }
+
+    /// <summary>
+    /// ハッシュリテラルをパースします（先頭の { は既に消費済み）。
+    /// {key1: value1, key2: value2, ...}
+    /// </summary>
+    private HashExpr HashLiteral(Token leftBrace)
+    {
+        var pairs = new List<HashExpr.KeyValuePair>();
+
+        if (!Check(TokenType.RightBrace))
+        {
+            do
+            {
+                // 改行をスキップ
+                while (Match(TokenType.Newline)) { }
+
+                // キーをパース（識別子のみ）
+                var key = Consume(TokenType.Identifier, "Expect identifier for hash key.");
+
+                // : を消費
+                Consume(TokenType.Colon, "Expect ':' after hash key.");
+
+                // 値をパース
+                var value = Expression();
+
+                pairs.Add(new HashExpr.KeyValuePair(key.Lexeme, value));
+
+                // 改行をスキップ
+                while (Match(TokenType.Newline)) { }
+            } while (Match(TokenType.Comma));
+        }
+
+        Consume(TokenType.RightBrace, "Expect '}' after hash pairs.");
+
+        return new HashExpr(pairs, leftBrace.Line, leftBrace.Column);
     }
 
     #endregion

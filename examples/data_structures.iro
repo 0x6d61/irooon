@@ -1,0 +1,10 @@
+// ネストしたデータ構造
+let users = [
+    {name: "Alice", age: 30, skills: ["Python", "JavaScript"]},
+    {name: "Bob", age: 25, skills: ["Rust", "Go"]}
+]
+
+// アクセス
+let firstUser = users[0]
+let firstSkill = firstUser["skills"]
+firstSkill[0]

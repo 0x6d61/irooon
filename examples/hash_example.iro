@@ -1,0 +1,11 @@
+// ハッシュの基本操作
+let person = {name: "Alice", age: 30}
+
+// アクセス
+let name = person["name"]
+
+// 代入
+person["age"] = 31
+
+// 出力
+person["age"]

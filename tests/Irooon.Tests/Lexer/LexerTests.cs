@@ -347,6 +347,31 @@ public class LexerTests
         Assert.Equal(TokenType.Dot, tokens[1].Type);
     }
 
+    [Fact]
+    public void TestDelimiters_Colon()
+    {
+        var lexer = new Core.Lexer.Lexer(":");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.Colon, tokens[0].Type);
+        Assert.Equal(":", tokens[0].Lexeme);
+    }
+
+    [Fact]
+    public void TestDelimiters_ColonInHash()
+    {
+        var lexer = new Core.Lexer.Lexer("{ \"key\" : \"value\" }");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(6, tokens.Count); // {, "key", :, "value", }, Eof
+        Assert.Equal(TokenType.LeftBrace, tokens[0].Type);
+        Assert.Equal(TokenType.String, tokens[1].Type);
+        Assert.Equal(TokenType.Colon, tokens[2].Type);
+        Assert.Equal(TokenType.String, tokens[3].Type);
+        Assert.Equal(TokenType.RightBrace, tokens[4].Type);
+    }
+
     #endregion
 
     #region コメントテスト

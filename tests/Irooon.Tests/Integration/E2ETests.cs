@@ -90,4 +90,140 @@ public class E2ETests
 
         Assert.Equal(55.0, result);
     }
+
+    [Fact]
+    public void TestListExample()
+    {
+        var path = GetExamplePath("list_example.iro");
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException($"Example file not found: {path}");
+        }
+
+        var source = File.ReadAllText(path);
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        // numbers[1] = 99 の結果
+        Assert.Equal(99.0, result);
+    }
+
+    [Fact]
+    public void TestHashExample()
+    {
+        var path = GetExamplePath("hash_example.iro");
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException($"Example file not found: {path}");
+        }
+
+        var source = File.ReadAllText(path);
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        // person["age"] = 31 の結果
+        Assert.Equal(31.0, result);
+    }
+
+    [Fact]
+    public void TestDataStructuresExample()
+    {
+        var path = GetExamplePath("data_structures.iro");
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException($"Example file not found: {path}");
+        }
+
+        var source = File.ReadAllText(path);
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        // firstSkill[0] = "Python"
+        Assert.Equal("Python", result);
+    }
+
+    [Fact]
+    public void TestListOperations()
+    {
+        var source = @"
+let numbers = [1, 2, 3, 4, 5]
+let first = numbers[0]
+numbers[1] = 99
+numbers[1]
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(99.0, result);
+    }
+
+    [Fact]
+    public void TestHashOperations()
+    {
+        var source = @"
+let person = {name: ""Alice"", age: 30}
+let name = person[""name""]
+person[""age""] = 31
+person[""age""]
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(31.0, result);
+    }
+
+    [Fact]
+    public void TestNestedDataStructures()
+    {
+        var source = @"
+let data = {
+    users: [
+        {name: ""Alice"", age: 30},
+        {name: ""Bob"", age: 25}
+    ]
+}
+let users = data[""users""]
+let firstUser = users[0]
+firstUser[""name""]
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("Alice", result);
+    }
+
+    [Fact]
+    public void TestListWithHashElements()
+    {
+        var source = @"
+let items = [
+    {id: 1, value: ""first""},
+    {id: 2, value: ""second""}
+]
+items[1][""value""]
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("second", result);
+    }
+
+    [Fact]
+    public void TestComplexNestedStructure()
+    {
+        var source = @"
+let config = {
+    database: {
+        host: ""localhost"",
+        ports: [5432, 5433, 5434]
+    }
+}
+let ports = config[""database""][""ports""]
+ports[1]
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(5433.0, result);
+    }
 }

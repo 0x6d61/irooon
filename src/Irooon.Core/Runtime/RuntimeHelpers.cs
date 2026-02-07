@@ -361,4 +361,87 @@ public static class RuntimeHelpers
     }
 
     #endregion
+
+    #region List and Hash Operations
+
+    /// <summary>
+    /// リストを作成する
+    /// </summary>
+    public static object CreateList(object[] elements)
+    {
+        return new List<object>(elements);
+    }
+
+    /// <summary>
+    /// ハッシュ（辞書）を作成する
+    /// </summary>
+    public static object CreateHash((string Key, object Value)[] pairs)
+    {
+        var dict = new Dictionary<string, object>();
+        foreach (var (key, value) in pairs)
+        {
+            dict[key] = value;
+        }
+        return dict;
+    }
+
+    /// <summary>
+    /// インデックスアクセス（統一インターフェース）
+    /// リスト、ハッシュ、またはインスタンスから要素を取得する
+    /// </summary>
+    public static object GetIndexed(object target, object index)
+    {
+        if (target is List<object> list)
+        {
+            int idx = Convert.ToInt32(index);
+            if (idx < 0 || idx >= list.Count)
+                throw new RuntimeException($"List index out of range: {idx}");
+            return list[idx];
+        }
+        else if (target is Dictionary<string, object> dict)
+        {
+            string key = index?.ToString() ?? throw new RuntimeException("Hash key cannot be null");
+            if (!dict.TryGetValue(key, out var value))
+                throw new RuntimeException($"Hash key not found: {key}");
+            return value;
+        }
+        else if (target is IroInstance)
+        {
+            // IroInstanceの場合、GetMemberにフォールバック
+            string key = index?.ToString() ?? throw new RuntimeException("Member name cannot be null");
+            return GetMember(target, key);
+        }
+        throw new RuntimeException($"Cannot index type: {target?.GetType().Name ?? "null"}");
+    }
+
+    /// <summary>
+    /// インデックス代入（統一インターフェース）
+    /// リスト、ハッシュ、またはインスタンスに要素を設定する
+    /// </summary>
+    public static object SetIndexed(object target, object index, object value)
+    {
+        if (target is List<object> list)
+        {
+            int idx = Convert.ToInt32(index);
+            if (idx < 0 || idx >= list.Count)
+                throw new RuntimeException($"List index out of range: {idx}");
+            list[idx] = value;
+            return value;
+        }
+        else if (target is Dictionary<string, object> dict)
+        {
+            string key = index?.ToString() ?? throw new RuntimeException("Hash key cannot be null");
+            dict[key] = value;
+            return value;
+        }
+        else if (target is IroInstance)
+        {
+            // IroInstanceの場合、SetMemberにフォールバック
+            string key = index?.ToString() ?? throw new RuntimeException("Member name cannot be null");
+            return SetMember(target, key, value);
+        }
+        throw new RuntimeException($"Cannot index type: {target?.GetType().Name ?? "null"}");
+    }
+
+    #endregion
 }

@@ -82,6 +82,7 @@ public class Lexer
             case ']': AddToken(TokenType.RightBracket); break;
             case ',': AddToken(TokenType.Comma); break;
             case '.': AddToken(TokenType.Dot); break;
+            case ':': AddToken(TokenType.Colon); break;
             case '+': AddToken(TokenType.Plus); break;
             case '-': AddToken(TokenType.Minus); break;
             case '*': AddToken(TokenType.Star); break;

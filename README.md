@@ -59,6 +59,11 @@ dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/lambda_example.ir
 
 # 演算子と条件分岐
 dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/operators.iro
+
+# リストとハッシュ
+dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/list_example.iro
+dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/hash_example.iro
+dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/data_structures.iro
 ```
 
 ## 言語機能
@@ -67,6 +72,20 @@ dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/operators.iro
 ```irooon
 let x = 10  // 再代入不可
 var y = 20  // 再代入可能
+```
+
+### リスト
+```irooon
+let numbers = [1, 2, 3, 4, 5]
+let first = numbers[0]  // アクセス
+numbers[1] = 99         // 代入
+```
+
+### ハッシュ
+```irooon
+let person = {name: "Alice", age: 30}
+let name = person["name"]  // アクセス
+person["age"] = 31         // 代入
 ```
 
 ### 関数
@@ -138,6 +157,16 @@ class Counter {
 let counter = Counter()
 counter.increment()
 counter.get()  // 1
+
+// リストとハッシュ
+let data = {
+  users: [
+    {name: "Alice", age: 30},
+    {name: "Bob", age: 25}
+  ]
+}
+let firstUser = data["users"][0]
+firstUser["name"]  // "Alice"
 ```
 
 ## ドキュメント

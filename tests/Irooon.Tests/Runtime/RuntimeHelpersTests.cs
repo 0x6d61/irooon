@@ -610,6 +610,316 @@ public class RuntimeHelpersTests
 
     #endregion
 
+    #region CreateList Tests
+
+    [Fact]
+    public void CreateList_空の配列からリストを生成できる()
+    {
+        // Arrange
+        var elements = new object[] { };
+
+        // Act
+        var result = RuntimeHelpers.CreateList(elements);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.IsType<List<object>>(result);
+        var list = (List<object>)result;
+        Assert.Empty(list);
+    }
+
+    [Fact]
+    public void CreateList_要素を持つ配列からリストを生成できる()
+    {
+        // Arrange
+        var elements = new object[] { 1.0, 2.0, 3.0 };
+
+        // Act
+        var result = RuntimeHelpers.CreateList(elements);
+
+        // Assert
+        Assert.NotNull(result);
+        var list = (List<object>)result;
+        Assert.Equal(3, list.Count);
+        Assert.Equal(1.0, list[0]);
+        Assert.Equal(2.0, list[1]);
+        Assert.Equal(3.0, list[2]);
+    }
+
+    [Fact]
+    public void CreateList_異なる型の要素を含むリストを生成できる()
+    {
+        // Arrange
+        var elements = new object[] { 1.0, "text", true };
+
+        // Act
+        var result = RuntimeHelpers.CreateList(elements);
+
+        // Assert
+        var list = (List<object>)result;
+        Assert.Equal(3, list.Count);
+        Assert.Equal(1.0, list[0]);
+        Assert.Equal("text", list[1]);
+        Assert.Equal(true, list[2]);
+    }
+
+    #endregion
+
+    #region CreateHash Tests
+
+    [Fact]
+    public void CreateHash_空のペア配列からハッシュを生成できる()
+    {
+        // Arrange
+        var pairs = new (string Key, object Value)[] { };
+
+        // Act
+        var result = RuntimeHelpers.CreateHash(pairs);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.IsType<Dictionary<string, object>>(result);
+        var dict = (Dictionary<string, object>)result;
+        Assert.Empty(dict);
+    }
+
+    [Fact]
+    public void CreateHash_ペア配列からハッシュを生成できる()
+    {
+        // Arrange
+        var pairs = new (string Key, object Value)[]
+        {
+            ("name", "Alice"),
+            ("age", 30.0),
+            ("active", true)
+        };
+
+        // Act
+        var result = RuntimeHelpers.CreateHash(pairs);
+
+        // Assert
+        var dict = (Dictionary<string, object>)result;
+        Assert.Equal(3, dict.Count);
+        Assert.Equal("Alice", dict["name"]);
+        Assert.Equal(30.0, dict["age"]);
+        Assert.Equal(true, dict["active"]);
+    }
+
+    [Fact]
+    public void CreateHash_同じキーで上書きされる()
+    {
+        // Arrange
+        var pairs = new (string Key, object Value)[]
+        {
+            ("key", "first"),
+            ("key", "second")
+        };
+
+        // Act
+        var result = RuntimeHelpers.CreateHash(pairs);
+
+        // Assert
+        var dict = (Dictionary<string, object>)result;
+        Assert.Single(dict);
+        Assert.Equal("second", dict["key"]);
+    }
+
+    #endregion
+
+    #region GetIndexed Tests
+
+    [Fact]
+    public void GetIndexed_リストから要素を取得できる()
+    {
+        // Arrange
+        var list = new List<object> { "a", "b", "c" };
+
+        // Act
+        var result = RuntimeHelpers.GetIndexed(list, 1);
+
+        // Assert
+        Assert.Equal("b", result);
+    }
+
+    [Fact]
+    public void GetIndexed_リストのインデックスが範囲外の場合は例外を投げる()
+    {
+        // Arrange
+        var list = new List<object> { "a", "b", "c" };
+
+        // Act & Assert
+        var ex = Assert.Throws<RuntimeException>(() => RuntimeHelpers.GetIndexed(list, 10));
+        Assert.Contains("index out of range", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void GetIndexed_リストの負のインデックスは例外を投げる()
+    {
+        // Arrange
+        var list = new List<object> { "a", "b", "c" };
+
+        // Act & Assert
+        var ex = Assert.Throws<RuntimeException>(() => RuntimeHelpers.GetIndexed(list, -1));
+        Assert.Contains("index out of range", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void GetIndexed_ハッシュから要素を取得できる()
+    {
+        // Arrange
+        var dict = new Dictionary<string, object>
+        {
+            ["name"] = "Alice",
+            ["age"] = 30.0
+        };
+
+        // Act
+        var result = RuntimeHelpers.GetIndexed(dict, "name");
+
+        // Assert
+        Assert.Equal("Alice", result);
+    }
+
+    [Fact]
+    public void GetIndexed_ハッシュの存在しないキーは例外を投げる()
+    {
+        // Arrange
+        var dict = new Dictionary<string, object>
+        {
+            ["name"] = "Alice"
+        };
+
+        // Act & Assert
+        var ex = Assert.Throws<RuntimeException>(() => RuntimeHelpers.GetIndexed(dict, "age"));
+        Assert.Contains("key not found", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void GetIndexed_ハッシュのnullキーは例外を投げる()
+    {
+        // Arrange
+        var dict = new Dictionary<string, object>
+        {
+            ["name"] = "Alice"
+        };
+
+        // Act & Assert
+        var ex = Assert.Throws<RuntimeException>(() => RuntimeHelpers.GetIndexed(dict, null!));
+        Assert.Contains("key cannot be null", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void GetIndexed_サポートされていない型は例外を投げる()
+    {
+        // Arrange
+        var notIndexable = "string";
+
+        // Act & Assert
+        var ex = Assert.Throws<RuntimeException>(() => RuntimeHelpers.GetIndexed(notIndexable, 0));
+        Assert.Contains("cannot index", ex.Message.ToLower());
+    }
+
+    #endregion
+
+    #region SetIndexed Tests
+
+    [Fact]
+    public void SetIndexed_リストの要素を設定できる()
+    {
+        // Arrange
+        var list = new List<object> { "a", "b", "c" };
+
+        // Act
+        var result = RuntimeHelpers.SetIndexed(list, 1, "B");
+
+        // Assert
+        Assert.Equal("B", result);
+        Assert.Equal("B", list[1]);
+    }
+
+    [Fact]
+    public void SetIndexed_リストのインデックスが範囲外の場合は例外を投げる()
+    {
+        // Arrange
+        var list = new List<object> { "a", "b", "c" };
+
+        // Act & Assert
+        var ex = Assert.Throws<RuntimeException>(() => RuntimeHelpers.SetIndexed(list, 10, "value"));
+        Assert.Contains("index out of range", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void SetIndexed_リストの負のインデックスは例外を投げる()
+    {
+        // Arrange
+        var list = new List<object> { "a", "b", "c" };
+
+        // Act & Assert
+        var ex = Assert.Throws<RuntimeException>(() => RuntimeHelpers.SetIndexed(list, -1, "value"));
+        Assert.Contains("index out of range", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void SetIndexed_ハッシュの要素を設定できる()
+    {
+        // Arrange
+        var dict = new Dictionary<string, object>
+        {
+            ["name"] = "Alice"
+        };
+
+        // Act
+        var result = RuntimeHelpers.SetIndexed(dict, "name", "Bob");
+
+        // Assert
+        Assert.Equal("Bob", result);
+        Assert.Equal("Bob", dict["name"]);
+    }
+
+    [Fact]
+    public void SetIndexed_ハッシュに新しいキーを追加できる()
+    {
+        // Arrange
+        var dict = new Dictionary<string, object>
+        {
+            ["name"] = "Alice"
+        };
+
+        // Act
+        var result = RuntimeHelpers.SetIndexed(dict, "age", 30.0);
+
+        // Assert
+        Assert.Equal(30.0, result);
+        Assert.Equal(30.0, dict["age"]);
+    }
+
+    [Fact]
+    public void SetIndexed_ハッシュのnullキーは例外を投げる()
+    {
+        // Arrange
+        var dict = new Dictionary<string, object>
+        {
+            ["name"] = "Alice"
+        };
+
+        // Act & Assert
+        var ex = Assert.Throws<RuntimeException>(() => RuntimeHelpers.SetIndexed(dict, null!, "value"));
+        Assert.Contains("key cannot be null", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void SetIndexed_サポートされていない型は例外を投げる()
+    {
+        // Arrange
+        var notIndexable = "string";
+
+        // Act & Assert
+        var ex = Assert.Throws<RuntimeException>(() => RuntimeHelpers.SetIndexed(notIndexable, 0, "value"));
+        Assert.Contains("cannot index", ex.Message.ToLower());
+    }
+
+    #endregion
+
     #region Test Helper Classes
 
     private class TestCallable : IroCallable

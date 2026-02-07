@@ -1,0 +1,11 @@
+// リストの基本操作
+let numbers = [1, 2, 3, 4, 5]
+
+// アクセス
+let first = numbers[0]
+
+// 代入
+numbers[1] = 99
+
+// 出力
+numbers[1]

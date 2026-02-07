@@ -44,6 +44,58 @@ var y = expr
 
 ---
 
+## リテラル
+
+### 数値リテラル
+
+```
+123
+3.14
+```
+
+### 文字列リテラル
+
+```
+"Hello"
+```
+
+### 真偽値リテラル
+
+```
+true
+false
+```
+
+### null リテラル
+
+```
+null
+```
+
+### リストリテラル
+
+```
+[1, 2, 3]
+["a", "b", "c"]
+[expr1, expr2, expr3]
+```
+
+リストは動的配列として実装される。
+要素の型は制限されない（異種混在可能）。
+
+### ハッシュリテラル
+
+```
+{key1: value1, key2: value2}
+{name: "Alice", age: 30}
+```
+
+ハッシュはキー・バリューの辞書として実装される。
+キーは文字列として扱われる。
+値の型は制限されない。
+
+---
+
 ## 式
 
 ### 算術
@@ -74,10 +126,39 @@ expr(args)
 expr.name
 ```
 
-### インデックス
+### インデックスアクセス
 
 ```
 expr[index]
+```
+
+リストまたはハッシュの要素にアクセスする。
+インデックスは整数（リスト）または文字列（ハッシュ）を指定する。
+
+例:
+```
+let numbers = [1, 2, 3]
+numbers[0]  // 1
+
+let person = {name: "Alice"}
+person["name"]  // "Alice"
+```
+
+### インデックス代入
+
+```
+expr[index] = value
+```
+
+リストまたはハッシュの要素に値を代入する。
+
+例:
+```
+let numbers = [1, 2, 3]
+numbers[0] = 99  // [99, 2, 3]
+
+let person = {name: "Alice"}
+person["age"] = 30  // {name: "Alice", age: 30}
 ```
 
 ---
@@ -234,11 +315,14 @@ System.IO.File.ReadAllText(path)
 * `UnaryExpr`
 * `CallExpr`
 * `MemberExpr`
+* `IndexExpr`
 * `AssignExpr`
 * `IfExpr`
 * `BlockExpr`
 * `LambdaExpr`
 * `NewExpr`
+* `ListExpr`
+* `HashExpr`
 
 ### Statement
 

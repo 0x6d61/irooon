@@ -60,6 +60,10 @@ public class CodeGenerator
             BlockExpr e => GenerateBlockExpr(e),
             LambdaExpr e => GenerateLambdaExpr(e),
             NewExpr e => GenerateNewExpr(e),
+            ListExpr e => GenerateListExpr(e),
+            HashExpr e => GenerateHashExpr(e),
+            IndexAssignExpr e => GenerateIndexAssignExpr(e),
+            MemberAssignExpr e => GenerateMemberAssignExpr(e),
             _ => throw new NotImplementedException($"Unknown expression type: {expr.GetType()}")
         };
     }
@@ -829,24 +833,108 @@ public class CodeGenerator
 
     /// <summary>
     /// インデックスアクセスの変換
-    /// 仕様: v0.1では RuntimeHelpers.GetMember を使用（簡易実装）
+    /// 仕様: RuntimeHelpers.GetIndexed を使用
     /// </summary>
     private ExprTree GenerateIndexExpr(IndexExpr expr)
     {
         var targetExpr = GenerateExpression(expr.Target);
         var indexExpr = GenerateExpression(expr.Index);
 
-        // indexExprをstringにキャスト
-        var indexAsString = ExprTree.Convert(indexExpr, typeof(string));
-
-        // 配列/辞書アクセスとして扱う（簡易実装）
-        // v0.1では RuntimeHelpers.GetMember を使用
+        // RuntimeHelpers.GetIndexed(target, index)
         return ExprTree.Call(
             typeof(RuntimeHelpers),
-            "GetMember",
+            nameof(RuntimeHelpers.GetIndexed),
             null,
             targetExpr,
-            indexAsString
+            indexExpr
+        );
+    }
+
+    #endregion
+
+    #region Task #25: リスト・ハッシュの実装
+
+    /// <summary>
+    /// リストリテラルの変換
+    /// 仕様: [1, 2, 3] → RuntimeHelpers.CreateList(new object[] { 1, 2, 3 })
+    /// </summary>
+    private ExprTree GenerateListExpr(ListExpr expr)
+    {
+        var elemExprs = expr.Elements.Select(e => GenerateExpression(e)).ToArray();
+        var arrayExpr = ExprTree.NewArrayInit(typeof(object), elemExprs);
+
+        return ExprTree.Call(
+            typeof(RuntimeHelpers),
+            nameof(RuntimeHelpers.CreateList),
+            Type.EmptyTypes,
+            arrayExpr
+        );
+    }
+
+    /// <summary>
+    /// ハッシュリテラルの変換
+    /// 仕様: {name: "Alice", age: 30} → RuntimeHelpers.CreateHash(new[] { ("name", "Alice"), ("age", 30) })
+    /// </summary>
+    private ExprTree GenerateHashExpr(HashExpr expr)
+    {
+        var tupleType = typeof(ValueTuple<string, object>);
+        var tupleConstructor = tupleType.GetConstructor(new[] { typeof(string), typeof(object) })!;
+
+        var pairExprs = expr.Pairs.Select(p =>
+            ExprTree.New(
+                tupleConstructor,
+                ExprTree.Constant(p.Key),
+                GenerateExpression(p.Value)
+            )
+        ).ToArray();
+
+        var pairArrayExpr = ExprTree.NewArrayInit(tupleType, pairExprs);
+
+        return ExprTree.Call(
+            typeof(RuntimeHelpers),
+            nameof(RuntimeHelpers.CreateHash),
+            Type.EmptyTypes,
+            pairArrayExpr
+        );
+    }
+
+    /// <summary>
+    /// インデックス代入の変換
+    /// 仕様: arr[0] = value → RuntimeHelpers.SetIndexed(arr, 0, value)
+    /// </summary>
+    private ExprTree GenerateIndexAssignExpr(IndexAssignExpr expr)
+    {
+        var targetExpr = GenerateExpression(expr.Target);
+        var indexExpr = GenerateExpression(expr.Index);
+        var valueExpr = GenerateExpression(expr.Value);
+
+        return ExprTree.Call(
+            typeof(RuntimeHelpers),
+            nameof(RuntimeHelpers.SetIndexed),
+            Type.EmptyTypes,
+            targetExpr,
+            indexExpr,
+            valueExpr
+        );
+    }
+
+    /// <summary>
+    /// メンバ代入の変換
+    /// 仕様: obj.field = value → RuntimeHelpers.SetMember(obj, "field", value)
+    /// </summary>
+    private ExprTree GenerateMemberAssignExpr(MemberAssignExpr expr)
+    {
+        var objExpr = GenerateExpression(expr.Target);
+        var nameExpr = ExprTree.Constant(expr.MemberName);
+        var valExpr = GenerateExpression(expr.Value);
+
+        return ExprTree.Call(
+            typeof(RuntimeHelpers),
+            nameof(RuntimeHelpers.SetMember),
+            Type.EmptyTypes,
+            objExpr,
+            nameExpr,
+            valExpr
         );
     }
 

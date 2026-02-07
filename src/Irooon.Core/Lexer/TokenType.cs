@@ -53,6 +53,7 @@ public enum TokenType
     RightBracket,   // ]
     Comma,          // ,
     Dot,            // .
+    Colon,          // :
 
     // 特殊
     Newline,        // 改行（パーサーで必要な場合）

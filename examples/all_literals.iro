@@ -1,0 +1,14 @@
+// すべてのリテラルを試す
+
+let num = 42.5
+let str = "irooon言語"
+let bool_true = true
+let bool_false = false
+let nothing = null
+
+// 出力確認
+if (num > 40) {
+    str
+} else {
+    "unexpected"
+}
