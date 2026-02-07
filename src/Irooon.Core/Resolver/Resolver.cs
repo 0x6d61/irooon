@@ -19,6 +19,18 @@ public class Resolver
     public Resolver()
     {
         _currentScope = new Scope(null); // グローバルスコープ
+
+        // ビルトイン関数を宣言
+        RegisterBuiltins();
+    }
+
+    /// <summary>
+    /// ビルトイン関数をグローバルスコープに宣言します。
+    /// </summary>
+    private void RegisterBuiltins()
+    {
+        _currentScope.Define("print", new VariableInfo("print", isReadOnly: true, _currentScope.Depth));
+        _currentScope.Define("println", new VariableInfo("println", isReadOnly: true, _currentScope.Depth));
     }
 
     /// <summary>

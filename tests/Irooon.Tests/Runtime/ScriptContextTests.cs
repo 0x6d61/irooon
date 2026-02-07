@@ -5,14 +5,17 @@ namespace Irooon.Tests.Runtime;
 public class ScriptContextTests
 {
     [Fact]
-    public void ScriptContext_初期化時にGlobalsが空の辞書として作成される()
+    public void ScriptContext_初期化時にGlobalsにビルトイン関数が登録される()
     {
         // Arrange & Act
         var context = new ScriptContext();
 
         // Assert
         Assert.NotNull(context.Globals);
-        Assert.Empty(context.Globals);
+        Assert.Contains("print", context.Globals.Keys);
+        Assert.Contains("println", context.Globals.Keys);
+        Assert.IsType<BuiltinFunction>(context.Globals["print"]);
+        Assert.IsType<BuiltinFunction>(context.Globals["println"]);
     }
 
     [Fact]

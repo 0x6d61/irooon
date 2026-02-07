@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- ✨ **ビルトイン関数: print/println** (#38)
+  - `print(...args)` - 標準出力に値を出力（改行なし）
+  - `println(...args)` - 標準出力に値を出力（改行あり）
+  - 複数引数をスペース区切りで出力
+  - nullは"null"として表示
+  - BuiltinFunctionクラスを実装（IroCallableを実装）
+  - RuntimeHelpers.Print/Printlnメソッドを追加
+  - ScriptContextとResolverでビルトイン関数を自動登録
+- 📚 **新しいサンプルスクリプト**
+  - `examples/print_example.iro` - print/printlnのデモ
+- 🧪 **テストの拡充**
+  - BuiltinFunctionsTests.cs（8個のテスト）
+  - E2Eテスト（3個のテスト）
+  - ScriptContextTestsを更新（ビルトイン関数の登録確認）
+- 📖 **ドキュメント更新**
+  - README.md にビルトイン関数セクションを追加
+
+### Changed
+- ✅ **全テスト成功**: 487個のテスト全てが成功（スキップ0）
+
 ## [0.2.1] - 2026-02-07
 
 ### Fixed

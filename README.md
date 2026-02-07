@@ -64,9 +64,29 @@ dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/operators.iro
 dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/list_example.iro
 dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/hash_example.iro
 dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/data_structures.iro
+
+# 標準出力（print/println）
+dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/print_example.iro
 ```
 
 ## 言語機能
+
+### ビルトイン関数
+
+#### print / println
+標準出力に値を出力します。`println`は改行を付けます。
+
+```irooon
+println("Hello, World!")          // 出力: Hello, World!
+
+print("Sum: ")
+print(10, "+", 5, "=", 15)        // 出力: Sum: 10 + 5 = 15
+println()                         // 改行のみ
+
+let name = "Alice"
+let age = 30
+println("Name:", name, "Age:", age)  // 出力: Name: Alice Age: 30
+```
 
 ### 変数
 ```irooon

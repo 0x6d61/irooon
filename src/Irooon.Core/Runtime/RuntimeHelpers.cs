@@ -398,6 +398,30 @@ public static class RuntimeHelpers
 
     #endregion
 
+    #region Builtin Functions
+
+    /// <summary>
+    /// 標準出力に値を出力する（改行なし）
+    /// </summary>
+    public static object Print(params object[] args)
+    {
+        var output = string.Join(" ", args.Select(a => a?.ToString() ?? "null"));
+        Console.Write(output);
+        return null;
+    }
+
+    /// <summary>
+    /// 標準出力に値を出力する（改行あり）
+    /// </summary>
+    public static object Println(params object[] args)
+    {
+        var output = string.Join(" ", args.Select(a => a?.ToString() ?? "null"));
+        Console.WriteLine(output);
+        return null;
+    }
+
+    #endregion
+
     #region List and Hash Operations
 
     /// <summary>
