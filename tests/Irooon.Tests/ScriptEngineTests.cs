@@ -123,7 +123,7 @@ public class ScriptEngineTests
         Assert.Equal(120.0, result);
     }
 
-    [Fact(Skip = "再帰関数の計算結果が不正確（要調査）")]
+    [Fact]
     public void TestExecute_Fibonacci()
     {
         var engine = new ScriptEngine();
