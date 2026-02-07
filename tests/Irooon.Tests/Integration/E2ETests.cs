@@ -682,4 +682,112 @@ sum
     }
 
     #endregion
+
+    #region 例外処理のテスト
+
+    [Fact]
+    public void TestTryCatch_NoException()
+    {
+        var source = @"
+try {
+    10 + 20
+} catch (e) {
+    0
+}
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(30.0, result);
+    }
+
+    [Fact]
+    public void TestTryCatch_WithException()
+    {
+        var source = @"
+try {
+    throw ""Something went wrong""
+    10
+} catch (e) {
+    100
+}
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(100.0, result);
+    }
+
+    [Fact]
+    public void TestTryCatch_CatchExceptionValue()
+    {
+        var source = @"
+try {
+    throw ""Error message""
+} catch (e) {
+    e
+}
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("Error message", result);
+    }
+
+    [Fact]
+    public void TestTryFinally()
+    {
+        var source = @"
+var x = 10
+try {
+    x = 20
+} finally {
+    x = x + 5
+}
+x
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(25.0, result);
+    }
+
+    [Fact]
+    public void TestTryCatchFinally()
+    {
+        var source = @"
+var x = 0
+try {
+    throw ""error""
+    x = 10
+} catch (e) {
+    x = 20
+} finally {
+    x = x + 1
+}
+x
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(21.0, result);
+    }
+
+    [Fact]
+    public void TestThrow_WithNumber()
+    {
+        var source = @"
+try {
+    throw 404
+} catch (e) {
+    e
+}
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(404.0, result);
+    }
+
+    #endregion
 }

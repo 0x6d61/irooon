@@ -179,6 +179,9 @@ public class Resolver
             case StringInterpolationExpr stringInterpolationExpr:
                 ResolveStringInterpolationExpr(stringInterpolationExpr);
                 break;
+            case TryExpr tryExpr:
+                ResolveTryExpr(tryExpr);
+                break;
             default:
                 _errors.Add(new ResolveException(
                     $"Unknown expression type: {expr.GetType().Name}",
@@ -403,6 +406,9 @@ public class Resolver
             case ClassDef classDef:
                 ResolveClassDef(classDef);
                 break;
+            case ThrowStmt throwStmt:
+                ResolveThrowStmt(throwStmt);
+                break;
             default:
                 _errors.Add(new ResolveException(
                     $"Unknown statement type: {stmt.GetType().Name}",
@@ -535,6 +541,41 @@ public class Resolver
 
             EndScope();
         }
+    }
+
+    private void ResolveTryExpr(TryExpr expr)
+    {
+        // try ブロックを解析
+        ResolveExpression(expr.TryBody);
+
+        // catch ブロックを解析
+        if (expr.Catch != null)
+        {
+            BeginScope();
+
+            // 例外変数を宣言
+            if (expr.Catch.ExceptionVariable != null)
+            {
+                Declare(expr.Catch.ExceptionVariable, false, expr.Line, expr.Column);
+            }
+
+            // catch ブロック本体を解析
+            ResolveExpression(expr.Catch.Body);
+
+            EndScope();
+        }
+
+        // finally ブロックを解析
+        if (expr.Finally != null)
+        {
+            ResolveExpression(expr.Finally);
+        }
+    }
+
+    private void ResolveThrowStmt(ThrowStmt stmt)
+    {
+        // throw する値を解析
+        ResolveExpression(stmt.Value);
     }
 
     #endregion
