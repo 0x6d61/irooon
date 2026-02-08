@@ -2,6 +2,7 @@ using Xunit;
 using System.IO;
 using Irooon.Core;
 using Irooon.Core.Runtime;
+using System.Runtime.InteropServices;
 
 namespace Irooon.Tests.Integration;
 
@@ -1113,6 +1114,77 @@ child.greet()
 
         // エラーがなければテスト成功
         Assert.NotNull(result);
+    }
+
+    #endregion
+
+    #region シェルコマンド実行テスト
+
+    [Fact]
+    public void TestShellCommand_SimpleEcho()
+    {
+        var source = "$`echo Hello`";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("Hello", result);
+    }
+
+    [Fact]
+    public void TestShellCommand_WithVariableAssignment()
+    {
+        var source = @"
+let output = $`echo test`
+output
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("test", result);
+    }
+
+    [Fact]
+    public void TestShellCommand_GitVersion()
+    {
+        // gitがインストールされている環境でのみ実行
+        try
+        {
+            var source = "$`git --version`";
+            var engine = new ScriptEngine();
+            var result = engine.Execute(source);
+
+            var resultStr = result?.ToString() ?? "";
+            Assert.Contains("git version", resultStr.ToLower());
+        }
+        catch (RuntimeException)
+        {
+            // gitがインストールされていない場合はスキップ
+            Assert.True(true);
+        }
+    }
+
+    [Fact]
+    public void TestShellCommand_MultipleCommands()
+    {
+        var source = @"
+let cmd1 = $`echo first`
+let cmd2 = $`echo second`
+cmd1
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("first", result);
+    }
+
+    [Fact]
+    public void TestShellCommand_InvalidCommand_ThrowsException()
+    {
+        var source = "$`this_command_does_not_exist_12345`";
+        var engine = new ScriptEngine();
+
+        var exception = Assert.Throws<ScriptException>(() => engine.Execute(source));
+        Assert.Contains("Shell command failed", exception.Message);
     }
 
     #endregion

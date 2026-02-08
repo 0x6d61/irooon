@@ -72,6 +72,8 @@ public enum TokenType
     DotDot,         // ..
     DotDotDot,      // ...
     Colon,          // :
+    Dollar,         // $
+    Backtick,       // `
 
     // 特殊
     Newline,        // 改行（パーサーで必要な場合）

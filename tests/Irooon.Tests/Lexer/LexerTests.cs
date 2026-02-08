@@ -1,5 +1,6 @@
 using Irooon.Core.Lexer;
 using Xunit;
+using System.Linq;
 
 namespace Irooon.Tests.Lexer;
 
@@ -540,6 +541,91 @@ var y = 10";
         Assert.Equal(TokenType.Identifier, tokens[2].Type);
         Assert.Equal(TokenType.LeftParen, tokens[3].Type);
         Assert.Equal(TokenType.RightParen, tokens[4].Type);
+    }
+
+    #endregion
+
+    #region バッククォート文字列テスト
+
+    [Fact]
+    public void TestBacktickString_Simple()
+    {
+        var lexer = new Core.Lexer.Lexer("`echo Hello`");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count); // Backtick + Eof
+        Assert.Equal(TokenType.Backtick, tokens[0].Type);
+        Assert.Equal("echo Hello", tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestBacktickString_Empty()
+    {
+        var lexer = new Core.Lexer.Lexer("``");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count); // Backtick + Eof
+        Assert.Equal(TokenType.Backtick, tokens[0].Type);
+        Assert.Equal("", tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestBacktickString_Multiline()
+    {
+        var source = @"`
+git add .
+git commit -m ""Update""
+git push
+`";
+        var lexer = new Core.Lexer.Lexer(source);
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count); // Backtick + Eof
+        Assert.Equal(TokenType.Backtick, tokens[0].Type);
+        var value = tokens[0].Value?.ToString() ?? "";
+        Assert.Contains("git add", value);
+        Assert.Contains("git commit", value);
+        Assert.Contains("git push", value);
+    }
+
+    [Fact]
+    public void TestBacktickString_Unterminated_ReturnsErrorToken()
+    {
+        var lexer = new Core.Lexer.Lexer("`echo Hello");
+        var tokens = lexer.ScanTokens();
+
+        // Errorトークンが含まれていることを確認
+        Assert.Contains(tokens, t => t.Type == TokenType.Error);
+        var errorToken = tokens.First(t => t.Type == TokenType.Error);
+        Assert.Contains("Unterminated backtick string", errorToken.Value?.ToString() ?? "");
+    }
+
+    [Fact]
+    public void TestDollarBacktick_ShellCommand()
+    {
+        var lexer = new Core.Lexer.Lexer("$`echo test`");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(3, tokens.Count); // Dollar + Backtick + Eof
+        Assert.Equal(TokenType.Dollar, tokens[0].Type);
+        Assert.Equal(TokenType.Backtick, tokens[1].Type);
+        Assert.Equal("echo test", tokens[1].Value);
+    }
+
+    [Fact]
+    public void TestDollarBacktick_WithVariableAssignment()
+    {
+        var lexer = new Core.Lexer.Lexer("let output = $`pwd`");
+        var tokens = lexer.ScanTokens();
+
+        // let, output, =, $, `pwd`, Eof
+        Assert.Equal(6, tokens.Count);
+        Assert.Equal(TokenType.Let, tokens[0].Type);
+        Assert.Equal(TokenType.Identifier, tokens[1].Type);
+        Assert.Equal(TokenType.Equal, tokens[2].Type);
+        Assert.Equal(TokenType.Dollar, tokens[3].Type);
+        Assert.Equal(TokenType.Backtick, tokens[4].Type);
+        Assert.Equal("pwd", tokens[4].Value);
     }
 
     #endregion

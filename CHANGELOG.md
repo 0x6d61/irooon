@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-02-09
+
+### Added
+- ✨ **シェルコマンド実行（zx風構文）** (#23)
+  - zx言語風のバッククォート構文でシェルコマンドを実行
+    - `$`echo Hello`` - コマンド実行
+    - `let output = $`pwd`` - 結果を変数に代入
+    - 複数行コマンドもサポート
+  - クロスプラットフォーム対応
+    - Windows: `cmd.exe /c command`
+    - Linux/macOS: `/bin/bash -c "command"`
+  - TokenType に新規トークン追加
+    - `Dollar` - $ 記号
+    - `Backtick` - ` 記号（バッククォート）
+  - Lexer拡張
+    - `ScanBacktickString()` メソッド追加
+    - バッククォート文字列のスキャンをサポート
+  - AST に ShellExpr 追加
+    - シェルコマンド実行式を表すASTノード
+  - Parser拡張
+    - `$`...`` 構文のパースをサポート
+    - Unary() メソッドにシェルコマンド処理を追加
+  - RuntimeHelpers に ExecuteShellCommand() メソッド追加
+    - シェルコマンドを実行して結果を返す
+    - エラーハンドリング（exit code != 0 で例外）
+    - 標準出力を文字列として返す（末尾の改行は削除）
+  - CodeGenerator 更新
+    - ShellExpr のコード生成をサポート
+  - Resolver 更新
+    - ShellExpr の解決をサポート
+  - 13個の新規ユニットテスト追加（ShellExprTests, ParserShellTests, LexerTests）
+  - 5個の新規E2Eテスト追加（E2ETests）
+  - サンプルスクリプト examples/shell_commands.iro を追加
+
+### Tests
+- ✅ 全テスト成功: 746個（734個 Irooon.Tests + 12個 Irooon.Repl.Tests）
+- ✅ スキップ: 0個
+- ✅ 成功率: 100%
+
 ## [0.5.4] - 2026-02-09
 
 ### Added

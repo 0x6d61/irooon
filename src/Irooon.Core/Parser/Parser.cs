@@ -298,10 +298,26 @@ public class Parser
     }
 
     /// <summary>
-    /// 単項演算子（-, not）をパースします。
+    /// 単項演算子（-, not）およびシェルコマンド（$`...`）をパースします。
     /// </summary>
     private Expression Unary()
     {
+        // $ トークンの場合（シェルコマンド）
+        if (Match(TokenType.Dollar))
+        {
+            var dollar = Previous();
+
+            // 次がバッククォートかチェック
+            if (Match(TokenType.Backtick))
+            {
+                var backtick = Previous();
+                var command = backtick.Value?.ToString() ?? "";
+                return new ShellExpr(command, dollar.Line, dollar.Column);
+            }
+
+            throw Error(dollar, "Expected backtick after $");
+        }
+
         if (Match(TokenType.Minus, TokenType.Not))
         {
             var op = Previous();
