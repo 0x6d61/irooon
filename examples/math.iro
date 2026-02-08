@@ -1,0 +1,15 @@
+// math.iro - モジュールテスト用の数学関数
+
+export let PI = 3.14159
+
+export fn add(a, b) {
+    a + b
+}
+
+export fn multiply(a, b) {
+    a * b
+}
+
+export fn square(x) {
+    multiply(x, x)
+}

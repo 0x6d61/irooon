@@ -34,6 +34,19 @@ public class Resolver
     }
 
     /// <summary>
+    /// 外部から変数を登録します（REPL用）。
+    /// </summary>
+    /// <param name="name">変数名</param>
+    /// <param name="isReadOnly">読み取り専用かどうか（デフォルト: false）</param>
+    public void RegisterVariable(string name, bool isReadOnly = false)
+    {
+        if (!_currentScope.IsDefined(name))
+        {
+            _currentScope.Define(name, new VariableInfo(name, isReadOnly, _currentScope.Depth));
+        }
+    }
+
+    /// <summary>
     /// プログラム全体を解析します。
     /// </summary>
     /// <param name="program">プログラムのAST</param>
@@ -409,6 +422,12 @@ public class Resolver
             case ThrowStmt throwStmt:
                 ResolveThrowStmt(throwStmt);
                 break;
+            case ExportStmt exportStmt:
+                ResolveExportStmt(exportStmt);
+                break;
+            case ImportStmt importStmt:
+                ResolveImportStmt(importStmt);
+                break;
             default:
                 _errors.Add(new ResolveException(
                     $"Unknown statement type: {stmt.GetType().Name}",
@@ -576,6 +595,22 @@ public class Resolver
     {
         // throw する値を解析
         ResolveExpression(stmt.Value);
+    }
+
+    private void ResolveExportStmt(ExportStmt stmt)
+    {
+        // エクスポートする宣言を解析
+        ResolveStatement(stmt.Declaration);
+    }
+
+    private void ResolveImportStmt(ImportStmt stmt)
+    {
+        // インポートする名前をグローバルスコープに宣言
+        // （実際の値はCodeGenで読み込まれる）
+        foreach (var name in stmt.Names)
+        {
+            Declare(name, false, stmt.Line, stmt.Column);
+        }
     }
 
     #endregion

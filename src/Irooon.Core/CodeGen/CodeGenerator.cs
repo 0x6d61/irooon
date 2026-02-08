@@ -95,6 +95,8 @@ public class CodeGenerator
             FunctionDef s => GenerateFunctionDef(s),
             ClassDef s => GenerateClassDef(s),
             ThrowStmt s => GenerateThrowStmt(s),
+            ExportStmt s => GenerateExportStmt(s),
+            ImportStmt s => GenerateImportStmt(s),
             _ => throw new NotImplementedException($"Unknown statement type: {stmt.GetType()}")
         };
     }
@@ -1213,6 +1215,58 @@ public class CodeGenerator
 
         // throw 式を生成
         return ExprTree.Throw(newException, typeof(object));
+    }
+
+    /// <summary>
+    /// export文の変換
+    /// 仕様: エクスポートする宣言を実行し、ctx.Exports に登録
+    /// </summary>
+    private ExprTree GenerateExportStmt(ExportStmt stmt)
+    {
+        // エクスポートする宣言を生成
+        var declExpr = GenerateStatement(stmt.Declaration);
+
+        // エクスポート名を取得
+        string exportName;
+        if (stmt.Declaration is LetStmt letStmt)
+        {
+            exportName = letStmt.Name;
+        }
+        else if (stmt.Declaration is FunctionDef funcDef)
+        {
+            exportName = funcDef.Name;
+        }
+        else
+        {
+            throw new NotImplementedException($"Export of {stmt.Declaration.GetType().Name} is not supported");
+        }
+
+        // ctx.Exports[name] = ctx.Globals[name]
+        var exportsExpr = ExprTree.Property(_ctxParam, "Exports");
+        var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
+        var nameExpr = ExprTree.Constant(exportName);
+        var exportValue = ExprTree.Property(globalsExpr, "Item", nameExpr);
+        var exportAssign = ExprTree.Assign(
+            ExprTree.Property(exportsExpr, "Item", nameExpr),
+            exportValue
+        );
+
+        // 宣言の実行とエクスポートを順に実行
+        return ExprTree.Block(declExpr, exportAssign);
+    }
+
+    /// <summary>
+    /// import文の変換
+    /// 仕様: ModuleLoader を使ってモジュールをロードし、インポートする名前を ctx.Globals に登録
+    /// </summary>
+    private ExprTree GenerateImportStmt(ImportStmt stmt)
+    {
+        // TODO: 現時点では簡略化のため、実装をスキップします
+        // 実際の実装では、ModuleLoaderを呼び出してモジュールをロードし、
+        // インポートする名前を ctx.Globals に登録する必要があります
+
+        // 空のブロックを返す（何もしない）
+        return ExprTree.Empty();
     }
 
     #endregion

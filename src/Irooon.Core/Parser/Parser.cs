@@ -48,8 +48,8 @@ public class Parser
             // fn の後が ( ならラムダ式（式として扱う）
             bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
 
-            // 文をパース（関数定義、クラス定義、変数宣言）
-            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw))
+            // 文をパース（関数定義、クラス定義、変数宣言、モジュール）
+            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Export) || Check(TokenType.Import))
             {
                 statements.Add(Statement());
                 // 文の後の改行をスキップ
@@ -662,6 +662,16 @@ public class Parser
     /// </summary>
     private Statement Statement()
     {
+        if (Match(TokenType.Export))
+        {
+            return ExportStatement();
+        }
+
+        if (Match(TokenType.Import))
+        {
+            return ImportStatement();
+        }
+
         if (Match(TokenType.Fn))
         {
             return FunctionDefinition();
@@ -1218,6 +1228,70 @@ public class Parser
         }
 
         return new StringInterpolationExpr(parts, line, column);
+    }
+
+    #endregion
+
+    #region モジュールシステム
+
+    /// <summary>
+    /// export文をパースします。
+    /// export let x = 10
+    /// export fn add(a, b) { ... }
+    /// </summary>
+    private Statement ExportStatement()
+    {
+        var exportToken = Previous();
+
+        // exportの後には let または fn が続く必要がある
+        if (Match(TokenType.Let))
+        {
+            var letStmt = LetStatement();
+            return new ExportStmt(letStmt, exportToken.Line, exportToken.Column);
+        }
+
+        if (Match(TokenType.Fn))
+        {
+            var funcDef = FunctionDefinition();
+            return new ExportStmt(funcDef, exportToken.Line, exportToken.Column);
+        }
+
+        throw new ParseException(exportToken, "Expected 'let' or 'fn' after 'export'.");
+    }
+
+    /// <summary>
+    /// import文をパースします。
+    /// import {name1, name2, ...} from "path"
+    /// </summary>
+    private Statement ImportStatement()
+    {
+        var importToken = Previous();
+
+        // { を期待
+        Consume(TokenType.LeftBrace, "Expect '{' after 'import'.");
+
+        // インポートする名前のリストをパース
+        var names = new List<string>();
+        if (!Check(TokenType.RightBrace))
+        {
+            do
+            {
+                var name = Consume(TokenType.Identifier, "Expect identifier in import list.");
+                names.Add(name.Lexeme);
+            } while (Match(TokenType.Comma));
+        }
+
+        // } を期待
+        Consume(TokenType.RightBrace, "Expect '}' after import list.");
+
+        // from を期待
+        Consume(TokenType.From, "Expect 'from' after import list.");
+
+        // モジュールパス（文字列）を期待
+        var pathToken = Consume(TokenType.String, "Expect module path (string) after 'from'.");
+        var modulePath = (string)pathToken.Value!;
+
+        return new ImportStmt(names, modulePath, importToken.Line, importToken.Column);
     }
 
     #endregion

@@ -16,10 +16,16 @@ public class ScriptContext
     /// </summary>
     public Dictionary<string, IroClass> Classes { get; }
 
+    /// <summary>
+    /// エクスポートされた値の辞書（モジュールシステム用）
+    /// </summary>
+    public Dictionary<string, object?> Exports { get; }
+
     public ScriptContext()
     {
         Globals = new Dictionary<string, object>();
         Classes = new Dictionary<string, IroClass>();
+        Exports = new Dictionary<string, object?>();
 
         // ビルトイン関数を登録
         RegisterBuiltins();

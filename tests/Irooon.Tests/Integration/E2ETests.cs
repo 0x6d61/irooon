@@ -1,6 +1,7 @@
 using Xunit;
 using System.IO;
 using Irooon.Core;
+using Irooon.Core.Runtime;
 
 namespace Irooon.Tests.Integration;
 
@@ -787,6 +788,64 @@ try {
         var result = engine.Execute(source);
 
         Assert.Equal(404.0, result);
+    }
+
+    #endregion
+
+    #region Module System Tests
+
+    [Fact]
+    public void TestExportLet()
+    {
+        var source = @"
+export let x = 42
+x
+";
+        var engine = new ScriptEngine();
+        var context = new ScriptContext();
+        var result = engine.Execute(source, context);
+
+        // エクスポートされた値を確認
+        Assert.Equal(42.0, result);
+        Assert.True(context.Exports.ContainsKey("x"));
+        Assert.Equal(42.0, context.Exports["x"]);
+    }
+
+    [Fact]
+    public void TestExportFunction()
+    {
+        var source = @"
+export fn add(a, b) {
+    a + b
+}
+add(3, 5)
+";
+        var engine = new ScriptEngine();
+        var context = new ScriptContext();
+        var result = engine.Execute(source, context);
+
+        // エクスポートされた関数を確認
+        Assert.Equal(8.0, result);
+        Assert.True(context.Exports.ContainsKey("add"));
+        Assert.NotNull(context.Exports["add"]);
+    }
+
+    [Fact]
+    public void TestMultipleExports()
+    {
+        var source = @"
+export let PI = 3.14159
+export fn square(x) { x * x }
+square(PI)
+";
+        var engine = new ScriptEngine();
+        var context = new ScriptContext();
+        var result = engine.Execute(source, context);
+
+        // 複数のエクスポートを確認
+        Assert.True(context.Exports.ContainsKey("PI"));
+        Assert.True(context.Exports.ContainsKey("square"));
+        Assert.Equal(3.14159, context.Exports["PI"]);
     }
 
     #endregion

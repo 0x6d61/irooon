@@ -34,6 +34,9 @@ public enum TokenType
     Catch,
     Finally,
     Throw,
+    Import,
+    Export,
+    From,
 
     // 演算子
     Plus,           // +

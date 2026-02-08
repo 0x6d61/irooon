@@ -217,6 +217,18 @@ public class LexerTests
         Assert.Equal(TokenType.Not, tokens[2].Type);
     }
 
+    [Fact]
+    public void TestKeywords_Module()
+    {
+        var lexer = new Core.Lexer.Lexer("import export from");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(4, tokens.Count);
+        Assert.Equal(TokenType.Import, tokens[0].Type);
+        Assert.Equal(TokenType.Export, tokens[1].Type);
+        Assert.Equal(TokenType.From, tokens[2].Type);
+    }
+
     #endregion
 
     #region 識別子テスト

@@ -43,6 +43,13 @@ public class ScriptEngine
 
             // 3. Resolver: スコープ解析
             var resolver = new Resolver.Resolver();
+
+            // REPL用: 既存のグローバル変数をResolverに登録
+            foreach (var varName in context.Globals.Keys)
+            {
+                resolver.RegisterVariable(varName, isReadOnly: false);
+            }
+
             resolver.Resolve(ast);
 
             // エラーがあれば例外を投げる
