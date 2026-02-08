@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-02-09
+
+### Added
+- ✨ **CLR相互運用の拡張（インスタンスサポート）** (#22)
+  - CLR型のインスタンス作成をサポート
+    - `System.Text.StringBuilder()` - コンストラクタ呼び出し
+    - 引数ありコンストラクタもサポート
+  - CLRインスタンスのメソッド呼び出しをサポート
+    - `sb.Append("Hello")` - インスタンスメソッド呼び出し
+    - メソッドチェーンをサポート（`sb.Append("A").Append("B")`）
+  - CLRインスタンスのプロパティアクセスをサポート
+    - `sb.Length` - プロパティ取得
+    - 数値プロパティは自動的にdoubleに変換
+  - RuntimeHelpers に新規メソッド追加
+    - `CreateCLRInstance(Type, object[])` - インスタンス生成
+    - `InvokeCLRInstanceMethod(object, string, object[])` - メソッド呼び出し
+    - `GetCLRInstanceProperty(object, string)` - プロパティ取得
+    - `SetCLRInstanceProperty(object, string, object)` - プロパティ設定
+    - `IsCLRObject(object)` - CLRオブジェクト判定
+  - CLRMethodWrapper クラス追加
+    - CLRインスタンスメソッドをIroCallableとしてラップ
+  - CodeGenerator 更新
+    - CLR型のコンストラクタ呼び出しに対応
+    - CLRインスタンスのメソッド/プロパティアクセスに対応
+  - ResolveCLRType 改善
+    - 複数のアセンブリから型を検索
+    - `System.Collections.Generic.List` → `List<object>` として解決
+  - 23個の新規ユニットテスト追加（CLRInstanceTests）
+  - 7個の新規E2Eテスト追加（CLRInteropE2ETests）
+  - サンプルスクリプト examples/clr_instances.iro を追加
+
+### Fixed
+- List<object> のメソッド名の大文字小文字を正規化（forEach, isEmpty）
+- CLRオブジェクトとirooon内部のリストを区別して処理
+
+### Tests
+- ✅ 全テスト成功: 710個（680個 + 30個CLRインスタンス）
+- ✅ スキップ: 0個
+- ✅ 成功率: 100%
+
 ## [0.5.3] - 2026-02-08
 
 ### Added
