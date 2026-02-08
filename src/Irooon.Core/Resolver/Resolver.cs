@@ -199,6 +199,9 @@ public class Resolver
             case TryExpr tryExpr:
                 ResolveTryExpr(tryExpr);
                 break;
+            case ShellExpr shellExpr:
+                ResolveShellExpr(shellExpr);
+                break;
             default:
                 _errors.Add(new ResolveException(
                     $"Unknown expression type: {expr.GetType().Name}",
@@ -680,6 +683,12 @@ public class Resolver
         {
             Declare(name, false, stmt.Line, stmt.Column);
         }
+    }
+
+    private void ResolveShellExpr(ShellExpr expr)
+    {
+        // シェルコマンドは何もチェックしない
+        // コマンド文字列内に変数参照がある場合は将来の拡張として対応
     }
 
     #endregion

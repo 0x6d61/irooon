@@ -920,4 +920,59 @@ public static class RuntimeHelpers
     }
 
     #endregion
+
+    #region Shell Command Execution
+
+    /// <summary>
+    /// シェルコマンドを実行して結果を返します
+    /// </summary>
+    /// <param name="command">実行するシェルコマンド</param>
+    /// <returns>コマンドの標準出力（末尾の改行は削除）</returns>
+    public static object ExecuteShellCommand(string command)
+    {
+        if (string.IsNullOrWhiteSpace(command))
+            return "";
+
+        var process = new System.Diagnostics.Process();
+
+        // プラットフォーム判定
+        if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+            System.Runtime.InteropServices.OSPlatform.Windows))
+        {
+            process.StartInfo.FileName = "cmd.exe";
+            process.StartInfo.Arguments = $"/c {command}";
+        }
+        else
+        {
+            process.StartInfo.FileName = "/bin/bash";
+            process.StartInfo.Arguments = $"-c \"{command.Replace("\"", "\\\"")}\"";
+        }
+
+        process.StartInfo.RedirectStandardOutput = true;
+        process.StartInfo.RedirectStandardError = true;
+        process.StartInfo.UseShellExecute = false;
+        process.StartInfo.CreateNoWindow = true;
+
+        try
+        {
+            process.Start();
+            var output = process.StandardOutput.ReadToEnd();
+            var error = process.StandardError.ReadToEnd();
+            process.WaitForExit();
+
+            if (process.ExitCode != 0)
+            {
+                throw new RuntimeException($"Shell command failed (exit code {process.ExitCode}): {error}");
+            }
+
+            // 末尾の改行を削除して返す
+            return output.TrimEnd('\r', '\n');
+        }
+        catch (Exception ex) when (ex is not RuntimeException)
+        {
+            throw new RuntimeException($"Failed to execute shell command: {ex.Message}");
+        }
+    }
+
+    #endregion
 }

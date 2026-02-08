@@ -70,6 +70,7 @@ public class CodeGenerator
             StringInterpolationExpr e => GenerateStringInterpolationExpr(e),
             TryExpr e => GenerateTryExpr(e),
             RangeExpr e => GenerateRangeExpr(e),
+            ShellExpr e => GenerateShellExpr(e),
             _ => throw new NotImplementedException($"Unknown expression type: {expr.GetType()}")
         };
     }
@@ -1544,6 +1545,27 @@ public class CodeGenerator
 
         // 空のブロックを返す（何もしない）
         return ExprTree.Empty();
+    }
+
+    /// <summary>
+    /// シェルコマンド実行式を生成します
+    /// </summary>
+    private ExprTree GenerateShellExpr(ShellExpr expr)
+    {
+        // RuntimeHelpers.ExecuteShellCommand(command) を呼び出す
+        var method = typeof(RuntimeHelpers).GetMethod(
+            nameof(RuntimeHelpers.ExecuteShellCommand),
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static
+        );
+
+        if (method == null)
+        {
+            throw new InvalidOperationException("ExecuteShellCommand method not found");
+        }
+
+        var commandExpr = ExprTree.Constant(expr.Command);
+
+        return ExprTree.Call(method, commandExpr);
     }
 
     #endregion

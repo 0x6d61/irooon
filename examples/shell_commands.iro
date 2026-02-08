@@ -1,0 +1,22 @@
+#!/usr/bin/env irooon
+
+// シェルコマンド実行のサンプル（zx風）
+
+// 基本的なコマンド実行
+println("=== Basic Shell Commands ===")
+let output = $`echo Hello from shell`
+println(output)
+
+// Git操作
+println("\n=== Git Commands ===")
+let branch = $`git branch --show-current`
+println("Current branch:", branch)
+
+// 現在のディレクトリ
+println("\n=== Directory Info ===")
+let pwd = $`pwd`
+println("Current directory:", pwd)
+
+// Gitステータス
+println("\n=== Git Status ===")
+$`git status --short`

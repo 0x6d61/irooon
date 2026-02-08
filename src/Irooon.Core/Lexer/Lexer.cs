@@ -182,6 +182,16 @@ public class Lexer
                 ScanString();
                 break;
 
+            // バッククォート文字列
+            case '`':
+                ScanBacktickString();
+                break;
+
+            // ドル記号
+            case '$':
+                AddToken(TokenType.Dollar);
+                break;
+
             default:
                 if (IsDigit(c))
                 {
@@ -260,6 +270,38 @@ public class Lexer
         // 引用符を除いた文字列値を取得
         string value = _source.Substring(_start + 1, _current - _start - 2);
         AddToken(TokenType.String, value);
+    }
+
+    /// <summary>
+    /// バッククォート文字列をスキャンします（シェルコマンド用）
+    /// </summary>
+    private void ScanBacktickString()
+    {
+        int startLine = _line;
+        int startColumn = _column - 1; // '`'の位置
+
+        while (Peek() != '`' && !IsAtEnd())
+        {
+            if (Peek() == '\n')
+            {
+                _line++;
+                _column = 0; // Advance()で+1されるので0にする
+            }
+            Advance();
+        }
+
+        if (IsAtEnd())
+        {
+            AddError("Unterminated backtick string", startLine, startColumn);
+            return;
+        }
+
+        // 終端の '`' を消費
+        Advance();
+
+        // バッククォートを除いた文字列値を取得
+        string value = _source.Substring(_start + 1, _current - _start - 2);
+        AddToken(TokenType.Backtick, value);
     }
 
     /// <summary>
