@@ -36,10 +36,23 @@ public class ScriptContext
     /// </summary>
     private void RegisterBuiltins()
     {
-        // print関数
+        // 標準出力
         Globals["print"] = new BuiltinFunction("print", RuntimeHelpers.Print);
-
-        // println関数
         Globals["println"] = new BuiltinFunction("println", RuntimeHelpers.Println);
+
+        // ファイルI/O
+        Globals["readFile"] = new BuiltinFunction("readFile", RuntimeHelpers.ReadFile);
+        Globals["writeFile"] = new BuiltinFunction("writeFile", RuntimeHelpers.WriteFile);
+        Globals["appendFile"] = new BuiltinFunction("appendFile", RuntimeHelpers.AppendFile);
+        Globals["exists"] = new BuiltinFunction("exists", RuntimeHelpers.Exists);
+        Globals["deleteFile"] = new BuiltinFunction("deleteFile", RuntimeHelpers.DeleteFile);
+        Globals["listDir"] = new BuiltinFunction("listDir", RuntimeHelpers.ListDir);
+
+        // JSON操作
+        Globals["jsonParse"] = new BuiltinFunction("jsonParse", RuntimeHelpers.JsonParse);
+        Globals["jsonStringify"] = new BuiltinFunction("jsonStringify", RuntimeHelpers.JsonStringify);
+
+        // 日時
+        Globals["now"] = new BuiltinFunction("now", RuntimeHelpers.Now);
     }
 }

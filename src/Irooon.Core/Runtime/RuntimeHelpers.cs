@@ -1029,4 +1029,218 @@ public static class RuntimeHelpers
     }
 
     #endregion
+
+    #region Standard Library Functions
+
+    /// <summary>
+    /// ファイルの内容を文字列として読み込む
+    /// </summary>
+    public static object ReadFile(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not string path)
+            throw new RuntimeException("readFile requires a file path string argument");
+
+        try
+        {
+            return System.IO.File.ReadAllText(path);
+        }
+        catch (System.IO.FileNotFoundException)
+        {
+            throw new RuntimeException($"File not found: {path}");
+        }
+        catch (System.UnauthorizedAccessException)
+        {
+            throw new RuntimeException($"Permission denied: {path}");
+        }
+        catch (Exception ex)
+        {
+            throw new RuntimeException($"Error reading file: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// ファイルに文字列を書き込む
+    /// </summary>
+    public static object WriteFile(params object[] args)
+    {
+        if (args.Length != 2 || args[0] is not string path || args[1] is not string content)
+            throw new RuntimeException("writeFile requires a file path and content string arguments");
+
+        try
+        {
+            System.IO.File.WriteAllText(path, content);
+            return null;
+        }
+        catch (System.UnauthorizedAccessException)
+        {
+            throw new RuntimeException($"Permission denied: {path}");
+        }
+        catch (Exception ex)
+        {
+            throw new RuntimeException($"Error writing file: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// ファイルに文字列を追記する
+    /// </summary>
+    public static object AppendFile(params object[] args)
+    {
+        if (args.Length != 2 || args[0] is not string path || args[1] is not string content)
+            throw new RuntimeException("appendFile requires a file path and content string arguments");
+
+        try
+        {
+            System.IO.File.AppendAllText(path, content);
+            return null;
+        }
+        catch (System.UnauthorizedAccessException)
+        {
+            throw new RuntimeException($"Permission denied: {path}");
+        }
+        catch (Exception ex)
+        {
+            throw new RuntimeException($"Error appending to file: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// ファイルまたはディレクトリの存在をチェックする
+    /// </summary>
+    public static object Exists(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not string path)
+            throw new RuntimeException("exists requires a file path string argument");
+
+        return System.IO.File.Exists(path) || System.IO.Directory.Exists(path);
+    }
+
+    /// <summary>
+    /// ファイルを削除する
+    /// </summary>
+    public static object DeleteFile(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not string path)
+            throw new RuntimeException("deleteFile requires a file path string argument");
+
+        try
+        {
+            System.IO.File.Delete(path);
+            return null;
+        }
+        catch (System.IO.FileNotFoundException)
+        {
+            throw new RuntimeException($"File not found: {path}");
+        }
+        catch (System.UnauthorizedAccessException)
+        {
+            throw new RuntimeException($"Permission denied: {path}");
+        }
+        catch (Exception ex)
+        {
+            throw new RuntimeException($"Error deleting file: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// ディレクトリ内のファイルとディレクトリの一覧を取得する
+    /// </summary>
+    public static object ListDir(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not string path)
+            throw new RuntimeException("listDir requires a directory path string argument");
+
+        try
+        {
+            var entries = System.IO.Directory.GetFileSystemEntries(path);
+            return new List<object>(entries.Cast<object>());
+        }
+        catch (System.IO.DirectoryNotFoundException)
+        {
+            throw new RuntimeException($"Directory not found: {path}");
+        }
+        catch (System.UnauthorizedAccessException)
+        {
+            throw new RuntimeException($"Permission denied: {path}");
+        }
+        catch (Exception ex)
+        {
+            throw new RuntimeException($"Error listing directory: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// JSON文字列をパースしてオブジェクトに変換する
+    /// </summary>
+    public static object JsonParse(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not string json)
+            throw new RuntimeException("jsonParse requires a JSON string argument");
+
+        try
+        {
+            var element = System.Text.Json.JsonDocument.Parse(json).RootElement;
+            return ConvertJsonElement(element);
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            throw new RuntimeException($"Invalid JSON: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// オブジェクトをJSON文字列に変換する
+    /// </summary>
+    public static object JsonStringify(params object[] args)
+    {
+        if (args.Length != 1)
+            throw new RuntimeException("jsonStringify requires an object argument");
+
+        try
+        {
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = false
+            };
+            return System.Text.Json.JsonSerializer.Serialize(args[0], options);
+        }
+        catch (Exception ex)
+        {
+            throw new RuntimeException($"Error serializing to JSON: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// JsonElementをirooonのデータ構造に変換する
+    /// </summary>
+    private static object ConvertJsonElement(System.Text.Json.JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            System.Text.Json.JsonValueKind.Null => null,
+            System.Text.Json.JsonValueKind.True => true,
+            System.Text.Json.JsonValueKind.False => false,
+            System.Text.Json.JsonValueKind.Number => element.GetDouble(),
+            System.Text.Json.JsonValueKind.String => element.GetString(),
+            System.Text.Json.JsonValueKind.Array => new List<object>(
+                element.EnumerateArray().Select(ConvertJsonElement)
+            ),
+            System.Text.Json.JsonValueKind.Object => new Dictionary<string, object>(
+                element.EnumerateObject().Select(p =>
+                    new KeyValuePair<string, object>(p.Name, ConvertJsonElement(p.Value))
+                )
+            ),
+            _ => throw new RuntimeException($"Unsupported JSON value kind: {element.ValueKind}")
+        };
+    }
+
+    /// <summary>
+    /// 現在時刻をISO 8601形式の文字列で取得する
+    /// </summary>
+    public static object Now(params object[] args)
+    {
+        return DateTime.Now.ToString("o"); // ISO 8601形式
+    }
+
+    #endregion
 }

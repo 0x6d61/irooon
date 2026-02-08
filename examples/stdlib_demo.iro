@@ -1,0 +1,60 @@
+// v0.5.8 標準ライブラリのデモ
+
+println("=== ファイルI/O ===")
+
+// ファイル書き込み
+writeFile("test_output.txt", "Hello, irooon!")
+println("File written: test_output.txt")
+
+// ファイル読み込み
+let content = readFile("test_output.txt")
+println("File content:", content)
+
+// ファイル追記
+appendFile("test_output.txt", "\nAppended line!")
+let content2 = readFile("test_output.txt")
+println("After append:", content2)
+
+// ファイル存在チェック
+if (exists("test_output.txt")) {
+    println("File exists!")
+} else {
+    println("File not found")
+}
+
+// ディレクトリ一覧
+println("\n=== Directory Listing ===")
+let files = listDir(".")
+println("Files in current directory:", files.length())
+
+// JSON操作
+println("\n=== JSON ===")
+let data = {name: "John", age: 30, city: "Tokyo"}
+let json = jsonStringify(data)
+println("JSON string:", json)
+
+// JSONファイルに書き込み
+writeFile("test_data.json", json)
+
+// JSONファイルを読み込んでパース
+let jsonContent = readFile("test_data.json")
+let parsed = jsonParse(jsonContent)
+println("Parsed data:", parsed)
+
+// 日時
+println("\n=== Date/Time ===")
+let timestamp = now()
+println("Current time:", timestamp)
+
+// ログファイルに追記
+appendFile("test_app.log", "Application test log\n")
+println("Log written")
+
+// クリーンアップ
+println("\n=== Cleanup ===")
+deleteFile("test_output.txt")
+deleteFile("test_data.json")
+deleteFile("test_app.log")
+println("Test files deleted")
+
+"Standard library test completed"

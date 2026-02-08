@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.8] - 2026-02-09
+
+### Added
+- **標準ライブラリ** (#26)
+  - **ファイルI/O**:
+    - `readFile(path)` - ファイル内容を読み込み
+    - `writeFile(path, content)` - ファイルに書き込み
+    - `appendFile(path, content)` - ファイルに追記
+    - `exists(path)` - ファイル/ディレクトリの存在チェック
+    - `deleteFile(path)` - ファイル削除
+    - `listDir(path)` - ディレクトリ内のファイル一覧取得
+  - **JSON操作**:
+    - `jsonParse(str)` - JSON文字列をパース
+    - `jsonStringify(obj)` - オブジェクトをJSON文字列化
+  - **日時処理**:
+    - `now()` - 現在時刻をISO 8601形式で取得
+- 新しいサンプルスクリプト: `examples/stdlib_demo.iro`
+
+### Technical Details
+- RuntimeHelpers: ファイルI/O、JSON、日時の関数を追加
+- ScriptContext: ビルトイン関数として標準ライブラリを登録
+- CLR相互運用: `System.IO.File`, `System.IO.Directory`, `System.Text.Json`, `System.DateTime`を活用
+- エラーハンドリング: 適切な`RuntimeException`をスロー
+- テスト: 822個全てのテストが成功
+
 ## [0.5.7] - 2026-02-07
 
 ### Added
