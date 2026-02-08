@@ -28,10 +28,48 @@ cd irooon
 dotnet build
 ```
 
+## ビルド
+
+### Windows
+
+```powershell
+# リリースビルド
+.\build.ps1
+
+# デバッグビルド
+.\build.ps1 -Configuration Debug
+
+# テスト付きビルド
+.\build.ps1 -Test
+
+# 実行可能ファイルを生成
+.\build.ps1 -Publish -Runtime win-x64
+```
+
+### Linux/macOS
+
+```bash
+# リリースビルド
+dotnet build --configuration Release
+
+# テスト実行
+dotnet test
+
+# 実行可能ファイルを生成
+dotnet publish src/Irooon.Cli/Irooon.Cli.csproj \
+  --configuration Release \
+  --runtime linux-x64 \
+  --self-contained true \
+  --output publish/linux-x64
+```
+
 ### 使い方
 
 ```bash
-# スクリプトを実行
+# スクリプトを実行（Windows）
+.\run.ps1 examples/hello.iro
+
+# スクリプトを実行（直接実行）
 dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj script.iro
 
 # または、ビルドしてから実行
