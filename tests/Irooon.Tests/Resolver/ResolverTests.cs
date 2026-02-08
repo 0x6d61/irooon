@@ -183,10 +183,10 @@ public class ResolverTests
     [Fact]
     public void TestWhileLoop()
     {
-        // while文のスコープ
+        // for文のスコープ（条件ループ）
         var source = @"
         var i = 0
-        while (i < 10) {
+        for (i < 10) {
             i = i + 1
         }
         ";

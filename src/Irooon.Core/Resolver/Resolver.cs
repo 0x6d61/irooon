@@ -411,9 +411,6 @@ public class Resolver
             case ReturnStmt returnStmt:
                 ResolveReturnStmt(returnStmt);
                 break;
-            case WhileStmt whileStmt:
-                ResolveWhileStmt(whileStmt);
-                break;
             case ForStmt forStmt:
                 ResolveForStmt(forStmt);
                 break;
@@ -478,16 +475,6 @@ public class Resolver
         {
             ResolveExpression(stmt.Value);
         }
-    }
-
-    private void ResolveWhileStmt(WhileStmt stmt)
-    {
-        ResolveExpression(stmt.Condition);
-
-        // 本体は新しいスコープ
-        BeginScope();
-        ResolveStatement(stmt.Body);
-        EndScope();
     }
 
     private void ResolveForStmt(ForStmt stmt)

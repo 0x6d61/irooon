@@ -49,7 +49,7 @@ public class Parser
             bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
 
             // 文をパース（関数定義、クラス定義、変数宣言、モジュール）
-            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.For) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Export) || Check(TokenType.Import))
+            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.For) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Export) || Check(TokenType.Import))
             {
                 statements.Add(Statement());
                 // 文の後の改行をスキップ
@@ -436,8 +436,8 @@ public class Parser
             // fn の後が ( ならラムダ式（式として扱う）
             bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
 
-            // 文の場合（fn, class, while, foreach, break, continue, return, throw, let, var）
-            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.While) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Let) || Check(TokenType.Var))
+            // 文の場合（fn, class, for, foreach, break, continue, return, throw, let, var）
+            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.For) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Let) || Check(TokenType.Var))
             {
                 statements.Add(Statement());
                 // 文の後の改行をスキップ
@@ -710,11 +710,6 @@ public class Parser
             return VarStatement();
         }
 
-        if (Match(TokenType.While))
-        {
-            return WhileStatement();
-        }
-
         if (Match(TokenType.For))
         {
             return ForStatement();
@@ -746,29 +741,6 @@ public class Parser
         }
 
         return ExpressionStatement();
-    }
-
-    /// <summary>
-    /// while文をパースします。
-    /// while (cond) { body }
-    /// </summary>
-    private Statement WhileStatement()
-    {
-        var whileToken = Previous();
-
-        // 条件式をパース
-        Consume(TokenType.LeftParen, "Expect '(' after 'while'.");
-        var condition = Expression();
-        Consume(TokenType.RightParen, "Expect ')' after while condition.");
-
-        // body をパース（必ずブロック）
-        Consume(TokenType.LeftBrace, "Expect '{' after while condition.");
-        var bodyExpr = BlockExpression();
-
-        // BlockExpr を ExprStmt でラップ
-        var body = new ExprStmt(bodyExpr, bodyExpr.Line, bodyExpr.Column);
-
-        return new WhileStmt(condition, body, whileToken.Line, whileToken.Column);
     }
 
     /// <summary>
@@ -1043,7 +1015,7 @@ public class Parser
                 }
 
                 // フィールドかメソッドか判定
-                if (Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.Return))
+                if (Check(TokenType.Var) || Check(TokenType.Return))
                 {
                     // フィールド定義
                     fields.Add(FieldDefinition(isPublic));

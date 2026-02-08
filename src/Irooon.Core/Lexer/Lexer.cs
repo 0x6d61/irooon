@@ -23,7 +23,6 @@ public class Lexer
         { "fn", TokenType.Fn },
         { "if", TokenType.If },
         { "else", TokenType.Else },
-        { "while", TokenType.While },
         { "for", TokenType.For },
         { "foreach", TokenType.Foreach },
         { "in", TokenType.In },

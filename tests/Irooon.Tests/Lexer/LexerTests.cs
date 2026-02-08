@@ -156,13 +156,13 @@ public class LexerTests
     [Fact]
     public void TestKeywords_Control()
     {
-        var lexer = new Core.Lexer.Lexer("if else while return");
+        var lexer = new Core.Lexer.Lexer("if else for return");
         var tokens = lexer.ScanTokens();
 
         Assert.Equal(5, tokens.Count);
         Assert.Equal(TokenType.If, tokens[0].Type);
         Assert.Equal(TokenType.Else, tokens[1].Type);
-        Assert.Equal(TokenType.While, tokens[2].Type);
+        Assert.Equal(TokenType.For, tokens[2].Type);
         Assert.Equal(TokenType.Return, tokens[3].Type);
     }
 

@@ -333,10 +333,10 @@ public class AstNodeTests
 
     #endregion
 
-    #region WhileStmt テスト
+    #region ForStmt テスト
 
     [Fact]
-    public void WhileStmt_while文を正しく構築できること()
+    public void ForStmt_条件ループを正しく構築できること()
     {
         // Arrange
         var condition = new BinaryExpr(
@@ -345,7 +345,8 @@ public class AstNodeTests
             new LiteralExpr(10.0, 1, 11),
             1, 7
         );
-        var body = new ExprStmt(
+        var bodyExpr = new BlockExpr(
+            new List<Statement>(),
             new AssignExpr("i", new BinaryExpr(
                 new IdentifierExpr("i", 2, 5),
                 TokenType.Plus,
@@ -356,13 +357,14 @@ public class AstNodeTests
         );
 
         // Act
-        var stmt = new WhileStmt(condition, body, 1, 1);
+        var stmt = new ForStmt(condition, bodyExpr, 1, 1);
 
         // Assert
+        Assert.Equal(ForStmtKind.Condition, stmt.Kind);
         Assert.NotNull(stmt.Condition);
         Assert.NotNull(stmt.Body);
         Assert.IsType<BinaryExpr>(stmt.Condition);
-        Assert.IsType<ExprStmt>(stmt.Body);
+        Assert.IsType<BlockExpr>(stmt.Body);
     }
 
     #endregion

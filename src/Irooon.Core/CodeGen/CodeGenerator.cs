@@ -89,7 +89,6 @@ public class CodeGenerator
             VarStmt s => GenerateVarStmt(s),
             ExprStmt s => GenerateExprStmt(s),
             ReturnStmt s => GenerateReturnStmt(s),
-            WhileStmt s => GenerateWhileStmt(s),
             ForStmt s => GenerateForStmt(s),
             ForeachStmt s => GenerateForeachStmt(s),
             BreakStmt s => GenerateBreakStmt(s),
@@ -452,55 +451,6 @@ public class CodeGenerator
             thenExpr,
             elseExpr,
             typeof(object)
-        );
-    }
-
-    /// <summary>
-    /// while文の変換
-    /// 仕様（expression-tree-mapping.md セクション8）:
-    /// Expression.Loop + LabelBreak
-    /// while全体の値は null
-    /// </summary>
-    private ExprTree GenerateWhileStmt(WhileStmt stmt)
-    {
-        var breakLabel = ExprTree.Label($"whileBreak_{_labelCounter}");
-        var continueLabel = ExprTree.Label($"whileContinue_{_labelCounter++}");
-
-        // ループラベルをスタックにプッシュ
-        _loopLabels.Push((breakLabel, continueLabel));
-
-        var condExpr = GenerateExpression(stmt.Condition);
-        var bodyExpr = GenerateStatement(stmt.Body);
-
-        // ループラベルをポップ
-        _loopLabels.Pop();
-
-        // IsTruthy で真偽値判定
-        var truthyCall = ExprTree.Call(
-            typeof(RuntimeHelpers),
-            nameof(RuntimeHelpers.IsTruthy),
-            null,
-            condExpr
-        );
-
-        // if (!truthy) break;
-        var breakIfFalse = ExprTree.IfThen(
-            ExprTree.Not(truthyCall),
-            ExprTree.Break(breakLabel)
-        );
-
-        // Loop body
-        var loopBody = ExprTree.Block(
-            typeof(void),
-            breakIfFalse,
-            bodyExpr
-        );
-
-        // Expression.Loop with break and continue labels
-        return ExprTree.Block(
-            typeof(object),
-            ExprTree.Loop(loopBody, breakLabel, continueLabel),
-            ExprTree.Constant(null, typeof(object))
         );
     }
 

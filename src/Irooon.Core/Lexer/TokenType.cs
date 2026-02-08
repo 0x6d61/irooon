@@ -19,7 +19,6 @@ public enum TokenType
     Fn,
     If,
     Else,
-    While,
     For,
     Foreach,
     In,

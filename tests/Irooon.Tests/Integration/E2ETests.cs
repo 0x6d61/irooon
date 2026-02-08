@@ -590,7 +590,7 @@ count
         var source = @"
 var i = 0
 var sum = 0
-while (i < 10) {
+for (i < 10) {
     i = i + 1
     if (i > 5) { break } else { }
     sum = sum + i
@@ -610,7 +610,7 @@ sum
         var source = @"
 var i = 0
 var sum = 0
-while (i < 10) {
+for (i < 10) {
     i = i + 1
     if (i % 2 == 0) { continue } else { }
     sum = sum + i
