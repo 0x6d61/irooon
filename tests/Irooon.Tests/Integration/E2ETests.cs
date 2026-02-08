@@ -794,7 +794,7 @@ sum
         Assert.Equal(12.0, result);
     }
 
-    [Fact(Skip = "ネストしたforループのBlockExpressionパースに問題あり - Phase 3で修正予定")]
+    [Fact]
     public void TestFor_Nested()
     {
         var source = @"
