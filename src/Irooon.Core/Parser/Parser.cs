@@ -176,13 +176,31 @@ public class Parser
     /// </summary>
     private Expression Comparison()
     {
-        var expr = Term();
+        var expr = Range();
 
         while (Match(TokenType.Less, TokenType.LessEqual, TokenType.Greater, TokenType.GreaterEqual))
         {
             var op = Previous();
-            var right = Term();
+            var right = Range();
             expr = new BinaryExpr(expr, op.Type, right, op.Line, op.Column);
+        }
+
+        return expr;
+    }
+
+    /// <summary>
+    /// 範囲リテラル（.., ...）をパースします。
+    /// </summary>
+    private Expression Range()
+    {
+        var expr = Term();
+
+        if (Match(TokenType.DotDot, TokenType.DotDotDot))
+        {
+            var op = Previous();
+            var right = Term();
+            bool inclusive = op.Type == TokenType.DotDotDot;
+            expr = new RangeExpr(expr, right, inclusive, op.Line, op.Column);
         }
 
         return expr;

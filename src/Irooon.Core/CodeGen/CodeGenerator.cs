@@ -69,6 +69,7 @@ public class CodeGenerator
             MemberAssignExpr e => GenerateMemberAssignExpr(e),
             StringInterpolationExpr e => GenerateStringInterpolationExpr(e),
             TryExpr e => GenerateTryExpr(e),
+            RangeExpr e => GenerateRangeExpr(e),
             _ => throw new NotImplementedException($"Unknown expression type: {expr.GetType()}")
         };
     }
@@ -1048,6 +1049,27 @@ public class CodeGenerator
             nameof(RuntimeHelpers.CreateHash),
             Type.EmptyTypes,
             pairArrayExpr
+        );
+    }
+
+    /// <summary>
+    /// 範囲リテラルの変換
+    /// 仕様: 1..10 → RuntimeHelpers.CreateRange(1, 10, false)
+    ///       1...10 → RuntimeHelpers.CreateRange(1, 10, true)
+    /// </summary>
+    private ExprTree GenerateRangeExpr(RangeExpr expr)
+    {
+        var startExpr = GenerateExpression(expr.Start);
+        var endExpr = GenerateExpression(expr.End);
+        var inclusiveExpr = ExprTree.Constant(expr.Inclusive);
+
+        return ExprTree.Call(
+            typeof(RuntimeHelpers),
+            nameof(RuntimeHelpers.CreateRange),
+            Type.EmptyTypes,
+            startExpr,
+            endExpr,
+            inclusiveExpr
         );
     }
 

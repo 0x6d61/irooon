@@ -24,6 +24,7 @@ public class Lexer
         { "if", TokenType.If },
         { "else", TokenType.Else },
         { "while", TokenType.While },
+        { "for", TokenType.For },
         { "foreach", TokenType.Foreach },
         { "in", TokenType.In },
         { "break", TokenType.Break },
@@ -92,8 +93,27 @@ public class Lexer
             case '[': AddToken(TokenType.LeftBracket); break;
             case ']': AddToken(TokenType.RightBracket); break;
             case ',': AddToken(TokenType.Comma); break;
-            case '.': AddToken(TokenType.Dot); break;
             case ':': AddToken(TokenType.Colon); break;
+
+            // . または .. または ...
+            case '.':
+                if (Match('.'))
+                {
+                    // .. または ...
+                    if (Match('.'))
+                    {
+                        AddToken(TokenType.DotDotDot);
+                    }
+                    else
+                    {
+                        AddToken(TokenType.DotDot);
+                    }
+                }
+                else
+                {
+                    AddToken(TokenType.Dot);
+                }
+                break;
             case '+': AddToken(TokenType.Plus); break;
             case '-': AddToken(TokenType.Minus); break;
             case '*': AddToken(TokenType.Star); break;
