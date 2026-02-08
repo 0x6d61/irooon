@@ -1,60 +1,60 @@
 // ループ構造のサンプル
 
-// foreach - リスト
-println("foreach with list:")
+// for - リスト（コレクション反復）
+println("for with list:")
 let numbers = [1, 2, 3, 4, 5]
-foreach (n in numbers) {
+for (n in numbers) {
     println("  Number:", n)
 }
 
-// foreach - ハッシュ
+// for - ハッシュ（コレクション反復）
 println("")
-println("foreach with hash:")
+println("for with hash:")
 let person = {name: "Alice", age: 30, city: "Tokyo"}
-foreach (pair in person) {
+for (pair in person) {
     println("  Entry:", pair)
 }
 
-// while + break
+// for - 条件ループ + break
 println("")
-println("while with break:")
+println("for with break:")
 var i = 0
 var sum = 0
-while (i < 100) {
+for (i < 100) {
     i = i + 1
     if (i > 5) { break } else { }
     sum = sum + i
 }
 println("  Sum (1 to 5):", sum)
 
-// while + continue
+// for - 条件ループ + continue
 println("")
-println("while with continue (odd numbers):")
+println("for with continue (odd numbers):")
 i = 0
 sum = 0
-while (i < 10) {
+for (i < 10) {
     i = i + 1
     if (i % 2 == 0) { continue } else { }
     sum = sum + i
 }
 println("  Sum (odd 1-9):", sum)
 
-// foreach + break
+// for - コレクション反復 + break
 println("")
-println("foreach with break:")
+println("for with break:")
 let items = [10, 20, 30, 40, 50]
 sum = 0
-foreach (item in items) {
+for (item in items) {
     if (item >= 40) { break } else { }
     sum = sum + item
 }
 println("  Sum (< 40):", sum)
 
-// foreach + continue
+// for - コレクション反復 + continue
 println("")
-println("foreach with continue (skip even):")
+println("for with continue (skip even):")
 sum = 0
-foreach (n in numbers) {
+for (n in numbers) {
     if (n % 2 == 0) { continue } else { }
     sum = sum + n
 }
@@ -62,11 +62,11 @@ println("  Sum (odd):", sum)
 
 // ネストしたループ
 println("")
-println("nested foreach:")
+println("nested for:")
 let matrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 sum = 0
-foreach (row in matrix) {
-    foreach (val in row) {
+for (row in matrix) {
+    for (val in row) {
         sum = sum + val
     }
 }
