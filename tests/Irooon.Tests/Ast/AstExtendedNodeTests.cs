@@ -245,7 +245,7 @@ public class AstExtendedNodeTests
         var methods = new List<MethodDef>();
 
         // Act
-        var classDef = new ClassDef("EmptyClass", fields, methods, 1, 1);
+        var classDef = new ClassDef("EmptyClass", fields, methods, null, 1, 1);
 
         // Assert
         Assert.Equal("EmptyClass", classDef.Name);
@@ -279,7 +279,7 @@ public class AstExtendedNodeTests
         };
 
         // Act
-        var classDef = new ClassDef("Counter", fields, methods, 1, 1);
+        var classDef = new ClassDef("Counter", fields, methods, null, 1, 1);
 
         // Assert
         Assert.Equal("Counter", classDef.Name);

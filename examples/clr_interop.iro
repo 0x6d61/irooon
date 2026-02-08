@@ -1,0 +1,25 @@
+// CLR相互運用のサンプル
+
+// 数学関数
+let abs = System.Math.Abs(-42)
+println("Abs(-42):", abs)
+
+let max = System.Math.Max(10, 20)
+println("Max(10, 20):", max)
+
+let min = System.Math.Min(10, 20)
+println("Min(10, 20):", min)
+
+let sqrt = System.Math.Sqrt(16)
+println("Sqrt(16):", sqrt)
+
+let pow = System.Math.Pow(2, 3)
+println("Pow(2, 3):", pow)
+
+// DateTime
+let now = System.DateTime.Now
+println("Current DateTime:", now)
+
+// 複合演算
+let result = System.Math.Pow(System.Math.Max(5, 10), 2)
+println("Pow(Max(5, 10), 2):", result)

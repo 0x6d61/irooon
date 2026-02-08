@@ -333,6 +333,12 @@ try {
 } catch (e) {
     println("Error:", e.message)
 }
+
+// CLR相互運用（.NET標準ライブラリの呼び出し）
+let abs = System.Math.Abs(-42)
+let sqrt = System.Math.Sqrt(16)
+let now = System.DateTime.Now
+println("Abs:", abs, "Sqrt:", sqrt, "Now:", now)
 ```
 
 ## ドキュメント

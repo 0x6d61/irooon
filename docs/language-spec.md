@@ -576,7 +576,57 @@ irooon script.iro
 
 ### 将来の拡張（v0.4以降）
 * 型推論・型注釈
+* ✅ CLR相互運用（.NET標準ライブラリの呼び出し）- v0.4で追加
 * 継承
 * 演算子オーバーロード
 * 括弧省略
 * パッケージ管理
+
+---
+
+## CLR相互運用
+
+irooonはCLR（Common Language Runtime）との相互運用をサポートしています。
+.NET標準ライブラリの型とメソッドを直接呼び出すことができます。
+
+### 基本構文
+
+```iro
+// 静的メソッドの呼び出し
+let result = System.Math.Abs(-42)
+
+// 静的プロパティのアクセス
+let now = System.DateTime.Now
+
+// メソッドチェーン
+let sqrt = System.Math.Sqrt(System.Math.Pow(2, 2))
+```
+
+### サポートされている機能
+
+- **静的メソッド呼び出し**: `System.Math.Abs(-42)`
+- **静的プロパティアクセス**: `System.DateTime.Now`
+- **メソッドチェーン**: `System.Math.Sqrt(System.Math.Max(10, 20))`
+
+### 利用可能な主なCLRクラス
+
+#### System.Math
+```iro
+let abs = System.Math.Abs(-42)        // 絶対値
+let max = System.Math.Max(10, 20)     // 最大値
+let min = System.Math.Min(10, 20)     // 最小値
+let sqrt = System.Math.Sqrt(16)       // 平方根
+let pow = System.Math.Pow(2, 3)       // べき乗
+```
+
+#### System.DateTime
+```iro
+let now = System.DateTime.Now         // 現在日時
+```
+
+### 制限事項
+
+- 現在は静的メソッドと静的プロパティのみサポート
+- インスタンスメソッドは将来のバージョンでサポート予定
+- `System`で始まる型名のみサポート（例: `System.Math`, `System.DateTime`）
+- 引数の型は自動的に推論されます（オーバーロードがある場合は最初にマッチしたメソッドが使用されます）

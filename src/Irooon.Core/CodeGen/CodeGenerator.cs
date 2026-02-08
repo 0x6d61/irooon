@@ -717,47 +717,68 @@ public class CodeGenerator
     /// </summary>
     private ExprTree GenerateCallExpr(CallExpr expr)
     {
-        ExprTree calleeExpr;
-        ExprTree? thisArg = null;
-
-        // CalleeがMemberExprの場合、インスタンスメソッド呼び出し
+        // CalleeがMemberExprの場合、CLR型のメソッド呼び出しかチェック
         if (expr.Callee is MemberExpr memberExpr)
         {
+            var (isCLRType, typeName, methodName) = ExtractCLRTypeName(memberExpr);
+
+            if (isCLRType)
+            {
+                // CLR型のメソッド呼び出しを生成
+                var argExprs = expr.Arguments.Select(GenerateExpression).ToArray();
+                var argsArray = ExprTree.NewArrayInit(typeof(object), argExprs);
+
+                // RuntimeHelpers.ResolveCLRType(typeName)
+                var resolveTypeCall = ExprTree.Call(
+                    typeof(RuntimeHelpers),
+                    nameof(RuntimeHelpers.ResolveCLRType),
+                    null,
+                    ExprTree.Constant(typeName)
+                );
+
+                // RuntimeHelpers.InvokeCLRStaticMethod(type, methodName, args)
+                return ExprTree.Call(
+                    typeof(RuntimeHelpers),
+                    nameof(RuntimeHelpers.InvokeCLRStaticMethod),
+                    null,
+                    resolveTypeCall,
+                    ExprTree.Constant(methodName),
+                    argsArray
+                );
+            }
+
+            // 通常のインスタンスメソッド呼び出し
             var targetExpr = GenerateExpression(memberExpr.Target);
-            thisArg = targetExpr;
+            var thisArg = targetExpr;
 
             // メソッドを取得
-            calleeExpr = ExprTree.Call(
+            var calleeExpr = ExprTree.Call(
                 typeof(RuntimeHelpers),
                 "GetMember",
                 null,
                 targetExpr,
                 ExprTree.Constant(memberExpr.Name)
             );
-        }
-        else
-        {
-            calleeExpr = GenerateExpression(expr.Callee);
-        }
 
-        var argExprs = expr.Arguments.Select(GenerateExpression).ToArray();
-        var argsArray = ExprTree.NewArrayInit(typeof(object), argExprs);
+            var argExprsInstance = expr.Arguments.Select(GenerateExpression).ToArray();
+            var argsArrayInstance = ExprTree.NewArrayInit(typeof(object), argExprsInstance);
 
-        // RuntimeHelpers.Invoke(callee, ctx, args, thisArg)
-        if (thisArg != null)
-        {
             return ExprTree.Call(
                 typeof(RuntimeHelpers),
                 "Invoke",
                 null,
                 calleeExpr,
                 _ctxParam,
-                argsArray,
+                argsArrayInstance,
                 thisArg
             );
         }
         else
         {
+            var calleeExpr = GenerateExpression(expr.Callee);
+            var argExprs = expr.Arguments.Select(GenerateExpression).ToArray();
+            var argsArray = ExprTree.NewArrayInit(typeof(object), argExprs);
+
             return ExprTree.Call(
                 typeof(RuntimeHelpers),
                 "Invoke",
@@ -768,6 +789,48 @@ public class CodeGenerator
                 ExprTree.Constant(null, typeof(object))
             );
         }
+    }
+
+    /// <summary>
+    /// MemberExprからCLR型名を抽出します。
+    /// </summary>
+    /// <param name="memberExpr">MemberExpr</param>
+    /// <returns>(isCLRType, typeName, methodName)</returns>
+    private (bool isCLRType, string typeName, string methodName) ExtractCLRTypeName(MemberExpr memberExpr)
+    {
+        var parts = new List<string>();
+        var current = memberExpr;
+
+        // MemberExprをたどってドット区切りの名前を構築
+        while (current != null)
+        {
+            parts.Insert(0, current.Name);
+
+            if (current.Target is MemberExpr targetMember)
+            {
+                current = targetMember;
+            }
+            else if (current.Target is IdentifierExpr identExpr)
+            {
+                parts.Insert(0, identExpr.Name);
+                break;
+            }
+            else
+            {
+                // CLR型ではない
+                return (false, "", "");
+            }
+        }
+
+        // System で始まる場合、CLR型とみなす
+        if (parts.Count >= 2 && parts[0] == "System")
+        {
+            var methodName = parts[^1];
+            var typeName = string.Join(".", parts.Take(parts.Count - 1));
+            return (true, typeName, methodName);
+        }
+
+        return (false, "", "");
     }
 
     /// <summary>
@@ -1010,16 +1073,32 @@ public class CodeGenerator
 
         var methodsArray = ExprTree.NewArrayInit(typeof(Runtime.MethodDef), methodDefs);
 
+        // 親クラスを取得（存在する場合）
+        ExprTree parentClassExpr;
+        if (!string.IsNullOrEmpty(stmt.ParentClass))
+        {
+            // ctx.Classes[parentClassName]
+            var parentClassesExpr = ExprTree.Property(_ctxParam, "Classes");
+            var parentNameExpr = ExprTree.Constant(stmt.ParentClass);
+            parentClassExpr = ExprTree.Property(parentClassesExpr, "Item", parentNameExpr);
+        }
+        else
+        {
+            parentClassExpr = ExprTree.Constant(null, typeof(IroClass));
+        }
+
         // IroClass を作成
         var classNew = ExprTree.New(
             typeof(IroClass).GetConstructor(new[] {
                 typeof(string),
                 typeof(Runtime.FieldDef[]),
-                typeof(Runtime.MethodDef[])
+                typeof(Runtime.MethodDef[]),
+                typeof(IroClass)
             })!,
             ExprTree.Constant(stmt.Name),
             fieldsArray,
-            methodsArray
+            methodsArray,
+            parentClassExpr
         );
 
         // ctx.Classes[name] = class
@@ -1056,6 +1135,33 @@ public class CodeGenerator
     /// </summary>
     private ExprTree GenerateMemberExpr(MemberExpr expr)
     {
+        // CLR型のプロパティアクセスかチェック
+        var (isCLRType, typeName, propertyName) = ExtractCLRTypeName(expr);
+
+        if (isCLRType)
+        {
+            // CLR型のプロパティアクセスを生成
+            // RuntimeHelpers.ResolveCLRType(typeName)
+            var resolveTypeCall = ExprTree.Call(
+                typeof(RuntimeHelpers),
+                nameof(RuntimeHelpers.ResolveCLRType),
+                null,
+                ExprTree.Constant(typeName)
+            );
+
+            // RuntimeHelpers.InvokeCLRStaticMethod(type, "get_PropertyName", [])
+            var argsArray = ExprTree.NewArrayInit(typeof(object));
+            return ExprTree.Call(
+                typeof(RuntimeHelpers),
+                nameof(RuntimeHelpers.InvokeCLRStaticMethod),
+                null,
+                resolveTypeCall,
+                ExprTree.Constant("get_" + propertyName),
+                argsArray
+            );
+        }
+
+        // 通常のメンバアクセス
         var targetExpr = GenerateExpression(expr.Target);
 
         // Runtime.GetMember(target, name)

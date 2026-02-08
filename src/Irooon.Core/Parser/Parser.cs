@@ -976,11 +976,20 @@ public class Parser
     /// <summary>
     /// クラス定義をパースします。
     /// class Name { fields methods }
+    /// class ChildName : ParentName { fields methods }
     /// </summary>
     private ClassDef ClassDefinition()
     {
         var classToken = Previous();
         var name = Consume(TokenType.Identifier, "Expect class name.");
+
+        // 継承構文をチェック（: ParentClass）
+        string? parentClass = null;
+        if (Match(TokenType.Colon))
+        {
+            var parentToken = Consume(TokenType.Identifier, "Expect parent class name after ':'.");
+            parentClass = parentToken.Lexeme;
+        }
 
         Consume(TokenType.LeftBrace, "Expect '{' before class body.");
 
@@ -1041,7 +1050,7 @@ public class Parser
 
         Consume(TokenType.RightBrace, "Expect '}' after class body.");
 
-        return new ClassDef(name.Lexeme, fields, methods, classToken.Line, classToken.Column);
+        return new ClassDef(name.Lexeme, fields, methods, parentClass, classToken.Line, classToken.Column);
     }
 
     /// <summary>

@@ -224,6 +224,12 @@ public class Resolver
 
     private void ResolveIdentifierExpr(IdentifierExpr expr)
     {
+        // CLR型名（System で始まる名前）はスキップ
+        if (expr.Name.StartsWith("System"))
+        {
+            return;
+        }
+
         ResolveVariable(expr.Name, expr.Line, expr.Column);
     }
 
@@ -557,6 +563,16 @@ public class Resolver
         // クラス名をスコープに追加
         Declare(stmt.Name, false, stmt.Line, stmt.Column);
 
+        // 親クラスが指定されている場合、その存在を確認
+        ClassDef? parentClassDef = null;
+        if (!string.IsNullOrEmpty(stmt.ParentClass))
+        {
+            // 親クラスがすでに定義されているかチェック
+            // 注: 実際のクラス定義は _resolvedClasses に保存されていないので、
+            // ここでは親クラス名が識別子として解決可能かをチェックする
+            // 実行時にCodeGeneratorで親クラスの存在を確認する
+        }
+
         // フィールドの初期化式を解析
         foreach (var field in stmt.Fields)
         {
@@ -577,6 +593,11 @@ public class Resolver
             {
                 Declare(field.Name, false, field.Line, field.Column);
             }
+
+            // 親クラスのフィールドもメソッドスコープに宣言
+            // 注: 親クラスの定義は実行時まで取得できないため、
+            // ここでは親クラス名のみを記録しておく
+            // 実際のフィールド宣言は実行時にCodeGeneratorで行う
 
             // パラメータを宣言
             foreach (var param in method.Parameters)

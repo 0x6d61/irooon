@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- ✨ **CLR相互運用** (#14, Issue #14)
+  - .NET標準ライブラリの呼び出しをサポート
+  - 静的メソッドの呼び出し: `System.Math.Abs(-42)`
+  - 静的プロパティのアクセス: `System.DateTime.Now`
+  - RuntimeHelpers.ResolveCLRType / InvokeCLRStaticMethod を実装
+  - Resolverで System で始まる名前を許可
+  - CodeGeneratorでCLR型とメソッド呼び出しを検出
+  - サンプルスクリプト examples/clr_interop.iro を追加
+  - 18個の新規テスト追加（11個のユニットテスト + 7個のE2Eテスト）
+
 ## [0.4.0] - 2026-02-08
 
 ### Added

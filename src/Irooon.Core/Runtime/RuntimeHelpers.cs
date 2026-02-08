@@ -534,4 +534,82 @@ public static class RuntimeHelpers
     }
 
     #endregion
+
+    #region CLR Interop
+
+    /// <summary>
+    /// CLR型を解決します。
+    /// </summary>
+    /// <param name="typeName">型名（完全修飾名）</param>
+    /// <returns>解決された型（見つからない場合はnull）</returns>
+    public static Type? ResolveCLRType(string typeName)
+    {
+        return Type.GetType(typeName);
+    }
+
+    /// <summary>
+    /// CLR静的メソッドを呼び出します。
+    /// </summary>
+    /// <param name="type">型</param>
+    /// <param name="methodName">メソッド名</param>
+    /// <param name="args">引数</param>
+    /// <returns>メソッドの戻り値</returns>
+    public static object InvokeCLRStaticMethod(Type type, string methodName, object[] args)
+    {
+        if (type == null)
+            throw new ArgumentNullException(nameof(type));
+
+        System.Reflection.MethodInfo? method = null;
+
+        // 引数の型を取得
+        var argTypes = args.Select(a => a?.GetType() ?? typeof(object)).ToArray();
+
+        // 引数の型が一致するメソッドを検索
+        try
+        {
+            method = type.GetMethod(
+                methodName,
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
+                null,
+                argTypes,
+                null);
+        }
+        catch (System.Reflection.AmbiguousMatchException)
+        {
+            // 曖昧な場合は、すべてのメソッドを取得して手動で検索
+            var methods = type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                .Where(m => m.Name == methodName && m.GetParameters().Length == args.Length)
+                .ToList();
+
+            if (methods.Count > 0)
+            {
+                // 最初に見つかったメソッドを使用
+                method = methods[0];
+            }
+        }
+
+        if (method == null)
+        {
+            // プロパティのgetterを試す
+            var property = type.GetProperty(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            if (property != null && property.CanRead)
+            {
+                method = property.GetGetMethod();
+            }
+        }
+
+        if (method == null)
+            throw new RuntimeException($"Method '{methodName}' not found on type {type.Name}");
+
+        try
+        {
+            return method.Invoke(null, args) ?? null!;
+        }
+        catch (Exception ex)
+        {
+            throw new RuntimeException($"Error invoking CLR method '{methodName}': {ex.Message}", ex);
+        }
+    }
+
+    #endregion
 }
