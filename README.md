@@ -48,7 +48,7 @@ dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/hello.iro
 # 階乗の計算
 dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/factorial.iro
 
-# while ループ
+# for ループ（条件ループ）
 dotnet run --project src/Irooon.Cli/Irooon.Cli.csproj examples/loop.iro
 
 # クラスとオブジェクト
@@ -172,25 +172,35 @@ if (x > 0) {
 }
 ```
 
-#### ループ
+#### ループ（for統一構文）
 ```irooon
-// while ループ
-while (i < 10) {
+// 条件ループ（旧while）
+var i = 0
+for (i < 10) {
     i = i + 1
 }
 
-// foreach ループ（リスト）
-foreach (item in [1, 2, 3, 4, 5]) {
+// コレクション反復（リスト）
+for (item in [1, 2, 3, 4, 5]) {
     println(item)
 }
 
-// foreach ループ（ハッシュ）
-foreach (entry in {name: "Alice", age: 30}) {
+// コレクション反復（ハッシュ）
+for (entry in {name: "Alice", age: 30}) {
     println(entry.key, ":", entry.value)
 }
 
+// 範囲リテラル
+for (i in 1..10) {     // 1から9まで（排他的）
+    println(i)
+}
+
+for (i in 1...10) {    // 1から10まで（包括的）
+    println(i)
+}
+
 // break / continue
-foreach (i in [1, 2, 3, 4, 5]) {
+for (i in [1, 2, 3, 4, 5]) {
     if (i == 3) { continue }
     if (i == 5) { break }
     println(i)
@@ -309,8 +319,8 @@ firstUser["name"]  // "Alice"
 let message = "User: ${firstUser["name"]}, Age: ${firstUser["age"]}"
 println(message)
 
-// foreach ループ
-foreach (user in data["users"]) {
+// for ループ（コレクション反復）
+for (user in data["users"]) {
     println("Name:", user["name"])
 }
 
@@ -334,9 +344,10 @@ try {
 
 ## 開発状況
 
-**v0.3.0** リリース準備中（2026-02-08）
+**v0.4.0** リリース準備中（2026-02-08）
 
 ### バージョン履歴
+- v0.4.0: forループへの統一、範囲リテラル
 - v0.3.0: ループ、文字列、例外処理、モジュール、REPL
 - v0.2.1: 既知の問題の修正（Fibonacci再帰、メソッド内フィールドアクセス）
 - v0.2.0: リスト・ハッシュリテラルのサポート
@@ -345,12 +356,21 @@ try {
 変更履歴は [CHANGELOG.md](./CHANGELOG.md) を参照してください。
 開発の詳細は [CLAUDE.md](./CLAUDE.md) で確認できます。
 
+### v0.4.0の新機能 ✨
+
+- ✨ **forループへの統一**: すべてのループを`for`構文に統一
+  - `for (condition)` - 条件ループ（旧while）
+  - `for (item in collection)` - コレクション反復（旧foreach）
+- ✨ **範囲リテラル**: `..` と `...` で数値範囲を生成
+  - `1..10` - 排他的範囲（1から9まで）
+  - `1...10` - 包括的範囲（1から10まで）
+
 ### v0.3.0の新機能 ✨
 
 - ✅ **print/println**: 標準出力ビルトイン関数
 - ✅ **文字列補間**: `${expression}` 構文
 - ✅ **文字列メソッド**: length, toUpper, toLower, trim, substring, split, contains, startsWith, endsWith, replace
-- ✅ **foreach/break/continue**: コレクション反復処理
+- ✅ **for/break/continue**: コレクション反復処理（v0.4でさらに強化）
 - ✅ **try/catch/finally**: 例外処理
 - ✅ **export/import**: モジュールシステム
 - ✅ **REPL**: 対話的実行環境
