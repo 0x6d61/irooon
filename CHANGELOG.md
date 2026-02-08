@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-02-08
+
+### Added
+- 💬 **コメント機能** (#17)
+  - 一行コメント: `// コメント`
+  - 複数行コメント: `/* コメント */`
+  - `SkipWhitespaceAndComments()` メソッドを実装
+  - コメントはトークンとして扱わず、完全にスキップ
+  - 文字列リテラル内のコメント記号は無視
+  - 行番号・列番号の追跡を正確に維持
+  - サンプルスクリプト examples/comments.iro を追加
+  - 14個の新規テスト追加（LexerCommentTests）
+
+### Tests
+- ✅ 全テスト成功: 694個（682個 + 12個REPL）
+- ✅ スキップ: 0個
+- ✅ 成功率: 100%
+
 ## [0.5.0] - 2026-02-08
 
 ### Added
