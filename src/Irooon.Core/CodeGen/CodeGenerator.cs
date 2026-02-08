@@ -68,6 +68,7 @@ public class CodeGenerator
             IndexAssignExpr e => GenerateIndexAssignExpr(e),
             MemberAssignExpr e => GenerateMemberAssignExpr(e),
             StringInterpolationExpr e => GenerateStringInterpolationExpr(e),
+            TryExpr e => GenerateTryExpr(e),
             _ => throw new NotImplementedException($"Unknown expression type: {expr.GetType()}")
         };
     }
@@ -93,6 +94,7 @@ public class CodeGenerator
             ContinueStmt s => GenerateContinueStmt(s),
             FunctionDef s => GenerateFunctionDef(s),
             ClassDef s => GenerateClassDef(s),
+            ThrowStmt s => GenerateThrowStmt(s),
             _ => throw new NotImplementedException($"Unknown statement type: {stmt.GetType()}")
         };
     }
@@ -1118,6 +1120,99 @@ public class CodeGenerator
 
         var arrayExpr = ExprTree.NewArrayInit(typeof(object), partExprs);
         return ExprTree.Call(concatMethod, arrayExpr);
+    }
+
+    #endregion
+
+    #region try/catch/finally の生成
+
+    /// <summary>
+    /// try/catch/finally式の生成
+    /// </summary>
+    private ExprTree GenerateTryExpr(TryExpr tryExpr)
+    {
+        // try ブロックの本体
+        var tryBody = GenerateExpression(tryExpr.TryBody);
+
+        // catch ブロック（オプション）
+        CatchBlock? catchBlock = null;
+        if (tryExpr.Catch != null)
+        {
+            // 例外変数を作成（IroExceptionをキャッチ）
+            var exceptionParam = ExprTree.Parameter(typeof(IroException), "ex");
+
+            // 例外変数が指定されている場合、ctx.Globals に登録
+            ExprTree catchBody;
+            if (tryExpr.Catch.ExceptionVariable != null)
+            {
+                // ex.Value を取得
+                var exceptionValueExpr = ExprTree.Property(exceptionParam, nameof(IroException.Value));
+
+                // ctx.Globals["e"] = ex.Value
+                var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
+                var nameExpr = ExprTree.Constant(tryExpr.Catch.ExceptionVariable);
+                var itemProperty = ExprTree.Property(globalsExpr, "Item", nameExpr);
+                var assignExpr = ExprTree.Assign(itemProperty, exceptionValueExpr);
+
+                // catch ブロック本体を生成
+                var catchBodyExpr = GenerateExpression(tryExpr.Catch.Body);
+
+                // Block で例外変数を登録して本体を実行
+                catchBody = ExprTree.Block(
+                    assignExpr,
+                    catchBodyExpr
+                );
+            }
+            else
+            {
+                // 例外変数なしの場合、そのまま本体を実行
+                catchBody = GenerateExpression(tryExpr.Catch.Body);
+            }
+
+            catchBlock = ExprTree.Catch(exceptionParam, catchBody);
+        }
+
+        // finally ブロック（オプション）
+        ExprTree? finallyBody = null;
+        if (tryExpr.Finally != null)
+        {
+            finallyBody = GenerateExpression(tryExpr.Finally);
+        }
+
+        // TryCatchFinally を構築
+        if (catchBlock != null && finallyBody != null)
+        {
+            return ExprTree.TryCatchFinally(tryBody, finallyBody, catchBlock);
+        }
+        else if (catchBlock != null)
+        {
+            return ExprTree.TryCatch(tryBody, catchBlock);
+        }
+        else if (finallyBody != null)
+        {
+            return ExprTree.TryFinally(tryBody, finallyBody);
+        }
+        else
+        {
+            // catch も finally もない場合（通常はパーサーで弾かれるはず）
+            throw new InvalidOperationException("Try expression must have catch or finally block.");
+        }
+    }
+
+    /// <summary>
+    /// throw文の生成
+    /// </summary>
+    private ExprTree GenerateThrowStmt(ThrowStmt throwStmt)
+    {
+        // throw する値を評価
+        var valueExpr = GenerateExpression(throwStmt.Value);
+
+        // IroException(value) のコンストラクタを呼び出す
+        var ctor = typeof(IroException).GetConstructor(new[] { typeof(object) })!;
+        var newException = ExprTree.New(ctor, valueExpr);
+
+        // throw 式を生成
+        return ExprTree.Throw(newException, typeof(object));
     }
 
     #endregion

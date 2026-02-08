@@ -707,11 +707,10 @@ public class Parser
             return ReturnStatement();
         }
 
-        // TODO: Task #39 で実装予定
-        // if (Match(TokenType.Throw))
-        // {
-        //     return ThrowStatement();
-        // }
+        if (Match(TokenType.Throw))
+        {
+            return ThrowStatement();
+        }
 
         return ExpressionStatement();
     }

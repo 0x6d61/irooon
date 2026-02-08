@@ -1196,7 +1196,7 @@ public class ParserExprTests
 
     #region try/catch/finally のテスト
 
-    [Fact(Skip = "Task #39 で実装予定")]
+    [Fact]
     public void TestParseTry_OnlyCatch()
     {
         // try { 1 } catch (e) { 2 }
@@ -1214,7 +1214,7 @@ public class ParserExprTests
         Assert.Null(tryExpr.Finally);
     }
 
-    [Fact(Skip = "Task #39 で実装予定")]
+    [Fact]
     public void TestParseTry_OnlyFinally()
     {
         // try { 1 } finally { 2 }
@@ -1231,7 +1231,7 @@ public class ParserExprTests
         Assert.NotNull(tryExpr.Finally);
     }
 
-    [Fact(Skip = "Task #39 で実装予定")]
+    [Fact]
     public void TestParseTry_CatchAndFinally()
     {
         // try { 1 } catch (e) { 2 } finally { 3 }
@@ -1249,7 +1249,7 @@ public class ParserExprTests
         Assert.NotNull(tryExpr.Finally);
     }
 
-    [Fact(Skip = "Task #39 で実装予定")]
+    [Fact]
     public void TestParseTry_CatchWithoutVariable()
     {
         // try { 1 } catch { 2 }

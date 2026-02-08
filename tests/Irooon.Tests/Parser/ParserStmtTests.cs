@@ -355,7 +355,7 @@ if (x < 0) {
         Assert.IsType<BinaryExpr>(blockExpr.Expression);
     }
 
-    [Fact(Skip = "Task #39 で実装予定")]
+    [Fact]
     public void TestParseThrowStmt()
     {
         // throw "error message"
@@ -380,7 +380,7 @@ if (x < 0) {
         Assert.Equal("error message", literal.Value);
     }
 
-    [Fact(Skip = "Task #39 で実装予定")]
+    [Fact]
     public void TestParseThrowStmt_Expression()
     {
         // throw x + 1

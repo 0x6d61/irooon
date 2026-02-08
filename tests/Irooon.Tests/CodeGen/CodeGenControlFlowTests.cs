@@ -427,4 +427,98 @@ public class CodeGenControlFlowTests
     }
 
     #endregion
+
+    #region try/catch/finally のテスト
+
+    [Fact]
+    public void TestTryCatch_NoException()
+    {
+        var result = ExecuteScript(@"
+            try {
+                10
+            } catch (e) {
+                20
+            }
+        ");
+        Assert.Equal(10.0, result);
+    }
+
+    [Fact]
+    public void TestTryCatch_WithException()
+    {
+        var result = ExecuteScript(@"
+            try {
+                throw ""error""
+                10
+            } catch (e) {
+                20
+            }
+        ");
+        Assert.Equal(20.0, result);
+    }
+
+    [Fact]
+    public void TestTryCatch_ExceptionValue()
+    {
+        var result = ExecuteScript(@"
+            try {
+                throw ""my error""
+            } catch (e) {
+                e
+            }
+        ");
+        Assert.Equal("my error", result);
+    }
+
+    [Fact]
+    public void TestTryFinally_NoException()
+    {
+        var result = ExecuteScript(@"
+            var x = 0
+            try {
+                x = 10
+            } finally {
+                x = x + 1
+            }
+            x
+        ");
+        Assert.Equal(11.0, result);
+    }
+
+    [Fact]
+    public void TestTryCatchFinally_NoException()
+    {
+        var result = ExecuteScript(@"
+            var x = 0
+            try {
+                x = 10
+            } catch (e) {
+                x = 20
+            } finally {
+                x = x + 1
+            }
+            x
+        ");
+        Assert.Equal(11.0, result);
+    }
+
+    [Fact]
+    public void TestTryCatchFinally_WithException()
+    {
+        var result = ExecuteScript(@"
+            var x = 0
+            try {
+                throw ""error""
+                x = 10
+            } catch (e) {
+                x = 20
+            } finally {
+                x = x + 1
+            }
+            x
+        ");
+        Assert.Equal(21.0, result);
+    }
+
+    #endregion
 }
