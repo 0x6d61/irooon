@@ -113,10 +113,18 @@ public class Lexer
                     AddToken(TokenType.Dot);
                 }
                 break;
-            case '+': AddToken(TokenType.Plus); break;
-            case '-': AddToken(TokenType.Minus); break;
-            case '*': AddToken(TokenType.Star); break;
-            case '%': AddToken(TokenType.Percent); break;
+            case '+':
+                AddToken(Match('=') ? TokenType.PlusEqual : TokenType.Plus);
+                break;
+            case '-':
+                AddToken(Match('=') ? TokenType.MinusEqual : TokenType.Minus);
+                break;
+            case '*':
+                AddToken(Match('=') ? TokenType.StarEqual : TokenType.Star);
+                break;
+            case '%':
+                AddToken(Match('=') ? TokenType.PercentEqual : TokenType.Percent);
+                break;
 
             // 2文字の可能性があるトークン
             case '/':
@@ -128,7 +136,7 @@ public class Lexer
                 }
                 else
                 {
-                    AddToken(TokenType.Slash);
+                    AddToken(Match('=') ? TokenType.SlashEqual : TokenType.Slash);
                 }
                 break;
 

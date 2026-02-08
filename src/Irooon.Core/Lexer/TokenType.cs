@@ -44,6 +44,11 @@ public enum TokenType
     Star,           // *
     Slash,          // /
     Percent,        // %
+    PlusEqual,      // +=
+    MinusEqual,     // -=
+    StarEqual,      // *=
+    SlashEqual,     // /=
+    PercentEqual,   // %=
     EqualEqual,     // ==
     BangEqual,      // !=
     Less,           // <
