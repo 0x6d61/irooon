@@ -1,0 +1,39 @@
+// コレクション操作のサンプル
+let numbers = [1, 2, 3, 4, 5]
+
+// map - 各要素に関数を適用
+let doubled = numbers.map(fn(x) { x * 2 })
+println("Doubled:")
+println(doubled)
+
+// filter - 条件に合う要素を抽出
+let evens = numbers.filter(fn(x) { x % 2 == 0 })
+println("Evens:")
+println(evens)
+
+// reduce - 畳み込み
+let sum = numbers.reduce(0, fn(acc, x) { acc + x })
+println("Sum:")
+println(sum)
+
+// forEach - 副作用のある反復処理
+println("Each item:")
+numbers.forEach(fn(x) { println(x) })
+
+// first, last, length, isEmpty
+println("First:")
+println(numbers.first())
+println("Last:")
+println(numbers.last())
+println("Length:")
+println(numbers.length())
+println("Is empty:")
+println(numbers.isEmpty())
+
+// チェーン呼び出し
+let result = numbers
+    .filter(fn(x) { x > 2 })
+    .map(fn(x) { x * 3 })
+    .reduce(0, fn(acc, x) { acc + x })
+println("Chained result:")
+println(result)

@@ -319,6 +319,12 @@ public static class RuntimeHelpers
         if (target == null)
             throw new InvalidOperationException("Cannot get member of null");
 
+        // リストの場合、ListMethodWrapperを返す
+        if (target is List<object> list)
+        {
+            return new ListMethodWrapper(list, name);
+        }
+
         // 文字列の場合、StringMethodWrapperを返す
         if (target is string str)
         {
