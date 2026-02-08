@@ -1,4 +1,118 @@
-# irooon v0.1.0 🎉
+# irooon Release Notes
+
+## v0.3.0 (2026-02-08) 🚀
+
+irooon v0.3.0 では、実用的なスクリプト言語として必要な機能を大幅に追加しました！
+
+### 新機能
+
+#### ✨ ビルトイン関数: print/println
+標準出力に値を出力する関数を追加しました。
+
+```irooon
+println("Hello, World!")
+print("x =", x, "y =", y)
+```
+
+#### 🔤 文字列補間
+文字列内に式を埋め込めるようになりました。
+
+```irooon
+let name = "Alice"
+let message = "Hello, ${name}!"
+```
+
+#### 📝 文字列メソッド
+便利な文字列操作メソッドを10個追加しました。
+
+```irooon
+let text = "Hello, World!"
+text.length()         // 13
+text.toUpper()        // "HELLO, WORLD!"
+text.substring(0, 5)  // "Hello"
+text.contains("World")  // true
+text.replace("World", "irooon")  // "Hello, irooon!"
+```
+
+#### 🔄 ループ: foreach/break/continue
+コレクションの反復処理が簡単になりました。
+
+```irooon
+foreach (item in [1, 2, 3, 4, 5]) {
+    println(item)
+}
+
+foreach (entry in {name: "Alice", age: 30}) {
+    println(entry.key, ":", entry.value)
+}
+```
+
+#### ⚠️ 例外処理: try/catch/finally
+エラーハンドリングが可能になりました。
+
+```irooon
+try {
+    let result = riskyOperation()
+} catch (e) {
+    println("Error:", e.message)
+} finally {
+    println("Cleanup")
+}
+
+throw "Something went wrong"
+```
+
+#### 📦 モジュールシステム: export/import
+コードをモジュール化できるようになりました。
+
+```irooon
+// math.iro
+export fn add(a, b) { a + b }
+
+// main.iro
+import "math.iro"
+let result = add(10, 5)
+```
+
+#### 🎮 REPL
+対話的実行環境を提供します。
+
+```bash
+dotnet run --project src/Irooon.Repl/Irooon.Repl.csproj
+```
+
+### 統計
+
+- **テスト数**: 604個（100%成功）
+- **サンプルスクリプト**: 17個
+- **新規プロジェクト**: Irooon.Repl
+
+### 改善点
+
+- スタックトレース機能を追加し、エラー発生時の詳細情報を表示
+- ドキュメントを全面的に更新（README.md, CHANGELOG.md, language-spec.md）
+
+---
+
+## v0.2.1 (2026-02-07)
+
+### 修正
+
+- Fibonacci再帰の計算結果を修正
+- メソッド内フィールドアクセスをサポート
+
+---
+
+## v0.2.0 (2026-02-07)
+
+### 新機能
+
+- リストとハッシュのサポート
+- インデックスアクセス・代入
+
+---
+
+## v0.1.0 (2026-02-07) 🎉
 
 irooon 言語の初回リリースです！
 

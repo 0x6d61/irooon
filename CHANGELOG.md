@@ -7,7 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-08
+
 ### Added
+- ✨ **ビルトイン関数: print/println** (#3, #38)
+  - `print(...args)` - 標準出力に値を出力（改行なし）
+  - `println(...args)` - 標準出力に値を出力（改行あり）
+  - 複数引数をスペース区切りで出力
+  - nullは"null"として表示
+  - BuiltinFunctionクラスを実装（IroCallableを実装）
+  - RuntimeHelpers.Print/Printlnメソッドを追加
+  - ScriptContextとResolverでビルトイン関数を自動登録
+
+- 🔤 **文字列補間** (#5, #36)
+  - `"Hello, ${name}!"` - 文字列内に式を埋め込む
+  - StringInterpolationExpr ASTノードを追加
+  - Lexerに文字列補間のトークン解析機能を追加
+  - CodeGeneratorで文字列連結に変換
+
+- 📝 **文字列メソッド** (#6, #37)
+  - `length()` - 文字列の長さを取得
+  - `toUpper()` / `toLower()` - 大文字/小文字変換
+  - `trim()` - 前後の空白を削除
+  - `substring(start, length)` - 部分文字列を取得
+  - `split(separator)` - 文字列を分割
+  - `contains(value)` / `startsWith(value)` / `endsWith(value)` - 文字列検索
+  - `replace(oldValue, newValue)` - 文字列置換
+  - StringMethodWrapperクラスを実装
+  - CLR相互運用で.NET Stringメソッドを呼び出し
+
 - 🔄 **ループ構造: foreach/break/continue** (#7, #35)
   - `foreach (item in collection) { ... }` - コレクション（リスト・ハッシュ）の反復処理
   - `break` - ループを中断
@@ -18,34 +46,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Lexerに foreach, in, break, continue キーワードを追加
   - CodeGeneratorにループラベルスタック管理機構を実装
   - Resolverにループ変数スコープ処理を追加
-- 📚 **新しいサンプルスクリプト**
-  - `examples/loops.iro` - foreach/break/continueのデモ
-- 🧪 **テストの拡充**
-  - E2Eテスト（7個の新規テスト）
-    - TestForeach_List, TestForeach_Hash
-    - TestForeach_WithBreak, TestForeach_WithContinue
-    - TestForeach_Nested
-    - TestWhile_WithBreak, TestWhile_WithContinue
 
-- ✨ **ビルトイン関数: print/println** (#38)
-  - `print(...args)` - 標準出力に値を出力（改行なし）
-  - `println(...args)` - 標準出力に値を出力（改行あり）
-  - 複数引数をスペース区切りで出力
-  - nullは"null"として表示
-  - BuiltinFunctionクラスを実装（IroCallableを実装）
-  - RuntimeHelpers.Print/Printlnメソッドを追加
-  - ScriptContextとResolverでビルトイン関数を自動登録
+- ⚠️ **例外処理: try/catch/finally** (#8, #39)
+  - `try { ... } catch (e) { ... } finally { ... }` - 例外処理構文
+  - `throw expression` - 例外を投げる
+  - catchブロックで例外オブジェクトを受け取る
+  - finallyブロックは必ず実行される
+  - TryStmt, ThrowStmt ASTノードを追加
+  - Lexerに try, catch, finally, throw キーワードを追加
+  - CodeGeneratorでExpressionTree.TryCatchFinallyを使用
+
+- 📚 **スタックトレース** (#40)
+  - エラー発生時にスタックトレースを表示
+  - ファイル名、行番号、列番号を含む詳細な情報
+  - RuntimeException クラスを実装
+  - スタックフレーム情報の収集機構を実装
+
+- 📦 **モジュールシステム: export/import** (#9, #41)
+  - `export fn/class/let/var` - 関数やクラスをエクスポート
+  - `import "path/to/module.iro"` - 他のモジュールをインポート
+  - モジュールのスコープ分離
+  - ExportStmt, ImportStmt ASTノードを追加
+  - Lexerに export, import キーワードを追加
+  - ModuleLoaderクラスを実装
+
+- 🎮 **REPL (Read-Eval-Print Loop)** (#43)
+  - 対話的実行環境を提供
+  - 複数行入力のサポート
+  - セッション状態の保持
+  - エラーメッセージの表示
+  - Irooon.Replプロジェクトを追加
+  - ReplEngineクラスを実装
+
 - 📚 **新しいサンプルスクリプト**
   - `examples/print_example.iro` - print/printlnのデモ
+  - `examples/string_methods_example.iro` - 文字列メソッドのデモ
+  - `examples/loops.iro` - foreach/break/continueのデモ
+  - `examples/main_import.iro` - import/exportのデモ
+
 - 🧪 **テストの拡充**
   - BuiltinFunctionsTests.cs（8個のテスト）
-  - E2Eテスト（3個のテスト）
-  - ScriptContextTestsを更新（ビルトイン関数の登録確認）
+  - StringMethodsTests.cs（10個のテスト）
+  - StringInterpolationTests.cs（6個のテスト）
+  - ForeachTests.cs（7個のテスト）
+  - ExceptionTests.cs（8個のテスト）
+  - ModuleTests.cs（5個のテスト）
+  - ReplEngineTests.cs（12個のテスト）
+  - E2Eテスト（複数の新規テスト）
+
 - 📖 **ドキュメント更新**
-  - README.md にビルトイン関数セクションを追加
+  - README.md に全v0.3.0機能のセクションを追加
+  - language-spec.md に新構文を追加
 
 ### Changed
-- ✅ **全テスト成功**: 544個のテスト全てが成功（スキップ0）
+- ✅ **全テスト成功**: 604個のテスト全てが成功（スキップ0）
+- 🔧 **プロジェクト構造**: Irooon.Replプロジェクトを追加
 
 ## [0.2.1] - 2026-02-07
 

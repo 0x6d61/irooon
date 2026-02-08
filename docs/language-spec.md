@@ -1,4 +1,4 @@
-# irooon Language Specification v0.1
+# irooon Language Specification v0.3
 
 ## 概要
 
@@ -13,7 +13,7 @@ Groovy風の簡略構文と式志向設計を採用する。
 * トップレベルはそのまま実行される
 * プログラムは Block として評価される
 * 動的型言語（すべて object）
-* REPLは未実装（スクリプト実行のみ）
+* REPLサポート（対話的実行環境）
 
 ---
 
@@ -58,6 +58,18 @@ var y = expr
 ```
 "Hello"
 ```
+
+#### 文字列補間
+
+文字列内に式を埋め込むことができる。
+
+```
+"Hello, ${name}!"
+"Result: ${x + y}"
+```
+
+* `${expression}` で式を評価し、文字列に変換する
+* ネストした補間もサポート
 
 ### 真偽値リテラル
 
@@ -170,6 +182,126 @@ if (cond) { expr } else { expr }
 ```
 
 * `else` は必須。
+
+---
+
+## ループ
+
+### while ループ
+
+```
+while (cond) {
+  stmt*
+}
+```
+
+### foreach ループ
+
+```
+foreach (item in collection) {
+  stmt*
+}
+```
+
+* コレクションはリストまたはハッシュ
+* リストの場合、`item` は各要素
+* ハッシュの場合、`item` は `{key: k, value: v}` のオブジェクト
+
+### break / continue
+
+```
+break      // ループを中断
+continue   // 次の反復へスキップ
+```
+
+* `break` と `continue` はループ内でのみ使用可能
+* ネストしたループもサポート
+
+---
+
+## 例外処理
+
+### try / catch / finally
+
+```
+try {
+  stmt*
+} catch (e) {
+  stmt*
+} finally {
+  stmt*
+}
+```
+
+* `catch` ブロックで例外オブジェクトを受け取る
+* `finally` ブロックは必ず実行される
+* `catch` と `finally` は両方省略できない
+
+### throw
+
+```
+throw expression
+```
+
+* 任意の値を例外として投げる
+* 文字列、オブジェクト、その他任意の型
+
+---
+
+## モジュール
+
+### export
+
+```
+export fn name(args) { ... }
+export class Name { ... }
+export let/var name = expr
+```
+
+* 関数、クラス、変数をエクスポートする
+* エクスポートされた要素は他のモジュールから参照可能
+
+### import
+
+```
+import "path/to/module.iro"
+```
+
+* 他のモジュールをインポートする
+* パスは相対パスまたは絶対パス
+* エクスポートされた要素がスコープに追加される
+
+---
+
+## ビルトイン関数
+
+### print / println
+
+```
+print(arg1, arg2, ...)    // 改行なし
+println(arg1, arg2, ...)  // 改行あり
+```
+
+* 標準出力に値を出力
+* 複数引数をスペース区切りで出力
+* nullは"null"として表示
+
+---
+
+## 文字列メソッド
+
+文字列はCLR相互運用により、以下のメソッドを持つ:
+
+* `length()` - 文字列の長さ
+* `toUpper()` - 大文字に変換
+* `toLower()` - 小文字に変換
+* `trim()` - 前後の空白を削除
+* `substring(start, length)` - 部分文字列を取得
+* `split(separator)` - 文字列を分割
+* `contains(value)` - 文字列が含まれるか
+* `startsWith(value)` - 文字列で始まるか
+* `endsWith(value)` - 文字列で終わるか
+* `replace(oldValue, newValue)` - 文字列を置換
 
 ---
 
@@ -323,6 +455,7 @@ System.IO.File.ReadAllText(path)
 * `NewExpr`
 * `ListExpr`
 * `HashExpr`
+* `StringInterpolationExpr`
 
 ### Statement
 
@@ -332,6 +465,13 @@ System.IO.File.ReadAllText(path)
 * `ExprStmt`
 * `ReturnStmt`
 * `WhileStmt`
+* `ForeachStmt`
+* `BreakStmt`
+* `ContinueStmt`
+* `TryStmt`
+* `ThrowStmt`
+* `ExportStmt`
+* `ImportStmt`
 
 ### Class
 
@@ -373,11 +513,20 @@ irooon script.iro
 
 ---
 
-## v0.1での意図的な簡略化
+## v0.3での実装状況
 
-* 型推論・型注釈なし
-* 継承なし
-* 演算子オーバーロードなし
-* 括弧省略なし
-* import/モジュールなし（後で追加）
-* REPLなし
+### 実装済み機能
+* ✅ ビルトイン関数（print/println）
+* ✅ 文字列補間
+* ✅ 文字列メソッド
+* ✅ ループ（foreach/break/continue）
+* ✅ 例外処理（try/catch/finally/throw）
+* ✅ モジュールシステム（export/import）
+* ✅ REPL
+
+### 将来の拡張（v0.4以降）
+* 型推論・型注釈
+* 継承
+* 演算子オーバーロード
+* 括弧省略
+* パッケージ管理

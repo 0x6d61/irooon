@@ -88,6 +88,35 @@ let age = 30
 println("Name:", name, "Age:", age)  // 出力: Name: Alice Age: 30
 ```
 
+### 文字列
+
+#### 文字列補間
+文字列内に式を埋め込めます。
+
+```irooon
+let name = "Alice"
+let age = 30
+let message = "Name: ${name}, Age: ${age}"
+println(message)  // 出力: Name: Alice, Age: 30
+```
+
+#### 文字列メソッド
+便利な文字列操作メソッドを提供します。
+
+```irooon
+let text = "Hello, World!"
+text.length()         // 13
+text.toUpper()        // "HELLO, WORLD!"
+text.toLower()        // "hello, world!"
+text.substring(0, 5)  // "Hello"
+text.contains("World")  // true
+text.startsWith("Hello")  // true
+text.endsWith("!")      // true
+text.replace("World", "irooon")  // "Hello, irooon!"
+text.trim()           // 前後の空白を削除
+text.split(", ")      // ["Hello", "World!"]
+```
+
 ### 変数
 ```irooon
 let x = 10  // 再代入不可
@@ -133,16 +162,104 @@ class Counter {
 ```
 
 ### 制御構造
+
+#### if式
 ```irooon
 if (x > 0) {
     "positive"
 } else {
     "non-positive"
 }
+```
 
+#### ループ
+```irooon
+// while ループ
 while (i < 10) {
     i = i + 1
 }
+
+// foreach ループ（リスト）
+foreach (item in [1, 2, 3, 4, 5]) {
+    println(item)
+}
+
+// foreach ループ（ハッシュ）
+foreach (entry in {name: "Alice", age: 30}) {
+    println(entry.key, ":", entry.value)
+}
+
+// break / continue
+foreach (i in [1, 2, 3, 4, 5]) {
+    if (i == 3) { continue }
+    if (i == 5) { break }
+    println(i)
+}
+```
+
+#### 例外処理
+```irooon
+try {
+    // エラーが発生する可能性のあるコード
+    let result = riskyOperation()
+    println("Success:", result)
+} catch (e) {
+    // エラーハンドリング
+    println("Error:", e.message)
+} finally {
+    // 必ず実行されるコード
+    println("Cleanup")
+}
+
+// エラーを投げる
+throw "Something went wrong"
+```
+
+### モジュール
+
+#### export / import
+モジュールとして関数やクラスをエクスポート・インポートできます。
+
+```irooon
+// math.iro
+export fn add(a, b) {
+    a + b
+}
+
+export fn multiply(a, b) {
+    a * b
+}
+
+// main.iro
+import "math.iro"
+
+let result = add(10, 5)
+println(result)  // 出力: 15
+```
+
+### REPL
+
+対話的実行環境（REPL）を提供します。
+
+```bash
+# REPLを起動
+dotnet run --project src/Irooon.Repl/Irooon.Repl.csproj
+
+# または、ビルドしてから実行
+./src/Irooon.Repl/bin/Debug/net10.0/Irooon.Repl
+```
+
+REPL内で式や文を評価し、即座に結果を確認できます。
+
+```
+> let x = 10
+null
+> x + 5
+15
+> fn square(n) { n * n }
+null
+> square(4)
+16
 ```
 
 ## サンプルコード
@@ -187,6 +304,25 @@ let data = {
 }
 let firstUser = data["users"][0]
 firstUser["name"]  // "Alice"
+
+// 文字列補間
+let message = "User: ${firstUser["name"]}, Age: ${firstUser["age"]}"
+println(message)
+
+// foreach ループ
+foreach (user in data["users"]) {
+    println("Name:", user["name"])
+}
+
+// 例外処理
+try {
+    let value = data["invalid"]
+    if (value == null) {
+        throw "Value not found"
+    }
+} catch (e) {
+    println("Error:", e.message)
+}
 ```
 
 ## ドキュメント
@@ -198,13 +334,26 @@ firstUser["name"]  // "Alice"
 
 ## 開発状況
 
-**v0.2.1** リリース済み（2026-02-07）
+**v0.3.0** リリース準備中（2026-02-08）
 
-- v0.2.0: リスト・ハッシュリテラルのサポート
+### バージョン履歴
+- v0.3.0: ループ、文字列、例外処理、モジュール、REPL
 - v0.2.1: 既知の問題の修正（Fibonacci再帰、メソッド内フィールドアクセス）
+- v0.2.0: リスト・ハッシュリテラルのサポート
+- v0.1.0: 初回リリース
 
 変更履歴は [CHANGELOG.md](./CHANGELOG.md) を参照してください。
 開発の詳細は [CLAUDE.md](./CLAUDE.md) で確認できます。
+
+### v0.3.0の新機能 ✨
+
+- ✅ **print/println**: 標準出力ビルトイン関数
+- ✅ **文字列補間**: `${expression}` 構文
+- ✅ **文字列メソッド**: length, toUpper, toLower, trim, substring, split, contains, startsWith, endsWith, replace
+- ✅ **foreach/break/continue**: コレクション反復処理
+- ✅ **try/catch/finally**: 例外処理
+- ✅ **export/import**: モジュールシステム
+- ✅ **REPL**: 対話的実行環境
 
 ### v0.1の既知の問題 → v0.2.1で修正済み ✅
 
