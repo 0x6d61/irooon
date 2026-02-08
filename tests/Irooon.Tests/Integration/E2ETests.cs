@@ -980,4 +980,140 @@ square(PI)
     }
 
     #endregion
+
+    #region クラス継承テスト
+
+    [Fact(Skip = "Class inheritance not implemented yet (#53)")]
+    public void TestClassInheritance_Basic()
+    {
+        var source = @"
+class Parent {
+    public var name = ""parent""
+
+    public fn greet() {
+        return ""Hello from "" + name
+    }
+}
+
+class Child : Parent {
+    public var age = 0
+
+    public fn introduce() {
+        return ""I am "" + name + "" and "" + age + "" years old""
+    }
+}
+
+let child = Child()
+child.name = ""Alice""
+child.age = 10
+child.introduce()
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("I am Alice and 10 years old", result);
+    }
+
+    [Fact(Skip = "Class inheritance not implemented yet (#53)")]
+    public void TestClassInheritance_MethodInheritance()
+    {
+        var source = @"
+class Parent {
+    public var name = ""parent""
+
+    public fn greet() {
+        return ""Hello from "" + name
+    }
+}
+
+class Child : Parent {
+    public var age = 0
+}
+
+let child = Child()
+child.name = ""Bob""
+child.greet()
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("Hello from Bob", result);
+    }
+
+    [Fact(Skip = "Class inheritance not implemented yet (#53)")]
+    public void TestClassInheritance_MultiLevel()
+    {
+        var source = @"
+class GrandParent {
+    public var family = ""Smith""
+}
+
+class Parent : GrandParent {
+    public var name = ""parent""
+}
+
+class Child : Parent {
+    public var age = 0
+}
+
+let child = Child()
+child.family = ""Johnson""
+child.name = ""Charlie""
+child.age = 15
+child.family + "" "" + child.name + "" "" + child.age
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("Johnson Charlie 15", result);
+    }
+
+    [Fact(Skip = "Class inheritance not implemented yet (#53)")]
+    public void TestClassInheritance_MethodOverride()
+    {
+        var source = @"
+class Parent {
+    public var name = ""parent""
+
+    public fn greet() {
+        return ""Hello from parent""
+    }
+}
+
+class Child : Parent {
+    public fn greet() {
+        return ""Hello from child""
+    }
+}
+
+let child = Child()
+child.greet()
+";
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal("Hello from child", result);
+    }
+
+    [Fact(Skip = "Class inheritance not implemented yet (#53)")]
+    public void TestInheritanceExample()
+    {
+        var path = GetExamplePath("inheritance.iro");
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException($"Example file not found: {path}");
+        }
+
+        var source = File.ReadAllText(path);
+        var engine = new ScriptEngine();
+
+        // 出力をキャプチャするために、出力を記録する必要がある
+        // ここでは単に実行してエラーが出ないことを確認
+        var result = engine.Execute(source);
+
+        // エラーがなければテスト成功
+        Assert.NotNull(result);
+    }
+
+    #endregion
 }
