@@ -717,19 +717,44 @@ public class CodeGenerator
     /// </summary>
     private ExprTree GenerateCallExpr(CallExpr expr)
     {
-        // CalleeがMemberExprの場合、CLR型のメソッド呼び出しかチェック
+        // CalleeがMemberExprの場合、CLR型のメソッド呼び出しまたはコンストラクタかチェック
         if (expr.Callee is MemberExpr memberExpr)
         {
             var (isCLRType, typeName, methodName) = ExtractCLRTypeName(memberExpr);
 
             if (isCLRType)
             {
+                // methodNameが空の場合、コンストラクタ呼び出し
+                if (string.IsNullOrEmpty(methodName))
+                {
+                    // CLR型のコンストラクタを生成
+                    var argExprsConstructor = expr.Arguments.Select(GenerateExpression).ToArray();
+                    var argsArrayConstructor = ExprTree.NewArrayInit(typeof(object), argExprsConstructor);
+
+                    // RuntimeHelpers.ResolveCLRType(typeName)
+                    var resolveTypeCall = ExprTree.Call(
+                        typeof(RuntimeHelpers),
+                        nameof(RuntimeHelpers.ResolveCLRType),
+                        null,
+                        ExprTree.Constant(typeName)
+                    );
+
+                    // RuntimeHelpers.CreateCLRInstance(type, args)
+                    return ExprTree.Call(
+                        typeof(RuntimeHelpers),
+                        nameof(RuntimeHelpers.CreateCLRInstance),
+                        null,
+                        resolveTypeCall,
+                        argsArrayConstructor
+                    );
+                }
+
                 // CLR型のメソッド呼び出しを生成
                 var argExprs = expr.Arguments.Select(GenerateExpression).ToArray();
                 var argsArray = ExprTree.NewArrayInit(typeof(object), argExprs);
 
                 // RuntimeHelpers.ResolveCLRType(typeName)
-                var resolveTypeCall = ExprTree.Call(
+                var resolveTypeCall2 = ExprTree.Call(
                     typeof(RuntimeHelpers),
                     nameof(RuntimeHelpers.ResolveCLRType),
                     null,
@@ -741,7 +766,7 @@ public class CodeGenerator
                     typeof(RuntimeHelpers),
                     nameof(RuntimeHelpers.InvokeCLRStaticMethod),
                     null,
-                    resolveTypeCall,
+                    resolveTypeCall2,
                     ExprTree.Constant(methodName),
                     argsArray
                 );
@@ -773,22 +798,51 @@ public class CodeGenerator
                 thisArg
             );
         }
-        else
+        // CalleeがIdentifierExprまたはMemberExprで、CLR型のコンストラクタ呼び出しかチェック
+        else if (expr.Callee is IdentifierExpr identExpr)
         {
-            var calleeExpr = GenerateExpression(expr.Callee);
-            var argExprs = expr.Arguments.Select(GenerateExpression).ToArray();
-            var argsArray = ExprTree.NewArrayInit(typeof(object), argExprs);
+            // ドット区切りの型名をチェック（例: System.Text.StringBuilder）
+            var typeName = identExpr.Name;
 
-            return ExprTree.Call(
-                typeof(RuntimeHelpers),
-                "Invoke",
-                null,
-                calleeExpr,
-                _ctxParam,
-                argsArray,
-                ExprTree.Constant(null, typeof(object))
-            );
+            // System で始まる場合、CLR型のコンストラクタと判断
+            if (typeName.StartsWith("System."))
+            {
+                var argExprsConstructor = expr.Arguments.Select(GenerateExpression).ToArray();
+                var argsArrayConstructor = ExprTree.NewArrayInit(typeof(object), argExprsConstructor);
+
+                // RuntimeHelpers.ResolveCLRType(typeName)
+                var resolveTypeCall = ExprTree.Call(
+                    typeof(RuntimeHelpers),
+                    nameof(RuntimeHelpers.ResolveCLRType),
+                    null,
+                    ExprTree.Constant(typeName)
+                );
+
+                // RuntimeHelpers.CreateCLRInstance(type, args)
+                return ExprTree.Call(
+                    typeof(RuntimeHelpers),
+                    nameof(RuntimeHelpers.CreateCLRInstance),
+                    null,
+                    resolveTypeCall,
+                    argsArrayConstructor
+                );
+            }
         }
+
+        // 通常の関数呼び出し
+        var calleeExprFinal = GenerateExpression(expr.Callee);
+        var argExprsFinal = expr.Arguments.Select(GenerateExpression).ToArray();
+        var argsArrayFinal = ExprTree.NewArrayInit(typeof(object), argExprsFinal);
+
+        return ExprTree.Call(
+            typeof(RuntimeHelpers),
+            "Invoke",
+            null,
+            calleeExprFinal,
+            _ctxParam,
+            argsArrayFinal,
+            ExprTree.Constant(null, typeof(object))
+        );
     }
 
     /// <summary>
@@ -825,6 +879,18 @@ public class CodeGenerator
         // System で始まる場合、CLR型とみなす
         if (parts.Count >= 2 && parts[0] == "System")
         {
+            // 型名全体を構築して確認
+            var fullTypeName = string.Join(".", parts);
+
+            // 型が解決できるかチェック
+            var resolvedType = RuntimeHelpers.ResolveCLRType(fullTypeName);
+            if (resolvedType != null)
+            {
+                // コンストラクタ呼び出し（型名全体で解決できた場合）
+                return (true, fullTypeName, "");
+            }
+
+            // 最後の要素がメソッド名
             var methodName = parts[^1];
             var typeName = string.Join(".", parts.Take(parts.Count - 1));
             return (true, typeName, methodName);

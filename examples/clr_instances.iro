@@ -1,0 +1,54 @@
+// CLR インスタンスの使用例
+
+println("=== StringBuilder の使用 ===")
+let sb = System.Text.StringBuilder()
+sb.Append("Hello")
+sb.Append(" ")
+sb.Append("World")
+let text = sb.ToString()
+println("StringBuilder:", text)
+
+println()
+println("=== StringBuilder with initial value ===")
+let sb2 = System.Text.StringBuilder("Initial")
+sb2.Append(" Value")
+println("Result:", sb2.ToString())
+
+println()
+println("=== StringBuilder Length property ===")
+let sb3 = System.Text.StringBuilder("Hello")
+println("Length:", sb3.Length)
+
+println()
+println("=== List の使用 ===")
+let list = System.Collections.Generic.List()
+list.Add(1)
+list.Add(2)
+list.Add(3)
+println("List count:", list.Count)
+
+println()
+println("=== メソッドチェーン ===")
+let result = System.Text.StringBuilder()
+    .Append("Method")
+    .Append(" ")
+    .Append("Chaining")
+    .ToString()
+println("Chained:", result)
+
+println()
+println("=== 複数のインスタンス ===")
+let sb_a = System.Text.StringBuilder()
+sb_a.Append("First")
+
+let sb_b = System.Text.StringBuilder()
+sb_b.Append("Second")
+
+let text_a = sb_a.ToString()
+let text_b = sb_b.ToString()
+
+let combined = System.Text.StringBuilder()
+combined.Append(text_a)
+combined.Append(" and ")
+combined.Append(text_b)
+println("Combined:", combined.ToString())

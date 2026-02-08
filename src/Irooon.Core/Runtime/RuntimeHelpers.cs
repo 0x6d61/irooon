@@ -319,16 +319,90 @@ public static class RuntimeHelpers
         if (target == null)
             throw new InvalidOperationException("Cannot get member of null");
 
-        // リストの場合、ListMethodWrapperを返す
-        if (target is List<object> list)
-        {
-            return new ListMethodWrapper(list, name);
-        }
-
         // 文字列の場合、StringMethodWrapperを返す
         if (target is string str)
         {
             return new StringMethodWrapper(str, name);
+        }
+
+        // リストの場合、ListMethodWrapperを優先する（irooon内部のリストメソッドをサポート）
+        if (target is List<object> list)
+        {
+            // ListMethodWrapperのメソッド名をチェック（大文字小文字を区別しない）
+            var listMethods = new[] { "map", "filter", "reduce", "foreach", "first", "last", "length", "isempty" };
+            var lowerName = name.ToLower();
+            if (listMethods.Contains(lowerName))
+            {
+                // forEach と isEmpty を正規化
+                var normalizedName = lowerName switch
+                {
+                    "foreach" => "forEach",
+                    "isempty" => "isEmpty",
+                    _ => lowerName
+                };
+                return new ListMethodWrapper(list, normalizedName);
+            }
+
+            // それ以外はCLRメソッド/プロパティとして扱う
+            var type = target.GetType();
+
+            // プロパティを試す
+            var property = type.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+            if (property != null)
+            {
+                return GetCLRInstanceProperty(target, name);
+            }
+
+            // メソッドを試す（CLRMethodWrapperを返す）
+            try
+            {
+                var method = type.GetMethod(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+                if (method != null)
+                {
+                    return new CLRMethodWrapper(target, name);
+                }
+            }
+            catch (System.Reflection.AmbiguousMatchException)
+            {
+                return new CLRMethodWrapper(target, name);
+            }
+
+            throw new InvalidOperationException($"Member '{name}' not found on List");
+        }
+
+        // CLRオブジェクトの場合
+        if (IsCLRObject(target))
+        {
+            var type = target.GetType();
+
+            // プロパティを試す
+            var property = type.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+            if (property != null)
+            {
+                return GetCLRInstanceProperty(target, name);
+            }
+
+            // メソッドを試す（CLRMethodWrapperを返す）
+            try
+            {
+                var method = type.GetMethod(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+                if (method != null)
+                {
+                    return new CLRMethodWrapper(target, name);
+                }
+            }
+            catch (System.Reflection.AmbiguousMatchException)
+            {
+                // オーバーロードがある場合、とりあえずCLRMethodWrapperを返す
+                // 実際の呼び出し時に引数で判定する
+                return new CLRMethodWrapper(target, name);
+            }
+
+            throw new InvalidOperationException($"Member '{name}' not found on CLR type {type.Name}");
         }
 
         if (target is IroInstance instance)
@@ -551,7 +625,40 @@ public static class RuntimeHelpers
     /// <returns>解決された型（見つからない場合はnull）</returns>
     public static Type? ResolveCLRType(string typeName)
     {
-        return Type.GetType(typeName);
+        // Generic型の特別処理（例: System.Collections.Generic.List → System.Collections.Generic.List`1[System.Object]）
+        if (typeName == "System.Collections.Generic.List")
+        {
+            return typeof(List<object>);
+        }
+
+        // まず通常の方法で試す
+        var type = Type.GetType(typeName);
+        if (type != null) return type;
+
+        // アセンブリ修飾名で試す（mscorlib, System.Runtime, System.Collections など）
+        var assemblies = new[]
+        {
+            "System.Runtime",
+            "System.Collections",
+            "mscorlib",
+            "System.Private.CoreLib",
+            "System.Text.RegularExpressions"
+        };
+
+        foreach (var assembly in assemblies)
+        {
+            type = Type.GetType($"{typeName}, {assembly}");
+            if (type != null) return type;
+        }
+
+        // すべてのロード済みアセンブリから検索
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            type = assembly.GetType(typeName);
+            if (type != null) return type;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -616,6 +723,200 @@ public static class RuntimeHelpers
         {
             throw new RuntimeException($"Error invoking CLR method '{methodName}': {ex.Message}", ex);
         }
+    }
+
+    /// <summary>
+    /// オブジェクトがCLR型のインスタンスかどうかを判定する
+    /// （irooon独自の型を除外）
+    /// </summary>
+    public static bool IsCLRObject(object? obj)
+    {
+        if (obj == null) return false;
+
+        var type = obj.GetType();
+
+        // irooon独自の型を除外
+        if (obj is IroCallable || obj is IroInstance || obj is IroClass)
+            return false;
+
+        // プリミティブ型、文字列を除外
+        if (type.IsPrimitive || obj is string)
+            return false;
+
+        // irooonの内部リスト・辞書を除外（irooonスクリプトから作成されたもの）
+        // ただし、CLR相互運用で作成されたList<object>はCLRオブジェクトとして扱う
+        // 判定: System.Collections.Generic.List<object> は CLRオブジェクト
+        // それ以外の List<object> や Dictionary<string, object> は内部型
+
+        // それ以外はCLRオブジェクトとみなす
+        return true;
+    }
+
+    /// <summary>
+    /// CLR型のインスタンスを作成する
+    /// </summary>
+    public static object CreateCLRInstance(Type type, object[] args)
+    {
+        if (type == null)
+            throw new ArgumentNullException(nameof(type));
+
+        try
+        {
+            // コンストラクタを取得
+            var constructors = type.GetConstructors(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+            if (constructors.Length == 0)
+                throw new RuntimeException($"No public constructors found for type {type.Name}");
+
+            // 引数の数が一致するコンストラクタを探す
+            var candidates = constructors.Where(c => c.GetParameters().Length == args.Length).ToList();
+
+            if (candidates.Count == 0)
+            {
+                throw new RuntimeException($"No constructor found with {args.Length} parameters for type {type.Name}");
+            }
+
+            // 引数の型が一致するコンストラクタを探す
+            foreach (var constructor in candidates)
+            {
+                var parameters = constructor.GetParameters();
+                bool match = true;
+
+                for (int i = 0; i < parameters.Length; i++)
+                {
+                    var paramType = parameters[i].ParameterType;
+                    var argType = args[i]?.GetType();
+
+                    // null は任意の参照型に変換可能
+                    if (args[i] == null && !paramType.IsValueType)
+                        continue;
+
+                    // 型が一致するか、または変換可能か
+                    if (argType != null && !paramType.IsAssignableFrom(argType))
+                    {
+                        match = false;
+                        break;
+                    }
+                }
+
+                if (match)
+                {
+                    return constructor.Invoke(args);
+                }
+            }
+
+            // 一致するコンストラクタが見つからない場合、最初の候補を試す
+            return candidates[0].Invoke(args);
+        }
+        catch (Exception ex)
+        {
+            throw new RuntimeException($"Failed to create instance of {type.Name}: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// CLRインスタンスのメソッドを呼び出す
+    /// </summary>
+    public static object InvokeCLRInstanceMethod(object instance, string methodName, object[] args)
+    {
+        if (instance == null)
+            throw new RuntimeException("Cannot invoke method on null instance");
+
+        var type = instance.GetType();
+
+        System.Reflection.MethodInfo? method = null;
+
+        // 引数の型を取得
+        var argTypes = args.Select(a => a?.GetType() ?? typeof(object)).ToArray();
+
+        // 引数の型が一致するメソッドを検索
+        try
+        {
+            method = type.GetMethod(
+                methodName,
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                null,
+                argTypes,
+                null);
+        }
+        catch (System.Reflection.AmbiguousMatchException)
+        {
+            // 曖昧な場合は、すべてのメソッドを取得して手動で検索
+            var methods = type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+                .Where(m => m.Name == methodName && m.GetParameters().Length == args.Length)
+                .ToList();
+
+            if (methods.Count > 0)
+            {
+                // 最初に見つかったメソッドを使用
+                method = methods[0];
+            }
+        }
+
+        if (method == null)
+            throw new RuntimeException($"Method '{methodName}' not found on type {type.Name}");
+
+        try
+        {
+            // メソッドを呼び出し
+            var result = method.Invoke(instance, args);
+
+            // void メソッドの場合は null を返す
+            return result ?? null!;
+        }
+        catch (System.Reflection.TargetInvocationException ex)
+        {
+            throw new RuntimeException($"Error invoking {type.Name}.{methodName}: {ex.InnerException?.Message ?? ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// CLRインスタンスのプロパティを取得する
+    /// </summary>
+    public static object GetCLRInstanceProperty(object instance, string propertyName)
+    {
+        if (instance == null)
+            throw new RuntimeException("Cannot get property on null instance");
+
+        var type = instance.GetType();
+
+        var property = type.GetProperty(propertyName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+        if (property == null)
+            throw new RuntimeException($"Property '{propertyName}' not found on type {type.Name}");
+
+        var value = property.GetValue(instance);
+
+        // irooonの型システムに合わせて、数値はdoubleに変換
+        if (value is int intValue)
+            return (double)intValue;
+        if (value is long longValue)
+            return (double)longValue;
+        if (value is float floatValue)
+            return (double)floatValue;
+        if (value is decimal decimalValue)
+            return (double)decimalValue;
+
+        return value ?? null!;
+    }
+
+    /// <summary>
+    /// CLRインスタンスのプロパティを設定する
+    /// </summary>
+    public static object SetCLRInstanceProperty(object instance, string propertyName, object value)
+    {
+        if (instance == null)
+            throw new RuntimeException("Cannot set property on null instance");
+
+        var type = instance.GetType();
+
+        var property = type.GetProperty(propertyName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+        if (property == null)
+            throw new RuntimeException($"Property '{propertyName}' not found on type {type.Name}");
+
+        property.SetValue(instance, value);
+        return value;
     }
 
     #endregion
