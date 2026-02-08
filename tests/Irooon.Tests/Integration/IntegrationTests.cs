@@ -80,7 +80,7 @@ public class IntegrationTests
         var result = engine.Execute(@"
             var sum = 0
             var i = 1
-            while (i <= 100) {
+            for (i <= 100) {
                 sum = sum + i
                 i = i + 1
             }

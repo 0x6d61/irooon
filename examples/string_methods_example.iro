@@ -32,7 +32,7 @@ let text = "apple,banana,cherry,date"
 let fruits = text.split(",")
 println("Split result:")
 var i = 0
-while (i < 4) {
+for (i < 4) {
     println("  -", fruits[i])
     i = i + 1
 }

@@ -1027,6 +1027,76 @@ public class ParserExprTests
 
     #endregion
 
+    #region 範囲リテラルのテスト
+
+    [Fact]
+    public void TestParseRangeLiteral_Exclusive()
+    {
+        // 排他的範囲: 1..10
+        var tokens = new Core.Lexer.Lexer("1..10").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<RangeExpr>(ast.Expression);
+        var range = (RangeExpr)ast.Expression;
+        Assert.False(range.Inclusive);
+
+        Assert.IsType<LiteralExpr>(range.Start);
+        var start = (LiteralExpr)range.Start;
+        Assert.Equal(1.0, start.Value);
+
+        Assert.IsType<LiteralExpr>(range.End);
+        var end = (LiteralExpr)range.End;
+        Assert.Equal(10.0, end.Value);
+    }
+
+    [Fact]
+    public void TestParseRangeLiteral_Inclusive()
+    {
+        // 包括的範囲: 1...10
+        var tokens = new Core.Lexer.Lexer("1...10").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<RangeExpr>(ast.Expression);
+        var range = (RangeExpr)ast.Expression;
+        Assert.True(range.Inclusive);
+
+        Assert.IsType<LiteralExpr>(range.Start);
+        var start = (LiteralExpr)range.Start;
+        Assert.Equal(1.0, start.Value);
+
+        Assert.IsType<LiteralExpr>(range.End);
+        var end = (LiteralExpr)range.End;
+        Assert.Equal(10.0, end.Value);
+    }
+
+    [Fact]
+    public void TestParseRangeLiteral_WithExpressions()
+    {
+        // 式を含む範囲: (1 + 2)..(5 * 2)
+        var tokens = new Core.Lexer.Lexer("(1 + 2)..(5 * 2)").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<RangeExpr>(ast.Expression);
+        var range = (RangeExpr)ast.Expression;
+        Assert.False(range.Inclusive);
+
+        Assert.IsType<BinaryExpr>(range.Start);
+        var start = (BinaryExpr)range.Start;
+        Assert.Equal(TokenType.Plus, start.Operator);
+
+        Assert.IsType<BinaryExpr>(range.End);
+        var end = (BinaryExpr)range.End;
+        Assert.Equal(TokenType.Star, end.Operator);
+    }
+
+    #endregion
+
     #region エラーケースのテスト
 
     [Fact]

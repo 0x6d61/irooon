@@ -19,7 +19,7 @@ public enum TokenType
     Fn,
     If,
     Else,
-    While,
+    For,
     Foreach,
     In,
     Break,
@@ -64,6 +64,8 @@ public enum TokenType
     RightBracket,   // ]
     Comma,          // ,
     Dot,            // .
+    DotDot,         // ..
+    DotDotDot,      // ...
     Colon,          // :
 
     // 特殊

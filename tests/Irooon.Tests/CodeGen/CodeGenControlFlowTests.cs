@@ -195,7 +195,7 @@ public class CodeGenControlFlowTests
         var result = ExecuteScript(@"
             var i = 0
             var sum = 0
-            while (i < 5) {
+            for (i < 5) {
                 sum = sum + i
                 i = i + 1
             }
@@ -209,7 +209,7 @@ public class CodeGenControlFlowTests
     {
         var result = ExecuteScript(@"
             var i = 0
-            while (false) {
+            for (false) {
                 i = i + 1
             }
             i
@@ -223,7 +223,7 @@ public class CodeGenControlFlowTests
         var result = ExecuteScript(@"
             var i = 0
             var count = 0
-            while (i < 1) {
+            for (i < 1) {
                 count = count + 1
                 i = i + 1
             }
@@ -238,7 +238,7 @@ public class CodeGenControlFlowTests
         var result = ExecuteScript(@"
             var i = 0
             var count = 0
-            while (i < 10) {
+            for (i < 10) {
                 count = count + 1
                 i = i + 1
             }
@@ -252,7 +252,7 @@ public class CodeGenControlFlowTests
     {
         var result = ExecuteScript(@"
             var x = 1
-            while (x < 100) {
+            for (x < 100) {
                 x = x * 2
             }
             x
@@ -266,9 +266,9 @@ public class CodeGenControlFlowTests
         var result = ExecuteScript(@"
             var i = 0
             var sum = 0
-            while (i < 3) {
+            for (i < 3) {
                 var j = 0
-                while (j < 3) {
+                for (j < 3) {
                     sum = sum + 1
                     j = j + 1
                 }
@@ -284,7 +284,7 @@ public class CodeGenControlFlowTests
     {
         var result = ExecuteScript(@"
             var i = 0
-            while (i < 5) {
+            for (i < 5) {
                 i = i + 1
             }
         ");
@@ -353,7 +353,7 @@ public class CodeGenControlFlowTests
             var sum = 0
             if (true) {
                 var i = 0
-                while (i < 5) {
+                for (i < 5) {
                     sum = sum + i
                     i = i + 1
                 }
@@ -371,7 +371,7 @@ public class CodeGenControlFlowTests
         var result = ExecuteScript(@"
             var count = 0
             var i = 0
-            while (i < 10) {
+            for (i < 10) {
                 if (i > 5) {
                     count = count + 1
                 } else {
@@ -390,7 +390,7 @@ public class CodeGenControlFlowTests
         var result = ExecuteScript(@"
             var result = 0
             var i = 0
-            while (i < 10) {
+            for (i < 10) {
                 if (i > 2) {
                     if (i < 7) {
                         result = result + i
@@ -413,7 +413,7 @@ public class CodeGenControlFlowTests
         var result = ExecuteScript(@"
             var count = 0
             var i = 1
-            while (i < 20) {
+            for (i < 20) {
                 if (i > 0) {
                     count = count + 1
                 } else {

@@ -183,6 +183,9 @@ public class Resolver
             case HashExpr hashExpr:
                 ResolveHashExpr(hashExpr);
                 break;
+            case RangeExpr rangeExpr:
+                ResolveRangeExpr(rangeExpr);
+                break;
             case IndexAssignExpr indexAssignExpr:
                 ResolveIndexAssignExpr(indexAssignExpr);
                 break;
@@ -350,6 +353,13 @@ public class Resolver
         }
     }
 
+    private void ResolveRangeExpr(RangeExpr expr)
+    {
+        // 範囲の開始と終了を解析
+        ResolveExpression(expr.Start);
+        ResolveExpression(expr.End);
+    }
+
     private void ResolveIndexAssignExpr(IndexAssignExpr expr)
     {
         // 対象、インデックス、値を解析
@@ -401,8 +411,8 @@ public class Resolver
             case ReturnStmt returnStmt:
                 ResolveReturnStmt(returnStmt);
                 break;
-            case WhileStmt whileStmt:
-                ResolveWhileStmt(whileStmt);
+            case ForStmt forStmt:
+                ResolveForStmt(forStmt);
                 break;
             case ForeachStmt foreachStmt:
                 ResolveForeachStmt(foreachStmt);
@@ -467,14 +477,33 @@ public class Resolver
         }
     }
 
-    private void ResolveWhileStmt(WhileStmt stmt)
+    private void ResolveForStmt(ForStmt stmt)
     {
-        ResolveExpression(stmt.Condition);
+        if (stmt.Kind == ForStmtKind.Collection)
+        {
+            // コレクション反復: for (item in collection) { body }
+            // コレクション式を先に解析
+            ResolveExpression(stmt.Collection!);
 
-        // 本体は新しいスコープ
-        BeginScope();
-        ResolveStatement(stmt.Body);
-        EndScope();
+            // 新しいスコープを作成してループ変数を宣言
+            BeginScope();
+            Declare(stmt.IteratorVariable!, false, stmt.Line, stmt.Column);
+
+            // 本体を解析
+            ResolveExpression(stmt.Body);
+
+            EndScope();
+        }
+        else
+        {
+            // 条件ループ: for (condition) { body }
+            ResolveExpression(stmt.Condition!);
+
+            // 本体は新しいスコープ
+            BeginScope();
+            ResolveExpression(stmt.Body);
+            EndScope();
+        }
     }
 
     private void ResolveForeachStmt(ForeachStmt stmt)

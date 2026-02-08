@@ -510,4 +510,28 @@ public static class RuntimeHelpers
     }
 
     #endregion
+
+    #region Range Operations
+
+    /// <summary>
+    /// 範囲リテラルを生成します。
+    /// </summary>
+    /// <param name="start">開始値</param>
+    /// <param name="end">終端値</param>
+    /// <param name="inclusive">終端を含むかどうか</param>
+    /// <returns>範囲の要素を含むリスト</returns>
+    public static object CreateRange(object start, object end, bool inclusive)
+    {
+        int startInt = Convert.ToInt32(start);
+        int endInt = Convert.ToInt32(end);
+        var list = new List<object>();
+        int limit = inclusive ? endInt + 1 : endInt;
+        for (int i = startInt; i < limit; i++)
+        {
+            list.Add((double)i);
+        }
+        return list;
+    }
+
+    #endregion
 }

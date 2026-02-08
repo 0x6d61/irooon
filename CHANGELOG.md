@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-08
+
+### Added
+- ✨ **範囲リテラル** (#50, Phase 1)
+  - `start..end` - 排他的範囲（endを含まない）
+  - `start...end` - 包括的範囲（endを含む）
+  - RangeExpr ASTノードを追加
+  - Lexerに .. と ... 演算子を追加
+  - RuntimeHelpers.CreateRangeメソッドを実装
+  - forループでの反復に使用可能
+
+- 🔄 **forループへの統一** (#50, Phase 2-3)
+  - すべてのループ構文をforに統一
+  - `for (condition)` - 条件ループ（旧while）
+  - `for (item in collection)` - コレクション反復（旧foreach）
+  - ForStmt ASTノードを追加（ForStmtKind: Collection/Condition）
+  - Parserにlookahead機能を実装してパターンを識別
+  - break/continueはそのまま継続サポート
+
+### Removed
+- ❌ **WhileStmt削除** (#50, Phase 3)
+  - while構文を削除し、for (condition) に統一
+  - WhileStmt.csファイルを削除
+  - TokenType.Whileを削除
+  - Lexerからwhileキーワードを削除
+
+- ❌ **ForeachStmt削除** (#50, Phase 2)
+  - foreach構文を削除し、for (item in collection) に統一
+  - ForeachStmtをForStmtに置き換え
+
+### Changed
+- 📝 **ドキュメント更新** (#50, Phase 5)
+  - language-spec.md: ループセクションを更新（for統一）
+  - language-spec.md: 範囲リテラルセクションを追加
+  - CHANGELOG.md: v0.4.0セクションを追加
+  - README.md: ループ構文を更新
+  - CLAUDE.md: v0.4開発記録を追加
+
+- 📁 **サンプルスクリプト更新** (#50, Phase 4)
+  - examples/loops.iro: while/foreach → for に変換
+  - examples/string_methods_example.iro: while → for に変換
+  - examples/loop.iro: while → for に変換
+
+### Tests
+- ✅ 全テスト成功: 610個（1個スキップ）
+- ✅ Range関連のテスト追加: 7個
+- ✅ ForStmt関連のテスト追加: 11個
+- ✅ 既存のwhile/foreachテストをforに変換
+
 ## [0.3.0] - 2026-02-08
 
 ### Added

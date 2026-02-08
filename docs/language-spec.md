@@ -106,6 +106,22 @@ null
 キーは文字列として扱われる。
 値の型は制限されない。
 
+### 範囲リテラル
+
+```
+start..end      // 排他的範囲（endを含まない）
+start...end     // 包括的範囲（endを含む）
+```
+
+**例:**
+```
+1..10     // [1, 2, 3, 4, 5, 6, 7, 8, 9]
+1...10    // [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+0..5      // [0, 1, 2, 3, 4]
+```
+
+範囲はリストとして実装され、forループでの反復に使用できます。
+
 ---
 
 ## 式
@@ -187,25 +203,58 @@ if (cond) { expr } else { expr }
 
 ## ループ
 
-### while ループ
+### for ループ
+
+irooonでは、すべてのループを`for`構文で統一しています。
+
+#### 条件ループ
 
 ```
-while (cond) {
+for (cond) {
   stmt*
 }
 ```
 
-### foreach ループ
+条件が真の間、ループを実行します。
+
+**例:**
+```
+var i = 0
+for (i < 10) {
+    i = i + 1
+}
+```
+
+#### コレクション反復
 
 ```
-foreach (item in collection) {
+for (item in collection) {
   stmt*
 }
 ```
 
-* コレクションはリストまたはハッシュ
+* コレクションはリスト、ハッシュ、または範囲（Range）
 * リストの場合、`item` は各要素
 * ハッシュの場合、`item` は `{key: k, value: v}` のオブジェクト
+* 範囲の場合、`item` は各数値
+
+**例:**
+```
+// リスト
+for (n in [1, 2, 3, 4, 5]) {
+    println(n)
+}
+
+// 範囲（排他的）
+for (i in 1..10) {
+    println(i)  // 1から9まで
+}
+
+// 範囲（包括的）
+for (i in 1...10) {
+    println(i)  // 1から10まで
+}
+```
 
 ### break / continue
 
@@ -519,7 +568,8 @@ irooon script.iro
 * ✅ ビルトイン関数（print/println）
 * ✅ 文字列補間
 * ✅ 文字列メソッド
-* ✅ ループ（foreach/break/continue）
+* ✅ ループ（for/break/continue）- v0.3で追加、v0.4で統一
+* ✅ 範囲リテラル（.. / ...）- v0.4で追加
 * ✅ 例外処理（try/catch/finally/throw）
 * ✅ モジュールシステム（export/import）
 * ✅ REPL

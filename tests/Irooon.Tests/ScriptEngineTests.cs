@@ -141,13 +141,13 @@ public class ScriptEngineTests
     }
 
     [Fact]
-    public void TestExecute_WhileLoop()
+    public void TestExecute_ForLoop()
     {
         var engine = new ScriptEngine();
         var result = engine.Execute(@"
             var i = 0
             var sum = 0
-            while (i < 10) {
+            for (i < 10) {
                 sum = sum + i
                 i = i + 1
             }
