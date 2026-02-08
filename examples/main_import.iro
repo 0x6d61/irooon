@@ -1,0 +1,7 @@
+// main_import.iro - import テスト用のメインスクリプト
+
+import {add, PI, square} from "./math.iro"
+
+println("PI = " + PI)
+println("add(5, 3) = " + add(5, 3))
+println("square(4) = " + square(4))
