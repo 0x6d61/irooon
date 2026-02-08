@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-08
+
 ### Added
-- ✨ **CLR相互運用** (#14, Issue #14)
+- ✨ **CLR相互運用** (#14)
   - .NET標準ライブラリの呼び出しをサポート
   - 静的メソッドの呼び出し: `System.Math.Abs(-42)`
   - 静的プロパティのアクセス: `System.DateTime.Now`
@@ -17,6 +19,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CodeGeneratorでCLR型とメソッド呼び出しを検出
   - サンプルスクリプト examples/clr_interop.iro を追加
   - 18個の新規テスト追加（11個のユニットテスト + 7個のE2Eテスト）
+
+- 👪 **クラス継承** (#16)
+  - 単一継承をサポート: `class Child : Parent { ... }`
+  - 親クラスのフィールド継承
+  - 親クラスのメソッド継承
+  - メソッドオーバーライド（子クラスのメソッドが優先）
+  - 多段階継承（Child → Parent → GrandParent）
+  - ClassDef に ParentClass プロパティを追加
+  - IroClass に Parent プロパティと継承チェーンを実装
+  - サンプルスクリプト examples/inheritance.iro を追加
+  - 11個の新規テスト追加（6個のユニットテスト + 5個のE2Eテスト）
+
+### Fixed
+- 🐛 **ネストしたforループのテスト修正** (#15)
+  - スキップされていた TestFor_Nested を有効化
+  - ネストしたforループが正しく動作することを確認
+
+### Tests
+- ✅ 全テスト成功: 652個（640個 + 12個REPL）
+- ✅ スキップ: 0個
+- ✅ 成功率: 100%
 
 ## [0.4.0] - 2026-02-08
 
