@@ -13,6 +13,7 @@ public class Resolver
     private Scope _currentScope;
     private readonly List<ResolveException> _errors = new();
     private readonly Dictionary<string, ClassDef> _classes = new();
+    private ClassDef? _currentClass = null; // 現在解析中のクラス
 
     /// <summary>
     /// Resolverの新しいインスタンスを初期化します。
@@ -54,6 +55,42 @@ public class Resolver
     public void Resolve(BlockExpr program)
     {
         ResolveBlockExpr(program);
+
+        // すべてのクラスが登録された後、継承関係をチェック
+        CheckClassInheritance();
+    }
+
+    /// <summary>
+    /// すべてのクラスの継承関係をチェックします。
+    /// </summary>
+    private void CheckClassInheritance()
+    {
+        foreach (var kvp in _classes)
+        {
+            var className = kvp.Key;
+            var classDef = kvp.Value;
+
+            if (!string.IsNullOrEmpty(classDef.ParentClass))
+            {
+                // 親クラスの存在確認
+                if (!_classes.ContainsKey(classDef.ParentClass))
+                {
+                    _errors.Add(new ResolveException(
+                        $"Parent class '{classDef.ParentClass}' is not defined",
+                        classDef.Line, classDef.Column));
+                }
+                else
+                {
+                    // 循環継承のチェック
+                    if (HasCircularInheritance(className, classDef.ParentClass))
+                    {
+                        _errors.Add(new ResolveException(
+                            $"Circular inheritance detected: {className} -> {classDef.ParentClass}",
+                            classDef.Line, classDef.Column));
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -213,6 +250,9 @@ public class Resolver
                 break;
             case SafeNavigationExpr safeNavigationExpr:
                 ResolveSafeNavigationExpr(safeNavigationExpr);
+                break;
+            case SuperExpr superExpr:
+                ResolveSuperExpr(superExpr);
                 break;
             default:
                 _errors.Add(new ResolveException(
@@ -579,7 +619,7 @@ public class Resolver
         // クラス名をスコープに追加
         Declare(stmt.Name, false, stmt.Line, stmt.Column);
 
-        // クラスをレジストリに登録
+        // クラスをレジストリに登録（親クラスのチェック前に登録する）
         _classes[stmt.Name] = stmt;
 
         // フィールドの初期化式を解析
@@ -590,6 +630,10 @@ public class Resolver
                 ResolveExpression(field.Initializer);
             }
         }
+
+        // 現在のクラスを設定
+        var previousClass = _currentClass;
+        _currentClass = stmt;
 
         // メソッドを解析
         foreach (var method in stmt.Methods)
@@ -624,6 +668,9 @@ public class Resolver
 
             EndScope();
         }
+
+        // クラスコンテキストを復元
+        _currentClass = previousClass;
     }
 
     /// <summary>
@@ -644,6 +691,68 @@ public class Resolver
         }
 
         return fields;
+    }
+
+    /// <summary>
+    /// 循環継承をチェックします。
+    /// </summary>
+    private bool HasCircularInheritance(string className, string parentClassName)
+    {
+        var visited = new HashSet<string> { className };
+        var current = parentClassName;
+
+        while (!string.IsNullOrEmpty(current))
+        {
+            if (visited.Contains(current))
+            {
+                return true;
+            }
+
+            visited.Add(current);
+
+            if (_classes.TryGetValue(current, out var classDef))
+            {
+                current = classDef.ParentClass;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// SuperExprを解析します。
+    /// </summary>
+    private void ResolveSuperExpr(SuperExpr expr)
+    {
+        // クラスコンテキスト外で super を使用した場合
+        if (_currentClass == null)
+        {
+            _errors.Add(new ResolveException(
+                "Cannot use 'super' outside of a class method",
+                expr.Line, expr.Column));
+            return;
+        }
+
+        // 親クラスが存在しない場合
+        if (string.IsNullOrEmpty(_currentClass.ParentClass))
+        {
+            _errors.Add(new ResolveException(
+                $"Class '{_currentClass.Name}' has no parent class",
+                expr.Line, expr.Column));
+            return;
+        }
+
+        // 親クラスが存在するかチェック
+        if (!_classes.ContainsKey(_currentClass.ParentClass))
+        {
+            _errors.Add(new ResolveException(
+                $"Parent class '{_currentClass.ParentClass}' is not defined",
+                expr.Line, expr.Column));
+        }
     }
 
     private void ResolveTryExpr(TryExpr expr)

@@ -288,4 +288,101 @@ public class ResolverTests
 
         Assert.Empty(resolver.GetErrors());
     }
+
+    [Fact]
+    public void TestSuperInClassWithParent()
+    {
+        // 親クラスを持つクラスのメソッド内でsuperを使用（正常系）
+        var source = @"
+        class Animal {
+            fn speak() {
+                ""Animal sound""
+            }
+        }
+        class Dog extends Animal {
+            fn speak() {
+                super.speak()
+            }
+        }
+        ";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var ast = new Core.Parser.Parser(tokens).Parse();
+        var resolver = new Core.Resolver.Resolver();
+        resolver.Resolve(ast);
+
+        Assert.Empty(resolver.GetErrors());
+    }
+
+    [Fact]
+    public void TestSuperInClassWithoutParent()
+    {
+        // 親クラスを持たないクラスでsuperを使用（エラー）
+        var source = @"
+        class Animal {
+            fn speak() {
+                super.speak()
+            }
+        }
+        ";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var ast = new Core.Parser.Parser(tokens).Parse();
+        var resolver = new Core.Resolver.Resolver();
+        resolver.Resolve(ast);
+
+        Assert.NotEmpty(resolver.GetErrors());
+        Assert.Contains("has no parent class", resolver.GetErrors()[0].Message);
+    }
+
+    [Fact]
+    public void TestSuperOutsideClass()
+    {
+        // クラス外でsuperを使用（エラー）
+        var source = @"
+        super.method()
+        ";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var ast = new Core.Parser.Parser(tokens).Parse();
+        var resolver = new Core.Resolver.Resolver();
+        resolver.Resolve(ast);
+
+        Assert.NotEmpty(resolver.GetErrors());
+        Assert.Contains("outside of a class method", resolver.GetErrors()[0].Message);
+    }
+
+    [Fact]
+    public void TestUndefinedParentClass()
+    {
+        // 存在しない親クラスを指定（エラー）
+        var source = @"
+        class Dog extends Animal {
+            fn speak() {
+                ""Woof""
+            }
+        }
+        ";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var ast = new Core.Parser.Parser(tokens).Parse();
+        var resolver = new Core.Resolver.Resolver();
+        resolver.Resolve(ast);
+
+        Assert.NotEmpty(resolver.GetErrors());
+        Assert.Contains("is not defined", resolver.GetErrors()[0].Message);
+    }
+
+    [Fact]
+    public void TestCircularInheritance()
+    {
+        // 循環継承の検出（エラー）
+        var source = @"
+        class A extends B {}
+        class B extends A {}
+        ";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var ast = new Core.Parser.Parser(tokens).Parse();
+        var resolver = new Core.Resolver.Resolver();
+        resolver.Resolve(ast);
+
+        Assert.NotEmpty(resolver.GetErrors());
+        Assert.Contains("Circular inheritance", resolver.GetErrors()[0].Message);
+    }
 }

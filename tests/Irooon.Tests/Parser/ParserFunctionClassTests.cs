@@ -641,4 +641,152 @@ class Counter {
     }
 
     #endregion
+
+    #region クラス継承のテスト
+
+    [Fact]
+    public void TestParseClassDef_WithInheritance()
+    {
+        // class Dog extends Animal { }
+        var source = "class Dog extends Animal { }";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.Single(ast.Statements);
+        Assert.IsType<ClassDef>(ast.Statements[0]);
+
+        var classDef = (ClassDef)ast.Statements[0];
+        Assert.Equal("Dog", classDef.Name);
+        Assert.Equal("Animal", classDef.ParentClass);
+        Assert.Empty(classDef.Fields);
+        Assert.Empty(classDef.Methods);
+    }
+
+    [Fact]
+    public void TestParseClassDef_InheritanceWithMethods()
+    {
+        // class Dog extends Animal { public fn speak() { "Woof!" } }
+        var source = @"
+class Dog extends Animal {
+    public fn speak() {
+        ""Woof!""
+    }
+}";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.Single(ast.Statements);
+        Assert.IsType<ClassDef>(ast.Statements[0]);
+
+        var classDef = (ClassDef)ast.Statements[0];
+        Assert.Equal("Dog", classDef.Name);
+        Assert.Equal("Animal", classDef.ParentClass);
+        Assert.Single(classDef.Methods);
+
+        var method = classDef.Methods[0];
+        Assert.Equal("speak", method.Name);
+        Assert.True(method.IsPublic);
+    }
+
+    [Fact]
+    public void TestParseSuperExpr_MethodCall()
+    {
+        // super.speak() in method body
+        var source = @"
+class Dog extends Animal {
+    public fn speak() {
+        super.speak()
+    }
+}";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.Single(ast.Statements);
+        Assert.IsType<ClassDef>(ast.Statements[0]);
+
+        var classDef = (ClassDef)ast.Statements[0];
+        Assert.Single(classDef.Methods);
+
+        var method = classDef.Methods[0];
+        Assert.Equal("speak", method.Name);
+
+        var body = (BlockExpr)method.Body;
+        Assert.NotNull(body.Expression);
+        Assert.IsType<CallExpr>(body.Expression);
+
+        var callExpr = (CallExpr)body.Expression;
+        Assert.IsType<SuperExpr>(callExpr.Callee);
+
+        var superExpr = (SuperExpr)callExpr.Callee;
+        Assert.Equal("speak", superExpr.MemberName);
+    }
+
+    [Fact]
+    public void TestParseSuperExpr_WithoutDot_ShouldFail()
+    {
+        // super without . should fail
+        var source = @"
+class Dog extends Animal {
+    public fn speak() {
+        super
+    }
+}";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+
+        Assert.Throws<ParseException>(() => parser.Parse());
+    }
+
+    [Fact]
+    public void TestParseSuperExpr_MultipleInheritanceLevels()
+    {
+        // Multiple classes with inheritance
+        var source = @"
+class Animal {
+    public fn speak() { ""..."" }
+}
+
+class Dog extends Animal {
+    public fn speak() {
+        super.speak()
+        ""Woof!""
+    }
+}
+
+class Puppy extends Dog {
+    public fn speak() {
+        super.speak()
+        ""Yip!""
+    }
+}";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.Equal(3, ast.Statements.Count);
+
+        // Animal クラス
+        var animalClass = (ClassDef)ast.Statements[0];
+        Assert.Equal("Animal", animalClass.Name);
+        Assert.Null(animalClass.ParentClass);
+
+        // Dog クラス
+        var dogClass = (ClassDef)ast.Statements[1];
+        Assert.Equal("Dog", dogClass.Name);
+        Assert.Equal("Animal", dogClass.ParentClass);
+
+        // Puppy クラス
+        var puppyClass = (ClassDef)ast.Statements[2];
+        Assert.Equal("Puppy", puppyClass.Name);
+        Assert.Equal("Dog", puppyClass.ParentClass);
+    }
+
+    #endregion
 }

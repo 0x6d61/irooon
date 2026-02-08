@@ -182,6 +182,49 @@ public class LexerTests
     }
 
     [Fact]
+    public void TestKeywords_Inheritance()
+    {
+        var lexer = new Core.Lexer.Lexer("extends super");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(3, tokens.Count); // extends, super, Eof
+        Assert.Equal(TokenType.Extends, tokens[0].Type);
+        Assert.Equal("extends", tokens[0].Lexeme);
+        Assert.Equal(TokenType.Super, tokens[1].Type);
+        Assert.Equal("super", tokens[1].Lexeme);
+    }
+
+    [Fact]
+    public void TestKeywords_ClassInheritance()
+    {
+        var lexer = new Core.Lexer.Lexer("class Dog extends Animal");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(5, tokens.Count); // class, Dog, extends, Animal, Eof
+        Assert.Equal(TokenType.Class, tokens[0].Type);
+        Assert.Equal(TokenType.Identifier, tokens[1].Type);
+        Assert.Equal("Dog", tokens[1].Lexeme);
+        Assert.Equal(TokenType.Extends, tokens[2].Type);
+        Assert.Equal(TokenType.Identifier, tokens[3].Type);
+        Assert.Equal("Animal", tokens[3].Lexeme);
+    }
+
+    [Fact]
+    public void TestKeywords_SuperMethodCall()
+    {
+        var lexer = new Core.Lexer.Lexer("super.speak()");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(6, tokens.Count); // super, ., speak, (, ), Eof
+        Assert.Equal(TokenType.Super, tokens[0].Type);
+        Assert.Equal(TokenType.Dot, tokens[1].Type);
+        Assert.Equal(TokenType.Identifier, tokens[2].Type);
+        Assert.Equal("speak", tokens[2].Lexeme);
+        Assert.Equal(TokenType.LeftParen, tokens[3].Type);
+        Assert.Equal(TokenType.RightParen, tokens[4].Type);
+    }
+
+    [Fact]
     public void TestKeywords_Exception()
     {
         var lexer = new Core.Lexer.Lexer("try catch finally throw");

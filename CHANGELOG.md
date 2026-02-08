@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.7] - 2026-02-07
+
+### Added
+- **クラス継承（単一継承）** (#25)
+  - `extends`キーワードでクラスを継承
+  - `super.method()`で親クラスのメソッドを呼び出し
+  - メソッドオーバーライドをサポート
+  - フィールド継承をサポート
+  - 多段階継承（Grandparent → Parent → Child）をサポート
+- 新しいサンプルスクリプト: `examples/inheritance_demo.iro`
+
+### Technical Details
+- Lexer: `extends`, `super`キーワードを追加
+- AST: `SuperExpr`を追加、`ClassDef.ParentClass`は既存
+- Parser: `class Child extends Parent`構文と`super.method()`構文のパースを実装
+- Resolver: 継承関係の解決、循環継承の検出、`super`の使用制約チェックを実装
+- CodeGen: `SuperExpr`のコード生成を実装
+- Runtime: `IroClass.Parent`、`GetMethod()`, `GetField()`は既存（v0.3で実装済み）
+- テスト: 810個全てのテストが成功
+
+### Limitations
+- **単一継承のみ**: 一つのクラスのみ継承可能（多重継承は非サポート）
+
 ## [0.5.6] - 2026-02-07
 
 ### Added

@@ -539,6 +539,30 @@ public class Parser
             return ParseStringLiteral(token.Value as string ?? "", token.Line, token.Column);
         }
 
+        // super.method() 構文
+        if (Match(TokenType.Super))
+        {
+            var superToken = Previous();
+            Consume(TokenType.Dot, "Expect '.' after 'super'.");
+
+            // super.init() をサポートするため、Identifierだけでなく Init もチェック
+            Token member;
+            if (Check(TokenType.Identifier))
+            {
+                member = Advance();
+            }
+            else if (Check(TokenType.Init))
+            {
+                member = Advance();
+            }
+            else
+            {
+                throw Error(Peek(), "Expect method name after 'super.'.");
+            }
+
+            return new SuperExpr(member.Lexeme, superToken.Line, superToken.Column);
+        }
+
         // 識別子
         if (Match(TokenType.Identifier))
         {
@@ -1115,18 +1139,18 @@ public class Parser
     /// <summary>
     /// クラス定義をパースします。
     /// class Name { fields methods }
-    /// class ChildName : ParentName { fields methods }
+    /// class ChildName extends ParentName { fields methods }
     /// </summary>
     private ClassDef ClassDefinition()
     {
         var classToken = Previous();
         var name = Consume(TokenType.Identifier, "Expect class name.");
 
-        // 継承構文をチェック（: ParentClass）
+        // 継承構文をチェック（extends ParentClass）
         string? parentClass = null;
-        if (Match(TokenType.Colon))
+        if (Match(TokenType.Extends))
         {
-            var parentToken = Consume(TokenType.Identifier, "Expect parent class name after ':'.");
+            var parentToken = Consume(TokenType.Identifier, "Expect parent class name after 'extends'.");
             parentClass = parentToken.Lexeme;
         }
 

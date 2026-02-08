@@ -260,8 +260,10 @@ public static class RuntimeHelpers
                 }
             }
 
-            // thisArgがIroInstanceの場合、フィールドをGlobalsに展開
+            // thisArgがIroInstanceの場合、フィールドと"this"をGlobalsに展開
             Dictionary<string, object>? savedFields = null;
+            object? savedThis = null;
+            bool hadThis = false;
             IroInstance? instance = thisArg as IroInstance;
 
             if (instance != null)
@@ -276,6 +278,13 @@ public static class RuntimeHelpers
                     }
                     ctx.Globals[field.Key] = field.Value;
                 }
+
+                // "this"を保存・登録
+                if (ctx.Globals.TryGetValue("this", out savedThis))
+                {
+                    hadThis = true;
+                }
+                ctx.Globals["this"] = instance;
             }
 
             try
@@ -327,6 +336,16 @@ public static class RuntimeHelpers
                         {
                             ctx.Globals.Remove(fieldName);
                         }
+                    }
+
+                    // "this"を元に戻す
+                    if (hadThis)
+                    {
+                        ctx.Globals["this"] = savedThis!;
+                    }
+                    else
+                    {
+                        ctx.Globals.Remove("this");
                     }
                 }
             }

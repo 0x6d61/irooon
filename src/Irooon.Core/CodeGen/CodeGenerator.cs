@@ -75,6 +75,7 @@ public class CodeGenerator
             NullCoalescingExpr e => GenerateNullCoalescingExpr(e),
             IncrementExpr e => GenerateIncrementExpr(e),
             SafeNavigationExpr e => GenerateSafeNavigationExpr(e),
+            SuperExpr e => GenerateSuperExpr(e),
             _ => throw new NotImplementedException($"Unknown expression type: {expr.GetType()}")
         };
     }
@@ -1731,6 +1732,54 @@ public class CodeGenerator
             objectExpr,
             memberNameExpr
         );
+    }
+
+    /// <summary>
+    /// super式の生成
+    /// 仕様: super.method() → 親クラスのメソッドを呼び出す
+    ///
+    /// 実装方針:
+    /// 1. thisインスタンス（現在のインスタンス）をctx.Globals["this"]から取得
+    /// 2. インスタンスの親クラスを取得
+    /// 3. 親クラスのメソッドを取得
+    /// 4. メソッドを返す（呼び出しはCallExprで行われる）
+    /// </summary>
+    private ExprTree GenerateSuperExpr(SuperExpr expr)
+    {
+        // ctx.Globals["this"] からthisインスタンスを取得
+        var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
+        var thisNameExpr = ExprTree.Constant("this");
+        var thisExpr = ExprTree.Property(globalsExpr, "Item", thisNameExpr);
+
+        // IroInstanceにキャスト
+        var instanceExpr = ExprTree.Convert(thisExpr, typeof(IroInstance));
+
+        // instance.Class.Parent を取得
+        var classExpr = ExprTree.Property(instanceExpr, nameof(IroInstance.Class));
+        var parentClassExpr = ExprTree.Property(classExpr, nameof(IroClass.Parent));
+
+        // parentClass.GetMethod(memberName) を呼び出し
+        var getMethodCall = ExprTree.Call(
+            parentClassExpr,
+            typeof(IroClass).GetMethod(nameof(IroClass.GetMethod))!,
+            ExprTree.Constant(expr.MemberName)
+        );
+
+        // メソッドがnullの場合はエラー
+        var nullCheck = ExprTree.Condition(
+            ExprTree.Equal(getMethodCall, ExprTree.Constant(null, typeof(IroCallable))),
+            ExprTree.Throw(
+                ExprTree.New(
+                    typeof(InvalidOperationException).GetConstructor(new[] { typeof(string) })!,
+                    ExprTree.Constant($"Parent class does not have method '{expr.MemberName}'")
+                ),
+                typeof(IroCallable)
+            ),
+            getMethodCall
+        );
+
+        // objectにキャストして返す
+        return ExprTree.Convert(nullCheck, typeof(object));
     }
 
     #endregion

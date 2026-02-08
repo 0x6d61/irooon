@@ -996,7 +996,7 @@ class Parent {
     }
 }
 
-class Child : Parent {
+class Child extends Parent {
     public var age = 0
 
     public fn introduce() {
@@ -1027,7 +1027,7 @@ class Parent {
     }
 }
 
-class Child : Parent {
+class Child extends Parent {
     public var age = 0
 }
 
@@ -1049,11 +1049,11 @@ class GrandParent {
     public var family = ""Smith""
 }
 
-class Parent : GrandParent {
+class Parent extends GrandParent {
     public var name = ""parent""
 }
 
-class Child : Parent {
+class Child extends Parent {
     public var age = 0
 }
 
@@ -1081,7 +1081,7 @@ class Parent {
     }
 }
 
-class Child : Parent {
+class Child extends Parent {
     public fn greet() {
         return ""Hello from child""
     }

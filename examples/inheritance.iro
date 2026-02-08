@@ -12,7 +12,7 @@ class Animal {
     }
 }
 
-class Dog : Animal {
+class Dog extends Animal {
     public var breed = "Unknown"
 
     public fn bark() {
@@ -45,7 +45,7 @@ class LivingThing {
     }
 }
 
-class Mammal : LivingThing {
+class Mammal extends LivingThing {
     public var warmBlooded = true
 
     public fn feedMilk() {
@@ -53,7 +53,7 @@ class Mammal : LivingThing {
     }
 }
 
-class Cat : Mammal {
+class Cat extends Mammal {
     public var name = "Unknown"
 
     public fn meow() {

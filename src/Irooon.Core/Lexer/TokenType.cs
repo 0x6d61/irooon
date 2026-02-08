@@ -26,6 +26,8 @@ public enum TokenType
     Continue,
     Return,
     Class,
+    Extends,
+    Super,
     Public,
     Private,
     Static,

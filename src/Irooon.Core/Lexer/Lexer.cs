@@ -30,6 +30,8 @@ public class Lexer
         { "continue", TokenType.Continue },
         { "return", TokenType.Return },
         { "class", TokenType.Class },
+        { "extends", TokenType.Extends },
+        { "super", TokenType.Super },
         { "public", TokenType.Public },
         { "private", TokenType.Private },
         { "static", TokenType.Static },
