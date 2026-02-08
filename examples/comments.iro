@@ -1,0 +1,36 @@
+// irooon コメント機能のサンプル
+
+// 一行コメント
+// この行はコメントなので無視されます
+
+/* 複数行コメント
+   複数行にわたるコメントを
+   書くことができます */
+
+// 関数定義のコメント例
+fn fibonacci(n) {
+    /*
+     * Fibonacci数を計算する関数
+     *
+     * 引数:
+     *   n: 何番目のFibonacci数を計算するか
+     *
+     * 戻り値:
+     *   n番目のFibonacci数
+     */
+
+    // ベースケース
+    if (n <= 1) {
+        return n // nをそのまま返す
+    } else {
+        // 再帰ケース
+        return fibonacci(n - 1) + fibonacci(n - 2)
+    }
+}
+
+// 変数定義
+let result = fibonacci(10) // 10番目のFibonacci数を計算
+
+/* 結果を出力 */
+print("Fibonacci(10) = ")
+println(result)
