@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.6] - 2026-02-07
+
+### Added
+- **三項演算子** (`condition ? trueValue : falseValue`) - 条件式の簡潔な記法
+- **Null合体演算子** (`value ?? defaultValue`) - nullの場合のデフォルト値指定
+- **インクリメント/デクリメント演算子** (`++`/`--`) - 前置・後置の両方をサポート
+- **安全なナビゲーション演算子** (`obj?.property`) - null安全なメンバアクセス
+- 新しいサンプルスクリプト: `examples/operators_v056.iro`
+
+### Fixed
+- Lexerの改行トークン処理を修正（既存テストとの互換性を維持）
+- 後置インクリメント/デクリメントの変数更新処理を修正
+
+### Technical Details
+- Lexer: 5つの新しいトークンタイプを追加 (`Question`, `QuestionQuestion`, `PlusPlus`, `MinusMinus`, `QuestionDot`)
+- AST: 4つの新しい式ノードを追加 (`TernaryExpr`, `NullCoalescingExpr`, `IncrementExpr`, `SafeNavigationExpr`)
+- Parser: 演算子の優先順位とパース処理を実装
+- CodeGen: ExpressionTree生成を実装
+- Runtime: `Increment`, `Decrement`, `SafeNavigation`ヘルパーメソッドを追加
+- テスト: 791個全てのテストが成功
+
 ## [0.5.5] - 2026-02-09
 
 ### Added

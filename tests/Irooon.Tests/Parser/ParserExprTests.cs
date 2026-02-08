@@ -1336,4 +1336,264 @@ public class ParserExprTests
     }
 
     #endregion
+
+    #region 便利な演算子のテスト（v0.5.6）
+
+    [Fact]
+    public void TestParseTernaryOperator_Simple()
+    {
+        // condition ? 10 : 20
+        var tokens = new Core.Lexer.Lexer("condition ? 10 : 20").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<TernaryExpr>(ast.Expression);
+        var ternary = (TernaryExpr)ast.Expression;
+
+        Assert.IsType<IdentifierExpr>(ternary.Condition);
+        Assert.IsType<LiteralExpr>(ternary.TrueValue);
+        Assert.IsType<LiteralExpr>(ternary.FalseValue);
+    }
+
+    [Fact]
+    public void TestParseTernaryOperator_Nested()
+    {
+        // a ? b : c ? d : e
+        var tokens = new Core.Lexer.Lexer("a ? b : c ? d : e").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<TernaryExpr>(ast.Expression);
+        var ternary = (TernaryExpr)ast.Expression;
+
+        // a ? b : (c ? d : e) の構造
+        Assert.IsType<IdentifierExpr>(ternary.Condition);
+        Assert.IsType<IdentifierExpr>(ternary.TrueValue);
+        Assert.IsType<TernaryExpr>(ternary.FalseValue);
+
+        var nestedTernary = (TernaryExpr)ternary.FalseValue;
+        Assert.IsType<IdentifierExpr>(nestedTernary.Condition);
+        Assert.IsType<IdentifierExpr>(nestedTernary.TrueValue);
+        Assert.IsType<IdentifierExpr>(nestedTernary.FalseValue);
+    }
+
+    [Fact]
+    public void TestParseNullCoalescingOperator_Simple()
+    {
+        // value ?? defaultValue
+        var tokens = new Core.Lexer.Lexer("value ?? defaultValue").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<NullCoalescingExpr>(ast.Expression);
+        var nullCoalescing = (NullCoalescingExpr)ast.Expression;
+
+        Assert.IsType<IdentifierExpr>(nullCoalescing.Value);
+        Assert.IsType<IdentifierExpr>(nullCoalescing.DefaultValue);
+    }
+
+    [Fact]
+    public void TestParseNullCoalescingOperator_Chain()
+    {
+        // a ?? b ?? c
+        var tokens = new Core.Lexer.Lexer("a ?? b ?? c").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<NullCoalescingExpr>(ast.Expression);
+        var nullCoalescing = (NullCoalescingExpr)ast.Expression;
+
+        // (a ?? b) ?? c の構造（左結合）
+        Assert.IsType<NullCoalescingExpr>(nullCoalescing.Value);
+        Assert.IsType<IdentifierExpr>(nullCoalescing.DefaultValue);
+
+        var nestedNullCoalescing = (NullCoalescingExpr)nullCoalescing.Value;
+        Assert.IsType<IdentifierExpr>(nestedNullCoalescing.Value);
+        Assert.IsType<IdentifierExpr>(nestedNullCoalescing.DefaultValue);
+    }
+
+    [Fact]
+    public void TestParsePrefixIncrement()
+    {
+        // ++x
+        var tokens = new Core.Lexer.Lexer("++x").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<IncrementExpr>(ast.Expression);
+        var increment = (IncrementExpr)ast.Expression;
+
+        Assert.IsType<IdentifierExpr>(increment.Operand);
+        Assert.True(increment.IsPrefix);
+        Assert.True(increment.IsIncrement);
+    }
+
+    [Fact]
+    public void TestParsePrefixDecrement()
+    {
+        // --x
+        var tokens = new Core.Lexer.Lexer("--x").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<IncrementExpr>(ast.Expression);
+        var decrement = (IncrementExpr)ast.Expression;
+
+        Assert.IsType<IdentifierExpr>(decrement.Operand);
+        Assert.True(decrement.IsPrefix);
+        Assert.False(decrement.IsIncrement);
+    }
+
+    [Fact]
+    public void TestParsePostfixIncrement()
+    {
+        // x++
+        var tokens = new Core.Lexer.Lexer("x++").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<IncrementExpr>(ast.Expression);
+        var increment = (IncrementExpr)ast.Expression;
+
+        Assert.IsType<IdentifierExpr>(increment.Operand);
+        Assert.False(increment.IsPrefix);
+        Assert.True(increment.IsIncrement);
+    }
+
+    [Fact]
+    public void TestParsePostfixDecrement()
+    {
+        // x--
+        var tokens = new Core.Lexer.Lexer("x--").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<IncrementExpr>(ast.Expression);
+        var decrement = (IncrementExpr)ast.Expression;
+
+        Assert.IsType<IdentifierExpr>(decrement.Operand);
+        Assert.False(decrement.IsPrefix);
+        Assert.False(decrement.IsIncrement);
+    }
+
+    [Fact]
+    public void TestParseIncrementOnMemberAccess()
+    {
+        // obj.field++
+        var tokens = new Core.Lexer.Lexer("obj.field++").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<IncrementExpr>(ast.Expression);
+        var increment = (IncrementExpr)ast.Expression;
+
+        Assert.IsType<MemberExpr>(increment.Operand);
+        Assert.False(increment.IsPrefix);
+        Assert.True(increment.IsIncrement);
+    }
+
+    [Fact]
+    public void TestParseIncrementOnIndexAccess()
+    {
+        // arr[0]++
+        var tokens = new Core.Lexer.Lexer("arr[0]++").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<IncrementExpr>(ast.Expression);
+        var increment = (IncrementExpr)ast.Expression;
+
+        Assert.IsType<IndexExpr>(increment.Operand);
+        Assert.False(increment.IsPrefix);
+        Assert.True(increment.IsIncrement);
+    }
+
+    [Fact]
+    public void TestParseSafeNavigationOperator()
+    {
+        // obj?.property
+        var tokens = new Core.Lexer.Lexer("obj?.property").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<SafeNavigationExpr>(ast.Expression);
+        var safeNav = (SafeNavigationExpr)ast.Expression;
+
+        Assert.IsType<IdentifierExpr>(safeNav.Object);
+        Assert.Equal("property", safeNav.MemberName);
+    }
+
+    [Fact]
+    public void TestParseSafeNavigationOperator_Chain()
+    {
+        // obj?.prop1?.prop2
+        var tokens = new Core.Lexer.Lexer("obj?.prop1?.prop2").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<SafeNavigationExpr>(ast.Expression);
+        var safeNav = (SafeNavigationExpr)ast.Expression;
+
+        Assert.IsType<SafeNavigationExpr>(safeNav.Object);
+        Assert.Equal("prop2", safeNav.MemberName);
+
+        var firstSafeNav = (SafeNavigationExpr)safeNav.Object;
+        Assert.IsType<IdentifierExpr>(firstSafeNav.Object);
+        Assert.Equal("prop1", firstSafeNav.MemberName);
+    }
+
+    [Fact]
+    public void TestParseSafeNavigationOperator_MixedWithNormalAccess()
+    {
+        // obj?.prop1.prop2
+        var tokens = new Core.Lexer.Lexer("obj?.prop1.prop2").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<MemberExpr>(ast.Expression);
+        var member = (MemberExpr)ast.Expression;
+
+        Assert.IsType<SafeNavigationExpr>(member.Target);
+        Assert.Equal("prop2", member.Name);
+
+        var safeNav = (SafeNavigationExpr)member.Target;
+        Assert.IsType<IdentifierExpr>(safeNav.Object);
+        Assert.Equal("prop1", safeNav.MemberName);
+    }
+
+    [Fact]
+    public void TestParseCombinedOperators()
+    {
+        // a ? b++ : c-- ?? d
+        var tokens = new Core.Lexer.Lexer("a ? b++ : c-- ?? d").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<TernaryExpr>(ast.Expression);
+        var ternary = (TernaryExpr)ast.Expression;
+
+        Assert.IsType<IdentifierExpr>(ternary.Condition);
+        Assert.IsType<IncrementExpr>(ternary.TrueValue);
+        Assert.IsType<NullCoalescingExpr>(ternary.FalseValue);
+
+        var nullCoalescing = (NullCoalescingExpr)ternary.FalseValue;
+        Assert.IsType<IncrementExpr>(nullCoalescing.Value);
+        Assert.IsType<IdentifierExpr>(nullCoalescing.DefaultValue);
+    }
+
+    #endregion
 }

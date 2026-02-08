@@ -629,4 +629,151 @@ git push
     }
 
     #endregion
+
+    #region 便利な演算子テスト（v0.5.6）
+
+    [Fact]
+    public void TestOperators_Ternary()
+    {
+        var lexer = new Core.Lexer.Lexer("x > 5 ? 10 : 20");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(8, tokens.Count); // x, >, 5, ?, 10, :, 20, Eof
+        Assert.Equal(TokenType.Identifier, tokens[0].Type);
+        Assert.Equal(TokenType.Greater, tokens[1].Type);
+        Assert.Equal(TokenType.Number, tokens[2].Type);
+        Assert.Equal(TokenType.Question, tokens[3].Type);
+        Assert.Equal(TokenType.Number, tokens[4].Type);
+        Assert.Equal(TokenType.Colon, tokens[5].Type);
+        Assert.Equal(TokenType.Number, tokens[6].Type);
+    }
+
+    [Fact]
+    public void TestOperators_NullCoalescing()
+    {
+        var lexer = new Core.Lexer.Lexer("x ?? 0");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(4, tokens.Count); // x, ??, 0, Eof
+        Assert.Equal(TokenType.Identifier, tokens[0].Type);
+        Assert.Equal(TokenType.QuestionQuestion, tokens[1].Type);
+        Assert.Equal(TokenType.Number, tokens[2].Type);
+    }
+
+    [Fact]
+    public void TestOperators_IncrementDecrement()
+    {
+        var lexer = new Core.Lexer.Lexer("x++ y--");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(5, tokens.Count); // x, ++, y, --, Eof
+        Assert.Equal(TokenType.Identifier, tokens[0].Type);
+        Assert.Equal(TokenType.PlusPlus, tokens[1].Type);
+        Assert.Equal(TokenType.Identifier, tokens[2].Type);
+        Assert.Equal(TokenType.MinusMinus, tokens[3].Type);
+    }
+
+    [Fact]
+    public void TestOperators_SafeNavigation()
+    {
+        var lexer = new Core.Lexer.Lexer("obj?.method");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(4, tokens.Count); // obj, ?., method, Eof
+        Assert.Equal(TokenType.Identifier, tokens[0].Type);
+        Assert.Equal(TokenType.QuestionDot, tokens[1].Type);
+        Assert.Equal(TokenType.Identifier, tokens[2].Type);
+    }
+
+    [Fact]
+    public void TestOperators_Disambiguation_PlusVsPlusPlusVsPlusEqual()
+    {
+        var lexer = new Core.Lexer.Lexer("+ ++ +=");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(4, tokens.Count); // +, ++, +=, Eof
+        Assert.Equal(TokenType.Plus, tokens[0].Type);
+        Assert.Equal(TokenType.PlusPlus, tokens[1].Type);
+        Assert.Equal(TokenType.PlusEqual, tokens[2].Type);
+    }
+
+    [Fact]
+    public void TestOperators_Disambiguation_MinusVsMinusMinusVsMinusEqual()
+    {
+        var lexer = new Core.Lexer.Lexer("- -- -=");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(4, tokens.Count); // -, --, -=, Eof
+        Assert.Equal(TokenType.Minus, tokens[0].Type);
+        Assert.Equal(TokenType.MinusMinus, tokens[1].Type);
+        Assert.Equal(TokenType.MinusEqual, tokens[2].Type);
+    }
+
+    [Fact]
+    public void TestOperators_Disambiguation_QuestionVsQuestionQuestionVsQuestionDot()
+    {
+        var lexer = new Core.Lexer.Lexer("? ?? ?.");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(4, tokens.Count); // ?, ??, ?., Eof
+        Assert.Equal(TokenType.Question, tokens[0].Type);
+        Assert.Equal(TokenType.QuestionQuestion, tokens[1].Type);
+        Assert.Equal(TokenType.QuestionDot, tokens[2].Type);
+    }
+
+    [Fact]
+    public void TestOperators_ComplexExpression_WithNewOperators()
+    {
+        var lexer = new Core.Lexer.Lexer("x++ ?? y?.value");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(7, tokens.Count); // x, ++, ??, y, ?., value, Eof
+        Assert.Equal(TokenType.Identifier, tokens[0].Type);
+        Assert.Equal("x", tokens[0].Lexeme);
+        Assert.Equal(TokenType.PlusPlus, tokens[1].Type);
+        Assert.Equal(TokenType.QuestionQuestion, tokens[2].Type);
+        Assert.Equal(TokenType.Identifier, tokens[3].Type);
+        Assert.Equal("y", tokens[3].Lexeme);
+        Assert.Equal(TokenType.QuestionDot, tokens[4].Type);
+        Assert.Equal(TokenType.Identifier, tokens[5].Type);
+        Assert.Equal("value", tokens[5].Lexeme);
+    }
+
+    [Fact]
+    public void TestOperators_EdgeCase_TriplePlus()
+    {
+        var lexer = new Core.Lexer.Lexer("+++");
+        var tokens = lexer.ScanTokens();
+
+        // ++ と + に分割される
+        Assert.Equal(3, tokens.Count); // ++, +, Eof
+        Assert.Equal(TokenType.PlusPlus, tokens[0].Type);
+        Assert.Equal(TokenType.Plus, tokens[1].Type);
+    }
+
+    [Fact]
+    public void TestOperators_EdgeCase_TripleMinus()
+    {
+        var lexer = new Core.Lexer.Lexer("---");
+        var tokens = lexer.ScanTokens();
+
+        // -- と - に分割される
+        Assert.Equal(3, tokens.Count); // --, -, Eof
+        Assert.Equal(TokenType.MinusMinus, tokens[0].Type);
+        Assert.Equal(TokenType.Minus, tokens[1].Type);
+    }
+
+    [Fact]
+    public void TestOperators_EdgeCase_TripleQuestion()
+    {
+        var lexer = new Core.Lexer.Lexer("???");
+        var tokens = lexer.ScanTokens();
+
+        // ?? と ? に分割される
+        Assert.Equal(3, tokens.Count); // ??, ?, Eof
+        Assert.Equal(TokenType.QuestionQuestion, tokens[0].Type);
+        Assert.Equal(TokenType.Question, tokens[1].Type);
+    }
+
+    #endregion
 }

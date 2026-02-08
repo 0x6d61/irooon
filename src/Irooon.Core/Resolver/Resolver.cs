@@ -202,6 +202,18 @@ public class Resolver
             case ShellExpr shellExpr:
                 ResolveShellExpr(shellExpr);
                 break;
+            case TernaryExpr ternaryExpr:
+                ResolveTernaryExpr(ternaryExpr);
+                break;
+            case NullCoalescingExpr nullCoalescingExpr:
+                ResolveNullCoalescingExpr(nullCoalescingExpr);
+                break;
+            case IncrementExpr incrementExpr:
+                ResolveIncrementExpr(incrementExpr);
+                break;
+            case SafeNavigationExpr safeNavigationExpr:
+                ResolveSafeNavigationExpr(safeNavigationExpr);
+                break;
             default:
                 _errors.Add(new ResolveException(
                     $"Unknown expression type: {expr.GetType().Name}",
@@ -689,6 +701,33 @@ public class Resolver
     {
         // シェルコマンドは何もチェックしない
         // コマンド文字列内に変数参照がある場合は将来の拡張として対応
+    }
+
+    private void ResolveTernaryExpr(TernaryExpr expr)
+    {
+        // 三項演算子: condition ? trueValue : falseValue
+        ResolveExpression(expr.Condition);
+        ResolveExpression(expr.TrueValue);
+        ResolveExpression(expr.FalseValue);
+    }
+
+    private void ResolveNullCoalescingExpr(NullCoalescingExpr expr)
+    {
+        // Null合体演算子: value ?? defaultValue
+        ResolveExpression(expr.Value);
+        ResolveExpression(expr.DefaultValue);
+    }
+
+    private void ResolveIncrementExpr(IncrementExpr expr)
+    {
+        // インクリメント/デクリメント: ++x, x++, --x, x--
+        ResolveExpression(expr.Operand);
+    }
+
+    private void ResolveSafeNavigationExpr(SafeNavigationExpr expr)
+    {
+        // 安全なナビゲーション: obj?.member
+        ResolveExpression(expr.Object);
     }
 
     #endregion

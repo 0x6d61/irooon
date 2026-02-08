@@ -92,7 +92,7 @@ public class Parser
     /// </summary>
     private Expression Assignment()
     {
-        var expr = LogicalOr();
+        var expr = Ternary();
 
         if (Match(TokenType.Equal))
         {
@@ -178,17 +178,46 @@ public class Parser
     }
 
     /// <summary>
-    /// 論理和（or）をパースします。
+    /// 三項演算子（? :）をパースします。
+    /// condition ? trueValue : falseValue
+    /// </summary>
+    private Expression Ternary()
+    {
+        var expr = LogicalOr();
+
+        if (Match(TokenType.Question))
+        {
+            var question = Previous();
+            var trueValue = Expression(); // 右結合のため、再帰的に Expression() を呼ぶ
+            Consume(TokenType.Colon, "Expect ':' after true value in ternary expression.");
+            var falseValue = Ternary(); // 右結合
+            expr = new TernaryExpr(expr, trueValue, falseValue, question.Line, question.Column);
+        }
+
+        return expr;
+    }
+
+    /// <summary>
+    /// 論理和（or）とNull合体演算子（??）をパースします。
     /// </summary>
     private Expression LogicalOr()
     {
         var expr = LogicalAnd();
 
-        while (Match(TokenType.Or))
+        while (Match(TokenType.Or, TokenType.QuestionQuestion))
         {
             var op = Previous();
             var right = LogicalAnd();
-            expr = new BinaryExpr(expr, op.Type, right, op.Line, op.Column);
+
+            // Null合体演算子の場合は NullCoalescingExpr を生成
+            if (op.Type == TokenType.QuestionQuestion)
+            {
+                expr = new NullCoalescingExpr(expr, right, op.Line, op.Column);
+            }
+            else
+            {
+                expr = new BinaryExpr(expr, op.Type, right, op.Line, op.Column);
+            }
         }
 
         return expr;
@@ -298,7 +327,7 @@ public class Parser
     }
 
     /// <summary>
-    /// 単項演算子（-, not）およびシェルコマンド（$`...`）をパースします。
+    /// 単項演算子（-, not, ++, --）およびシェルコマンド（$`...`）をパースします。
     /// </summary>
     private Expression Unary()
     {
@@ -318,6 +347,22 @@ public class Parser
             throw Error(dollar, "Expected backtick after $");
         }
 
+        // 前置インクリメント/デクリメント演算子
+        if (Match(TokenType.PlusPlus, TokenType.MinusMinus))
+        {
+            var op = Previous();
+            var operand = Unary();
+            bool isIncrement = op.Type == TokenType.PlusPlus;
+
+            // オペランドが左辺値（変数、メンバアクセス、インデックス）でなければエラー
+            if (operand is not IdentifierExpr && operand is not MemberExpr && operand is not IndexExpr)
+            {
+                throw Error(op, "Increment/decrement operator requires a valid lvalue.");
+            }
+
+            return new IncrementExpr(operand, isPrefix: true, isIncrement, op.Line, op.Column);
+        }
+
         if (Match(TokenType.Minus, TokenType.Not))
         {
             var op = Previous();
@@ -329,7 +374,7 @@ public class Parser
     }
 
     /// <summary>
-    /// 関数呼び出し、メンバアクセス、インデックスアクセスをパースします。
+    /// 関数呼び出し、メンバアクセス、インデックスアクセス、後置インクリメント/デクリメント、安全なナビゲーションをパースします。
     /// </summary>
     private Expression Call()
     {
@@ -349,6 +394,13 @@ public class Parser
                 var name = Consume(TokenType.Identifier, "Expect property name after '.'.");
                 expr = new MemberExpr(expr, name.Lexeme, dot.Line, dot.Column);
             }
+            else if (Match(TokenType.QuestionDot))
+            {
+                // 安全なナビゲーション演算子（?.）
+                var questionDot = Previous();
+                var name = Consume(TokenType.Identifier, "Expect property name after '?.'.");
+                expr = new SafeNavigationExpr(expr, name.Lexeme, questionDot.Line, questionDot.Column);
+            }
             else if (Match(TokenType.LeftBracket))
             {
                 // インデックスアクセス
@@ -356,6 +408,20 @@ public class Parser
                 var index = Expression();
                 Consume(TokenType.RightBracket, "Expect ']' after index.");
                 expr = new IndexExpr(expr, index, bracket.Line, bracket.Column);
+            }
+            else if (Match(TokenType.PlusPlus, TokenType.MinusMinus))
+            {
+                // 後置インクリメント/デクリメント演算子
+                var op = Previous();
+                bool isIncrement = op.Type == TokenType.PlusPlus;
+
+                // オペランドが左辺値（変数、メンバアクセス、インデックス）でなければエラー
+                if (expr is not IdentifierExpr && expr is not MemberExpr && expr is not IndexExpr)
+                {
+                    throw Error(op, "Increment/decrement operator requires a valid lvalue.");
+                }
+
+                expr = new IncrementExpr(expr, isPrefix: false, isIncrement, op.Line, op.Column);
             }
             else
             {

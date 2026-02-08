@@ -109,6 +109,30 @@ public static class RuntimeHelpers
         return da % db;
     }
 
+    /// <summary>
+    /// インクリメント演算（値に1を加算）
+    /// </summary>
+    public static object Increment(object value)
+    {
+        if (value == null)
+            throw new InvalidOperationException("Cannot increment null value");
+
+        double d = Convert.ToDouble(value);
+        return d + 1.0;
+    }
+
+    /// <summary>
+    /// デクリメント演算（値から1を減算）
+    /// </summary>
+    public static object Decrement(object value)
+    {
+        if (value == null)
+            throw new InvalidOperationException("Cannot decrement null value");
+
+        double d = Convert.ToDouble(value);
+        return d - 1.0;
+    }
+
     #endregion
 
     #region Comparison Operations
@@ -441,6 +465,17 @@ public static class RuntimeHelpers
         }
 
         throw new InvalidOperationException($"Cannot set member '{name}' on object of type {target.GetType().Name}");
+    }
+
+    /// <summary>
+    /// 安全なナビゲーション処理（null安全なメンバアクセス）
+    /// </summary>
+    public static object? SafeNavigation(object? obj, string memberName)
+    {
+        if (obj == null)
+            return null;
+
+        return GetMember(obj, memberName);
     }
 
     /// <summary>

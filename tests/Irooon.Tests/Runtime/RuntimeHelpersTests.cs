@@ -920,6 +920,165 @@ public class RuntimeHelpersTests
 
     #endregion
 
+    #region Increment Tests
+
+    [Fact]
+    public void Increment_数値をインクリメントできる()
+    {
+        // Act
+        var result = RuntimeHelpers.Increment(5.0);
+
+        // Assert
+        Assert.Equal(6.0, result);
+    }
+
+    [Fact]
+    public void Increment_負の数値をインクリメントできる()
+    {
+        // Act
+        var result = RuntimeHelpers.Increment(-3.0);
+
+        // Assert
+        Assert.Equal(-2.0, result);
+    }
+
+    [Fact]
+    public void Increment_小数をインクリメントできる()
+    {
+        // Act
+        var result = RuntimeHelpers.Increment(2.5);
+
+        // Assert
+        Assert.Equal(3.5, result);
+    }
+
+    [Fact]
+    public void Increment_ゼロをインクリメントできる()
+    {
+        // Act
+        var result = RuntimeHelpers.Increment(0.0);
+
+        // Assert
+        Assert.Equal(1.0, result);
+    }
+
+    [Fact]
+    public void Increment_nullは例外を投げる()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => RuntimeHelpers.Increment(null));
+        Assert.Contains("Cannot increment null", ex.Message);
+    }
+
+    [Fact]
+    public void Increment_非数値は例外を投げる()
+    {
+        // Act & Assert
+        Assert.Throws<FormatException>(() => RuntimeHelpers.Increment("not a number"));
+    }
+
+    #endregion
+
+    #region Decrement Tests
+
+    [Fact]
+    public void Decrement_数値をデクリメントできる()
+    {
+        // Act
+        var result = RuntimeHelpers.Decrement(5.0);
+
+        // Assert
+        Assert.Equal(4.0, result);
+    }
+
+    [Fact]
+    public void Decrement_負の数値をデクリメントできる()
+    {
+        // Act
+        var result = RuntimeHelpers.Decrement(-3.0);
+
+        // Assert
+        Assert.Equal(-4.0, result);
+    }
+
+    [Fact]
+    public void Decrement_小数をデクリメントできる()
+    {
+        // Act
+        var result = RuntimeHelpers.Decrement(2.5);
+
+        // Assert
+        Assert.Equal(1.5, result);
+    }
+
+    [Fact]
+    public void Decrement_ゼロをデクリメントできる()
+    {
+        // Act
+        var result = RuntimeHelpers.Decrement(0.0);
+
+        // Assert
+        Assert.Equal(-1.0, result);
+    }
+
+    [Fact]
+    public void Decrement_nullは例外を投げる()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => RuntimeHelpers.Decrement(null));
+        Assert.Contains("Cannot decrement null", ex.Message);
+    }
+
+    [Fact]
+    public void Decrement_非数値は例外を投げる()
+    {
+        // Act & Assert
+        Assert.Throws<FormatException>(() => RuntimeHelpers.Decrement("not a number"));
+    }
+
+    #endregion
+
+    #region SafeNavigation Tests
+
+    [Fact]
+    public void SafeNavigation_nullの場合はnullを返す()
+    {
+        // Act
+        var result = RuntimeHelpers.SafeNavigation(null, "fieldName");
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void SafeNavigation_IroInstanceの場合はフィールドを取得できる()
+    {
+        // Arrange
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
+        var instance = new IroInstance(iroClass);
+        instance.Fields["fieldName"] = "fieldValue";
+
+        // Act
+        var result = RuntimeHelpers.SafeNavigation(instance, "fieldName");
+
+        // Assert
+        Assert.Equal("fieldValue", result);
+    }
+
+    [Fact]
+    public void SafeNavigation_存在しないフィールドは例外を投げる()
+    {
+        // Arrange
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
+        var instance = new IroInstance(iroClass);
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() =>
+            RuntimeHelpers.SafeNavigation(instance, "nonExistent"));
+    }
+
+    #endregion
+
     #region Test Helper Classes
 
     private class TestCallable : IroCallable

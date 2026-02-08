@@ -1,0 +1,61 @@
+// v0.5.6 便利な演算子のデモ
+
+// 三項演算子
+println("=== 三項演算子 ===")
+let age = 20
+let status = age >= 18 ? "adult" : "minor"
+println(status)
+
+// Null合体演算子
+println("=== Null合体演算子 ===")
+let maybeNull = null
+let withDefault = maybeNull ?? "default"
+println(withDefault)
+
+let hasValue = "actual value"
+let result = hasValue ?? "default"
+println(result)
+
+// インクリメント/デクリメント演算子
+println("=== インクリメント/デクリメント ===")
+var counter = 0
+println(counter)
+
+// 前置インクリメント
+let a = ++counter
+println(a)
+println(counter)
+
+// 後置インクリメント
+let b = counter++
+println(b)
+println(counter)
+
+// 前置デクリメント
+let c = --counter
+println(c)
+println(counter)
+
+// 後置デクリメント
+let d = counter--
+println(d)
+println(counter)
+
+// 組み合わせ
+println("=== 組み合わせ ===")
+var x = 10
+var y = 5
+let result2 = x > y ? ++x : --y
+println(result2)
+println(x)
+println(y)
+
+// 複雑な例
+println("=== 複雑な例 ===")
+var score = null
+let finalScore = (score ?? 0) >= 60 ? "pass" : "fail"
+println(finalScore)
+
+score = 75
+let finalScore2 = (score ?? 0) >= 60 ? "pass" : "fail"
+println(finalScore2)

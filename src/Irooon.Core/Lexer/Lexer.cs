@@ -114,10 +114,24 @@ public class Lexer
                 }
                 break;
             case '+':
-                AddToken(Match('=') ? TokenType.PlusEqual : TokenType.Plus);
+                if (Match('+'))
+                {
+                    AddToken(TokenType.PlusPlus);
+                }
+                else
+                {
+                    AddToken(Match('=') ? TokenType.PlusEqual : TokenType.Plus);
+                }
                 break;
             case '-':
-                AddToken(Match('=') ? TokenType.MinusEqual : TokenType.Minus);
+                if (Match('-'))
+                {
+                    AddToken(TokenType.MinusMinus);
+                }
+                else
+                {
+                    AddToken(Match('=') ? TokenType.MinusEqual : TokenType.Minus);
+                }
                 break;
             case '*':
                 AddToken(Match('=') ? TokenType.StarEqual : TokenType.Star);
@@ -162,6 +176,21 @@ public class Lexer
 
             case '>':
                 AddToken(Match('=') ? TokenType.GreaterEqual : TokenType.Greater);
+                break;
+
+            case '?':
+                if (Match('?'))
+                {
+                    AddToken(TokenType.QuestionQuestion);
+                }
+                else if (Match('.'))
+                {
+                    AddToken(TokenType.QuestionDot);
+                }
+                else
+                {
+                    AddToken(TokenType.Question);
+                }
                 break;
 
             // 空白文字

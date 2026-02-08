@@ -71,6 +71,10 @@ public class CodeGenerator
             TryExpr e => GenerateTryExpr(e),
             RangeExpr e => GenerateRangeExpr(e),
             ShellExpr e => GenerateShellExpr(e),
+            TernaryExpr e => GenerateTernaryExpr(e),
+            NullCoalescingExpr e => GenerateNullCoalescingExpr(e),
+            IncrementExpr e => GenerateIncrementExpr(e),
+            SafeNavigationExpr e => GenerateSafeNavigationExpr(e),
             _ => throw new NotImplementedException($"Unknown expression type: {expr.GetType()}")
         };
     }
@@ -1566,6 +1570,167 @@ public class CodeGenerator
         var commandExpr = ExprTree.Constant(expr.Command);
 
         return ExprTree.Call(method, commandExpr);
+    }
+
+    #endregion
+
+    #region v0.5.6: 便利な演算子の実装
+
+    /// <summary>
+    /// 三項演算式の生成
+    /// 仕様: condition ? trueValue : falseValue → Expression.Condition(IsTruthy(condition), trueValue, falseValue)
+    /// </summary>
+    private ExprTree GenerateTernaryExpr(TernaryExpr expr)
+    {
+        var conditionExpr = GenerateExpression(expr.Condition);
+        var trueValueExpr = GenerateExpression(expr.TrueValue);
+        var falseValueExpr = GenerateExpression(expr.FalseValue);
+
+        // IsTruthy で真偽値判定
+        var truthyCall = ExprTree.Call(
+            typeof(RuntimeHelpers),
+            nameof(RuntimeHelpers.IsTruthy),
+            null,
+            conditionExpr
+        );
+
+        // Expression.Condition
+        return ExprTree.Condition(
+            truthyCall,
+            trueValueExpr,
+            falseValueExpr,
+            typeof(object)
+        );
+    }
+
+    /// <summary>
+    /// Null合体演算式の生成
+    /// 仕様: value ?? defaultValue → Expression.Coalesce(value, defaultValue)
+    /// </summary>
+    private ExprTree GenerateNullCoalescingExpr(NullCoalescingExpr expr)
+    {
+        var valueExpr = GenerateExpression(expr.Value);
+        var defaultValueExpr = GenerateExpression(expr.DefaultValue);
+
+        // Expression.Coalesce
+        return ExprTree.Coalesce(valueExpr, defaultValueExpr);
+    }
+
+    /// <summary>
+    /// インクリメント/デクリメント演算式の生成
+    /// 仕様:
+    /// - 前置（++x, --x）: var temp = Increment/Decrement(value); SetVariable(temp); return temp;
+    /// - 後置（x++, x--）: var temp = value; SetVariable(Increment/Decrement(value)); return temp;
+    /// </summary>
+    private ExprTree GenerateIncrementExpr(IncrementExpr expr)
+    {
+        // オペランドが変数の場合のみサポート
+        if (expr.Operand is not IdentifierExpr identExpr)
+        {
+            throw new NotImplementedException("Increment/Decrement only supports variables currently");
+        }
+
+        var variableName = identExpr.Name;
+        var runtimeType = typeof(RuntimeHelpers);
+
+        // Increment/Decrementメソッドを取得
+        var method = runtimeType.GetMethod(
+            expr.IsIncrement ? nameof(RuntimeHelpers.Increment) : nameof(RuntimeHelpers.Decrement)
+        )!;
+
+        if (expr.IsPrefix)
+        {
+            // 前置: var newValue = Increment/Decrement(currentValue); ctx.Globals["name"] = newValue; return newValue;
+            var tempVar = ExprTree.Variable(typeof(object), "temp");
+
+            // 現在の変数値を取得
+            var getCurrentValue = ExprTree.Property(
+                ExprTree.Property(_ctxParam, "Globals"),
+                "Item",
+                ExprTree.Constant(variableName)
+            );
+
+            var incrementedExpr = ExprTree.Call(method, getCurrentValue);
+            var assignExpr = ExprTree.Assign(tempVar, incrementedExpr);
+
+            // 変数を更新
+            var setGlobalExpr = ExprTree.Assign(
+                ExprTree.Property(
+                    ExprTree.Property(_ctxParam, "Globals"),
+                    "Item",
+                    ExprTree.Constant(variableName)
+                ),
+                tempVar
+            );
+
+            return ExprTree.Block(
+                typeof(object),
+                new[] { tempVar },
+                new ExprTree[] {
+                    assignExpr,
+                    setGlobalExpr,
+                    tempVar
+                }
+            );
+        }
+        else
+        {
+            // 後置: var oldValue = currentValue; ctx.Globals["name"] = Increment/Decrement(oldValue); return oldValue;
+            var tempVar = ExprTree.Variable(typeof(object), "temp");
+            var newValueVar = ExprTree.Variable(typeof(object), "newValue");
+
+            // 現在の変数値を取得して保存
+            var getCurrentValue = ExprTree.Property(
+                ExprTree.Property(_ctxParam, "Globals"),
+                "Item",
+                ExprTree.Constant(variableName)
+            );
+            var assignOldExpr = ExprTree.Assign(tempVar, getCurrentValue);
+
+            // インクリメント/デクリメントして新しい値を保存
+            var incrementedExpr = ExprTree.Call(method, tempVar);
+            var assignNewExpr = ExprTree.Assign(newValueVar, incrementedExpr);
+
+            // 変数を更新
+            var setGlobalExpr = ExprTree.Assign(
+                ExprTree.Property(
+                    ExprTree.Property(_ctxParam, "Globals"),
+                    "Item",
+                    ExprTree.Constant(variableName)
+                ),
+                newValueVar
+            );
+
+            return ExprTree.Block(
+                typeof(object),
+                new[] { tempVar, newValueVar },
+                new ExprTree[] {
+                    assignOldExpr,
+                    assignNewExpr,
+                    setGlobalExpr,
+                    tempVar
+                }
+            );
+        }
+    }
+
+    /// <summary>
+    /// 安全なナビゲーション演算式の生成
+    /// 仕様: obj?.property → RuntimeHelpers.SafeNavigation(obj, "property")
+    /// </summary>
+    private ExprTree GenerateSafeNavigationExpr(SafeNavigationExpr expr)
+    {
+        var objectExpr = GenerateExpression(expr.Object);
+        var memberNameExpr = ExprTree.Constant(expr.MemberName);
+
+        // RuntimeHelpers.SafeNavigation(obj, memberName)
+        return ExprTree.Call(
+            typeof(RuntimeHelpers),
+            nameof(RuntimeHelpers.SafeNavigation),
+            null,
+            objectExpr,
+            memberNameExpr
+        );
     }
 
     #endregion

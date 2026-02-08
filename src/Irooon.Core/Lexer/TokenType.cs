@@ -49,12 +49,17 @@ public enum TokenType
     StarEqual,      // *=
     SlashEqual,     // /=
     PercentEqual,   // %=
+    PlusPlus,       // ++
+    MinusMinus,     // --
     EqualEqual,     // ==
     BangEqual,      // !=
     Less,           // <
     LessEqual,      // <=
     Greater,        // >
     GreaterEqual,   // >=
+    Question,       // ?
+    QuestionQuestion, // ??
+    QuestionDot,    // ?.
     And,            // and
     Or,             // or
     Not,            // not
