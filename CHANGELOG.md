@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-02-08
+
+### Added
+- ✨ **複合代入演算子** (#18)
+  - `+=`, `-=`, `*=`, `/=`, `%=` をサポート
+  - 変数、配列要素、クラスフィールドに対して使用可能
+  - 内部的に通常の代入と算術演算に展開される（例: `x += 1` → `x = x + 1`）
+  - TokenType に PlusEqual, MinusEqual, StarEqual, SlashEqual, PercentEqual を追加
+  - Lexer で複合代入演算子をトークン化
+  - Parser で複合代入演算子を通常の代入に展開
+  - 13個の新規テスト追加
+
+### Tests
+- ✅ 全テスト成功: 665個（653個 + 12個REPL）
+- ✅ スキップ: 0個
+- ✅ 成功率: 100%
+
 ## [0.5.0] - 2026-02-08
 
 ### Added

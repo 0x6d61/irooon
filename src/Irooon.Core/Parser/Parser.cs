@@ -117,6 +117,63 @@ public class Parser
             throw Error(equals, "Invalid assignment target.");
         }
 
+        // 複合代入演算子（+=, -=, *=, /=, %=）
+        if (Match(TokenType.PlusEqual, TokenType.MinusEqual, TokenType.StarEqual, TokenType.SlashEqual, TokenType.PercentEqual))
+        {
+            var compoundOp = Previous();
+            var value = Assignment(); // 右結合
+
+            // 複合代入を通常の代入に展開: x += 1 → x = x + 1
+            TokenType binaryOp = compoundOp.Type switch
+            {
+                TokenType.PlusEqual => TokenType.Plus,
+                TokenType.MinusEqual => TokenType.Minus,
+                TokenType.StarEqual => TokenType.Star,
+                TokenType.SlashEqual => TokenType.Slash,
+                TokenType.PercentEqual => TokenType.Percent,
+                _ => throw Error(compoundOp, "Unknown compound assignment operator.")
+            };
+
+            if (expr is IdentifierExpr identExpr)
+            {
+                // x += 1 → x = x + 1
+                var binaryExpr = new BinaryExpr(
+                    new IdentifierExpr(identExpr.Name, identExpr.Line, identExpr.Column),
+                    binaryOp,
+                    value,
+                    compoundOp.Line,
+                    compoundOp.Column
+                );
+                return new AssignExpr(identExpr.Name, binaryExpr, compoundOp.Line, compoundOp.Column);
+            }
+            else if (expr is IndexExpr indexExpr)
+            {
+                // arr[i] += 1 → arr[i] = arr[i] + 1
+                var binaryExpr = new BinaryExpr(
+                    new IndexExpr(indexExpr.Target, indexExpr.Index, indexExpr.Line, indexExpr.Column),
+                    binaryOp,
+                    value,
+                    compoundOp.Line,
+                    compoundOp.Column
+                );
+                return new IndexAssignExpr(indexExpr.Target, indexExpr.Index, binaryExpr, compoundOp.Line, compoundOp.Column);
+            }
+            else if (expr is MemberExpr memberExpr)
+            {
+                // obj.field += 1 → obj.field = obj.field + 1
+                var binaryExpr = new BinaryExpr(
+                    new MemberExpr(memberExpr.Target, memberExpr.Name, memberExpr.Line, memberExpr.Column),
+                    binaryOp,
+                    value,
+                    compoundOp.Line,
+                    compoundOp.Column
+                );
+                return new MemberAssignExpr(memberExpr.Target, memberExpr.Name, binaryExpr, compoundOp.Line, compoundOp.Column);
+            }
+
+            throw Error(compoundOp, "Invalid assignment target.");
+        }
+
         return expr;
     }
 

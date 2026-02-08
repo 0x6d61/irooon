@@ -1,0 +1,82 @@
+// 複合代入演算子のサンプル
+// v0.5.2で追加
+
+println("=== 複合代入演算子のデモ ===")
+
+// 1. 基本的な使い方
+var counter = 0
+println("初期値: ${counter}")
+
+counter += 5
+println("counter += 5: ${counter}")
+
+counter -= 2
+println("counter -= 2: ${counter}")
+
+counter *= 3
+println("counter *= 3: ${counter}")
+
+counter /= 3
+println("counter /= 3: ${counter}")
+
+counter %= 4
+println("counter %= 4: ${counter}")
+
+println("")
+
+// 2. 配列要素への複合代入
+println("=== 配列要素への複合代入 ===")
+var scores = [100, 85, 92]
+println("初期配列: ${scores}")
+
+scores[0] += 10
+println("scores[0] += 10: ${scores}")
+
+scores[1] -= 5
+println("scores[1] -= 5: ${scores}")
+
+scores[2] *= 2
+println("scores[2] *= 2: ${scores}")
+
+println("")
+
+// 3. ループ内での使用
+println("=== ループ内での使用 ===")
+var sum = 0
+foreach (num in [1, 2, 3, 4, 5]) {
+    sum += num
+    println("累積: ${sum}")
+}
+println("合計: ${sum}")
+
+println("")
+
+// 4. クラスフィールドへの複合代入
+println("=== クラスフィールドへの複合代入 ===")
+class BankAccount {
+    public var balance = 0
+
+    public fn deposit(amount) {
+        balance += amount
+        println("入金: ${amount}, 残高: ${balance}")
+    }
+
+    public fn withdraw(amount) {
+        balance -= amount
+        println("出金: ${amount}, 残高: ${balance}")
+    }
+
+    public fn applyInterest(rate) {
+        balance *= rate
+        println("利息適用 (${rate}倍), 残高: ${balance}")
+    }
+}
+
+var account = BankAccount()
+account.deposit(1000)
+account.deposit(500)
+account.withdraw(200)
+account.applyInterest(1.05)
+
+println("")
+println("最終残高: ${account.balance}")
