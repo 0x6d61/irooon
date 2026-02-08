@@ -49,7 +49,7 @@ public class Parser
             bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
 
             // 文をパース（関数定義、クラス定義、変数宣言、モジュール）
-            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Export) || Check(TokenType.Import))
+            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.While) || Check(TokenType.For) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Export) || Check(TokenType.Import))
             {
                 statements.Add(Statement());
                 // 文の後の改行をスキップ
@@ -715,6 +715,11 @@ public class Parser
             return WhileStatement();
         }
 
+        if (Match(TokenType.For))
+        {
+            return ForStatement();
+        }
+
         if (Match(TokenType.Foreach))
         {
             return ForeachStatement();
@@ -764,6 +769,50 @@ public class Parser
         var body = new ExprStmt(bodyExpr, bodyExpr.Line, bodyExpr.Column);
 
         return new WhileStmt(condition, body, whileToken.Line, whileToken.Column);
+    }
+
+    /// <summary>
+    /// for文をパースします。
+    /// パターン1: for (item in collection) { body } - コレクション反復
+    /// パターン2: for (condition) { body } - 条件ループ
+    /// </summary>
+    private Statement ForStatement()
+    {
+        var forToken = Previous();
+
+        // ( を期待
+        Consume(TokenType.LeftParen, "Expect '(' after 'for'.");
+
+        // 最初のトークンを確認
+        // - 識別子 + in → コレクション反復
+        // - それ以外 → 条件ループ
+        if (Check(TokenType.Identifier))
+        {
+            var lookahead = Peek();
+            var nextToken = _current + 1 < _tokens.Count ? _tokens[_current + 1] : null;
+
+            // 次のトークンが 'in' かどうかチェック
+            if (nextToken != null && nextToken.Type == TokenType.In)
+            {
+                // パターン1: for (item in collection) { body }
+                var variable = Consume(TokenType.Identifier, "Expect variable name in for loop.");
+                Consume(TokenType.In, "Expect 'in' after variable name.");
+                var collection = Expression();
+                Consume(TokenType.RightParen, "Expect ')' after collection.");
+                Consume(TokenType.LeftBrace, "Expect '{' after for header.");
+                var bodyExpr = BlockExpression();
+
+                return new ForStmt(variable.Lexeme, collection, bodyExpr, forToken.Line, forToken.Column);
+            }
+        }
+
+        // パターン2: for (condition) { body }
+        var condition = Expression();
+        Consume(TokenType.RightParen, "Expect ')' after condition.");
+        Consume(TokenType.LeftBrace, "Expect '{' after for header.");
+        var condBodyExpr = BlockExpression();
+
+        return new ForStmt(condition, condBodyExpr, forToken.Line, forToken.Column);
     }
 
     /// <summary>

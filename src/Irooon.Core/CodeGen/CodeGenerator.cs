@@ -90,6 +90,7 @@ public class CodeGenerator
             ExprStmt s => GenerateExprStmt(s),
             ReturnStmt s => GenerateReturnStmt(s),
             WhileStmt s => GenerateWhileStmt(s),
+            ForStmt s => GenerateForStmt(s),
             ForeachStmt s => GenerateForeachStmt(s),
             BreakStmt s => GenerateBreakStmt(s),
             ContinueStmt s => GenerateContinueStmt(s),
@@ -569,6 +570,138 @@ public class CodeGenerator
             // loop
             ExprTree.Loop(loopBody, breakLabel, continueLabel),
             // return null
+            ExprTree.Constant(null, typeof(object))
+        );
+    }
+
+    /// <summary>
+    /// for文の変換
+    /// パターン1: for (item in collection) { body } - コレクション反復
+    /// パターン2: for (condition) { body } - 条件ループ
+    /// </summary>
+    private ExprTree GenerateForStmt(ForStmt stmt)
+    {
+        return stmt.Kind switch
+        {
+            ForStmtKind.Collection => GenerateForCollection(stmt),
+            ForStmtKind.Condition => GenerateForCondition(stmt),
+            _ => throw new NotImplementedException($"Unknown ForStmtKind: {stmt.Kind}")
+        };
+    }
+
+    /// <summary>
+    /// for (item in collection) { body } の変換
+    /// foreach と同じ実装
+    /// </summary>
+    private ExprTree GenerateForCollection(ForStmt stmt)
+    {
+        var breakLabel = ExprTree.Label($"forBreak_{_labelCounter}");
+        var continueLabel = ExprTree.Label($"forContinue_{_labelCounter++}");
+
+        // コレクション式を評価
+        var collectionExpr = GenerateExpression(stmt.Collection!);
+
+        // IEnumerable にキャスト
+        var enumerableVar = ExprTree.Variable(typeof(System.Collections.IEnumerable), "enumerable");
+        var enumeratorVar = ExprTree.Variable(typeof(System.Collections.IEnumerator), "enumerator");
+        var currentVar = ExprTree.Variable(typeof(object), "current");
+
+        // ループ変数をctx.Globalsに登録
+        var setLoopVar = ExprTree.Call(
+            ExprTree.Property(_ctxParam, nameof(ScriptContext.Globals)),
+            typeof(Dictionary<string, object?>).GetMethod("set_Item")!,
+            ExprTree.Constant(stmt.IteratorVariable),
+            currentVar
+        );
+
+        // ループラベルをスタックにプッシュ
+        _loopLabels.Push((breakLabel, continueLabel));
+
+        var bodyExpr = GenerateExpression(stmt.Body);
+
+        // ループラベルをポップ
+        _loopLabels.Pop();
+
+        // ループ本体
+        var loopBody = ExprTree.Block(
+            typeof(void),
+            // if (!enumerator.MoveNext()) break;
+            ExprTree.IfThen(
+                ExprTree.Not(ExprTree.Call(enumeratorVar, typeof(System.Collections.IEnumerator).GetMethod("MoveNext")!)),
+                ExprTree.Break(breakLabel)
+            ),
+            // current = enumerator.Current
+            ExprTree.Assign(currentVar, ExprTree.Property(enumeratorVar, nameof(System.Collections.IEnumerator.Current))),
+            // ctx.Globals[variable] = current
+            setLoopVar,
+            // body
+            bodyExpr
+        );
+
+        // for全体
+        return ExprTree.Block(
+            typeof(object),
+            new[] { enumerableVar, enumeratorVar, currentVar },
+            // enumerable = (IEnumerable)collection
+            ExprTree.Assign(
+                enumerableVar,
+                ExprTree.TypeAs(collectionExpr, typeof(System.Collections.IEnumerable))
+            ),
+            // enumerator = enumerable.GetEnumerator()
+            ExprTree.Assign(
+                enumeratorVar,
+                ExprTree.Call(enumerableVar, typeof(System.Collections.IEnumerable).GetMethod("GetEnumerator")!)
+            ),
+            // loop
+            ExprTree.Loop(loopBody, breakLabel, continueLabel),
+            // return null
+            ExprTree.Constant(null, typeof(object))
+        );
+    }
+
+    /// <summary>
+    /// for (condition) { body } の変換
+    /// while と同じ実装
+    /// </summary>
+    private ExprTree GenerateForCondition(ForStmt stmt)
+    {
+        var breakLabel = ExprTree.Label($"forBreak_{_labelCounter}");
+        var continueLabel = ExprTree.Label($"forContinue_{_labelCounter++}");
+
+        // ループラベルをスタックにプッシュ
+        _loopLabels.Push((breakLabel, continueLabel));
+
+        var condExpr = GenerateExpression(stmt.Condition!);
+        var bodyExpr = GenerateExpression(stmt.Body);
+
+        // ループラベルをポップ
+        _loopLabels.Pop();
+
+        // IsTruthy で真偽値判定
+        var truthyCall = ExprTree.Call(
+            typeof(RuntimeHelpers),
+            nameof(RuntimeHelpers.IsTruthy),
+            null,
+            condExpr
+        );
+
+        // if (!truthy) break;
+        var breakIfFalse = ExprTree.IfThen(
+            ExprTree.Not(truthyCall),
+            ExprTree.Break(breakLabel)
+        );
+
+        // Loop body
+        var loopBody = ExprTree.Block(
+            typeof(void),
+            breakIfFalse,
+            bodyExpr
+        );
+
+        // Expression.Loop with break and continue labels
+        return ExprTree.Block(
+            typeof(object),
+            ExprTree.Loop(loopBody, breakLabel, continueLabel),
             ExprTree.Constant(null, typeof(object))
         );
     }

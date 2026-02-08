@@ -402,4 +402,81 @@ if (x < 0) {
         Assert.NotNull(throwStmt.Value);
         Assert.IsType<BinaryExpr>(throwStmt.Value);
     }
+
+    [Fact]
+    public void TestParseForStmt_Collection()
+    {
+        // for (item in collection) { body }
+        var source = @"
+for (item in [1, 2, 3]) {
+    item
+}";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.IsType<BlockExpr>(ast);
+        var block = (BlockExpr)ast;
+        Assert.Single(block.Statements);
+        Assert.IsType<ForStmt>(block.Statements[0]);
+        var forStmt = (ForStmt)block.Statements[0];
+
+        Assert.Equal(ForStmtKind.Collection, forStmt.Kind);
+        Assert.Equal("item", forStmt.IteratorVariable);
+        Assert.NotNull(forStmt.Collection);
+        Assert.IsType<ListExpr>(forStmt.Collection);
+        Assert.NotNull(forStmt.Body);
+        Assert.IsType<BlockExpr>(forStmt.Body);
+    }
+
+    [Fact]
+    public void TestParseForStmt_Condition()
+    {
+        // for (condition) { body }
+        var source = @"
+for (x < 10) {
+    x = x + 1
+}";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.IsType<BlockExpr>(ast);
+        var block = (BlockExpr)ast;
+        Assert.Single(block.Statements);
+        Assert.IsType<ForStmt>(block.Statements[0]);
+        var forStmt = (ForStmt)block.Statements[0];
+
+        Assert.Equal(ForStmtKind.Condition, forStmt.Kind);
+        Assert.Null(forStmt.IteratorVariable);
+        Assert.Null(forStmt.Collection);
+        Assert.NotNull(forStmt.Condition);
+        Assert.IsType<BinaryExpr>(forStmt.Condition);
+        Assert.NotNull(forStmt.Body);
+        Assert.IsType<BlockExpr>(forStmt.Body);
+    }
+
+    [Fact]
+    public void TestParseForStmt_WithRange()
+    {
+        // for (i in 1..10) { body }
+        var source = @"
+for (i in 1..10) {
+    i
+}";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.IsType<BlockExpr>(ast);
+        var block = (BlockExpr)ast;
+        Assert.Single(block.Statements);
+        Assert.IsType<ForStmt>(block.Statements[0]);
+        var forStmt = (ForStmt)block.Statements[0];
+
+        Assert.Equal(ForStmtKind.Collection, forStmt.Kind);
+        Assert.Equal("i", forStmt.IteratorVariable);
+        Assert.NotNull(forStmt.Collection);
+        Assert.IsType<RangeExpr>(forStmt.Collection);
+    }
 }
