@@ -983,7 +983,7 @@ square(PI)
 
     #region クラス継承テスト
 
-    [Fact(Skip = "Class inheritance not implemented yet (#53)")]
+    [Fact]
     public void TestClassInheritance_Basic()
     {
         var source = @"
@@ -991,7 +991,7 @@ class Parent {
     public var name = ""parent""
 
     public fn greet() {
-        return ""Hello from "" + name
+        return ""Hello from ${name}""
     }
 }
 
@@ -999,7 +999,7 @@ class Child : Parent {
     public var age = 0
 
     public fn introduce() {
-        return ""I am "" + name + "" and "" + age + "" years old""
+        return ""I am ${name} and ${age} years old""
     }
 }
 
@@ -1014,7 +1014,7 @@ child.introduce()
         Assert.Equal("I am Alice and 10 years old", result);
     }
 
-    [Fact(Skip = "Class inheritance not implemented yet (#53)")]
+    [Fact]
     public void TestClassInheritance_MethodInheritance()
     {
         var source = @"
@@ -1022,7 +1022,7 @@ class Parent {
     public var name = ""parent""
 
     public fn greet() {
-        return ""Hello from "" + name
+        return ""Hello from ${name}""
     }
 }
 
@@ -1040,7 +1040,7 @@ child.greet()
         Assert.Equal("Hello from Bob", result);
     }
 
-    [Fact(Skip = "Class inheritance not implemented yet (#53)")]
+    [Fact]
     public void TestClassInheritance_MultiLevel()
     {
         var source = @"
@@ -1060,7 +1060,7 @@ let child = Child()
 child.family = ""Johnson""
 child.name = ""Charlie""
 child.age = 15
-child.family + "" "" + child.name + "" "" + child.age
+""${child.family} ${child.name} ${child.age}""
 ";
         var engine = new ScriptEngine();
         var result = engine.Execute(source);
@@ -1068,7 +1068,7 @@ child.family + "" "" + child.name + "" "" + child.age
         Assert.Equal("Johnson Charlie 15", result);
     }
 
-    [Fact(Skip = "Class inheritance not implemented yet (#53)")]
+    [Fact]
     public void TestClassInheritance_MethodOverride()
     {
         var source = @"
@@ -1095,7 +1095,7 @@ child.greet()
         Assert.Equal("Hello from child", result);
     }
 
-    [Fact(Skip = "Class inheritance not implemented yet (#53)")]
+    [Fact]
     public void TestInheritanceExample()
     {
         var path = GetExamplePath("inheritance.iro");

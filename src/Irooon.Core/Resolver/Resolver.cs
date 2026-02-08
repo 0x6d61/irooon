@@ -12,6 +12,7 @@ public class Resolver
 {
     private Scope _currentScope;
     private readonly List<ResolveException> _errors = new();
+    private readonly Dictionary<string, ClassDef> _classes = new();
 
     /// <summary>
     /// Resolverの新しいインスタンスを初期化します。
@@ -563,15 +564,8 @@ public class Resolver
         // クラス名をスコープに追加
         Declare(stmt.Name, false, stmt.Line, stmt.Column);
 
-        // 親クラスが指定されている場合、その存在を確認
-        ClassDef? parentClassDef = null;
-        if (!string.IsNullOrEmpty(stmt.ParentClass))
-        {
-            // 親クラスがすでに定義されているかチェック
-            // 注: 実際のクラス定義は _resolvedClasses に保存されていないので、
-            // ここでは親クラス名が識別子として解決可能かをチェックする
-            // 実行時にCodeGeneratorで親クラスの存在を確認する
-        }
+        // クラスをレジストリに登録
+        _classes[stmt.Name] = stmt;
 
         // フィールドの初期化式を解析
         foreach (var field in stmt.Fields)
@@ -595,9 +589,14 @@ public class Resolver
             }
 
             // 親クラスのフィールドもメソッドスコープに宣言
-            // 注: 親クラスの定義は実行時まで取得できないため、
-            // ここでは親クラス名のみを記録しておく
-            // 実際のフィールド宣言は実行時にCodeGeneratorで行う
+            if (!string.IsNullOrEmpty(stmt.ParentClass))
+            {
+                var parentFields = GetAllParentFields(stmt.ParentClass);
+                foreach (var field in parentFields)
+                {
+                    Declare(field.Name, false, field.Line, field.Column);
+                }
+            }
 
             // パラメータを宣言
             foreach (var param in method.Parameters)
@@ -610,6 +609,26 @@ public class Resolver
 
             EndScope();
         }
+    }
+
+    /// <summary>
+    /// 親クラスのフィールドを再帰的に取得します。
+    /// </summary>
+    private List<Ast.FieldDef> GetAllParentFields(string className)
+    {
+        var fields = new List<Ast.FieldDef>();
+
+        if (_classes.TryGetValue(className, out var classDef))
+        {
+            fields.AddRange(classDef.Fields);
+
+            if (!string.IsNullOrEmpty(classDef.ParentClass))
+            {
+                fields.AddRange(GetAllParentFields(classDef.ParentClass));
+            }
+        }
+
+        return fields;
     }
 
     private void ResolveTryExpr(TryExpr expr)

@@ -1,0 +1,73 @@
+// クラス継承のサンプル
+
+class Animal {
+    public var name = "Unknown"
+
+    public fn speak() {
+        println(name, "makes a sound")
+    }
+
+    public fn info() {
+        println("Animal name:", name)
+    }
+}
+
+class Dog : Animal {
+    public var breed = "Unknown"
+
+    public fn bark() {
+        println(name, "barks!")
+    }
+
+    public fn info() {
+        println("Dog name:", name, ", breed:", breed)
+    }
+}
+
+// インスタンス作成とメソッド呼び出し
+let dog = Dog()
+dog.name = "Buddy"
+dog.breed = "Golden Retriever"
+
+println("=== Dog Info ===")
+dog.info()
+dog.speak()
+dog.bark()
+
+println("")
+
+// 多段階継承のサンプル
+class LivingThing {
+    public var alive = true
+
+    public fn breathe() {
+        println("Breathing...")
+    }
+}
+
+class Mammal : LivingThing {
+    public var warmBlooded = true
+
+    public fn feedMilk() {
+        println("Feeding milk to babies")
+    }
+}
+
+class Cat : Mammal {
+    public var name = "Unknown"
+
+    public fn meow() {
+        println(name, "meows!")
+    }
+}
+
+let cat = Cat()
+cat.name = "Whiskers"
+
+println("=== Cat Info ===")
+cat.breathe()
+cat.feedMilk()
+cat.meow()
+
+// テストのために結果を返す
+"Inheritance test completed"

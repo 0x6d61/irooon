@@ -333,8 +333,9 @@ public static class RuntimeHelpers
                 return fieldValue;
             }
 
-            // メソッドを検索
-            if (instance.Class.Methods.TryGetValue(name, out var method))
+            // メソッドを検索（親クラスも含む）
+            var method = instance.Class.GetMethod(name);
+            if (method != null)
             {
                 return method;
             }
