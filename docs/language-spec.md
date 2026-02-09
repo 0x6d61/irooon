@@ -1,683 +1,802 @@
-# irooon Language Specification v0.3
+# irooon Language Specification
 
-## 概要
+## 1. 概要
 
 irooon は .NET 上で動作する動的スクリプト言語である。
-DLR (System.Linq.Expressions) を使用して実行する。
+DLR (System.Linq.Expressions) を使用してコンパイル・実行する。
 Groovy風の簡略構文と式志向設計を採用する。
 
 ---
 
-## 実行モデル
+## 2. 実行モデル
 
-* トップレベルはそのまま実行される
-* プログラムは Block として評価される
-* 動的型言語（すべて object）
-* REPLサポート（対話的実行環境）
+- トップレベルコードはそのまま実行される
+- プログラムは Block として評価される
+- 動的型言語（すべて `object`）
+- REPLサポート（対話的実行環境）
+
+### 実行パイプライン
+
+```
+Source → Lexer → Parser → AST → Resolver → ExpressionTree Generator → Compile → Invoke
+```
 
 ---
 
-## 基本構文
+## 3. 基本構文
 
-セミコロンは不要。
+セミコロンは不要。改行で文を区切る。
 
 ### コメント
 
-#### 一行コメント
-
-```
-// これはコメントです
+```iro
+// 一行コメント
 let x = 5 // 行末までコメント
+
+/* 複数行
+   コメント */
+let y = /* インライン */ 10
 ```
-
-`//` から行末までがコメントとして扱われる。
-
-#### 複数行コメント
-
-```
-/* これは
-   複数行の
-   コメントです */
-
-let x = /* コメント */ 5
-```
-
-`/*` から `*/` までがコメントとして扱われる。
-ネストした複数行コメントはサポートしない。
 
 ### ブロック
 
-```
-{ stmt* expr? }
+```iro
+{
+    stmt*
+    expr?
+}
 ```
 
-ブロックの最後の式が値になる。
-最後が文のみの場合は null を返す。
+ブロックの最後の式が値になる。最後が文のみの場合は `null` を返す。
 
 ---
 
-## 変数
+## 4. 変数
 
-```
-let x = expr
-var y = expr
+### let（再代入不可）
+
+```iro
+let x = 42
+let name = "Alice"
 ```
 
-* `let` は再代入不可
-* `var` は再代入可能
+### var（再代入可能）
+
+```iro
+var count = 0
+count = count + 1
+```
+
+### 分割代入（Destructuring）
+
+リストまたはハッシュの要素を一度に複数の変数に代入する。
+
+```iro
+// リスト分割代入
+let [a, b, c] = [1, 2, 3]
+// a = 1, b = 2, c = 3
+
+// ハッシュ分割代入
+let {x, y} = {x: 10, y: 20}
+// x = 10, y = 20
+
+// var でも使用可能
+var [first, second] = [100, 200]
+```
 
 ---
 
-## リテラル
+## 5. リテラル
 
-### 数値リテラル
+### 数値
 
-```
-123
+```iro
+42
 3.14
+0
+-7
 ```
 
-### 文字列リテラル
+すべての数値は内部的に `double` として扱われる。
 
-```
-"Hello"
-```
+### 文字列
 
-#### 文字列補間
-
-文字列内に式を埋め込むことができる。
-
-```
-"Hello, ${name}!"
-"Result: ${x + y}"
+```iro
+"Hello, World!"
+"Line 1\nLine 2"
 ```
 
-* `${expression}` で式を評価し、文字列に変換する
-* ネストした補間もサポート
+### 真偽値
 
-### 真偽値リテラル
-
-```
+```iro
 true
 false
 ```
 
-### null リテラル
+### null
 
-```
+```iro
 null
 ```
 
-### リストリテラル
+### リスト
 
-```
+```iro
 [1, 2, 3]
 ["a", "b", "c"]
 [expr1, expr2, expr3]
+[]  // 空リスト
 ```
 
-リストは動的配列として実装される。
 要素の型は制限されない（異種混在可能）。
 
-### ハッシュリテラル
+#### スプレッド演算子
 
+```iro
+let a = [1, 2]
+let b = [0, ...a, 3]  // [0, 1, 2, 3]
 ```
+
+### ハッシュ
+
+```iro
 {key1: value1, key2: value2}
 {name: "Alice", age: 30}
+{}  // 空ハッシュ
 ```
 
-ハッシュはキー・バリューの辞書として実装される。
-キーは文字列として扱われる。
-値の型は制限されない。
+キーは文字列として扱われる。値の型は制限されない。
 
-### 範囲リテラル
+### 範囲（Range）
 
-```
-start..end      // 排他的範囲（endを含まない）
-start...end     // 包括的範囲（endを含む）
+```iro
+1..10     // 排他的範囲: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+1...10    // 包括的範囲: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 ```
 
-**例:**
-```
-1..10     // [1, 2, 3, 4, 5, 6, 7, 8, 9]
-1...10    // [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-0..5      // [0, 1, 2, 3, 4]
-```
-
-範囲はリストとして実装され、forループでの反復に使用できます。
+範囲はリストとして展開され、for ループでの反復に使用できる。
 
 ---
 
-## 式
+## 6. 文字列
 
-### 算術
+### 文字列補間
 
-* `+` `-` `*` `/` `%`
-
-### 複合代入演算子（v0.5.2+）
-
-複合代入演算子は、算術演算と代入を一度に行う。
-
-* `+=` - 加算代入（`x += 1` は `x = x + 1` と同じ）
-* `-=` - 減算代入（`x -= 1` は `x = x - 1` と同じ）
-* `*=` - 乗算代入（`x *= 2` は `x = x * 2` と同じ）
-* `/=` - 除算代入（`x /= 2` は `x = x / 2` と同じ）
-* `%=` - 剰余代入（`x %= 3` は `x = x % 3` と同じ）
-
-例:
+```iro
+let name = "World"
+"Hello, ${name}!"           // "Hello, World!"
+"Result: ${1 + 2}"          // "Result: 3"
+"${a} and ${b}"             // ネストした補間もサポート
 ```
-var count = 0
-count += 5    // count は 5
-count *= 2    // count は 10
 
-var arr = [1, 2, 3]
-arr[0] += 10  // arr[0] は 11
+### エスケープシーケンス
 
-class Counter {
-    public var value = 0
-    public fn increment(n) {
-        value += n
-    }
+| エスケープ | 結果 | 説明 |
+|-----------|------|------|
+| `\"` | `"` | ダブルクォート |
+| `\\` | `\` | バックスラッシュ |
+| `\n` | 改行 | ラインフィード |
+| `\t` | タブ | 水平タブ |
+| `\r` | CR | キャリッジリターン |
+| `\0` | NULL | ヌル文字 |
+| `\$` | `$` | ドル記号（補間のエスケープ） |
+
+---
+
+## 7. 演算子
+
+### 算術演算子
+
+| 演算子 | 説明 | 例 |
+|--------|------|-----|
+| `+` | 加算 / 文字列連結 | `3 + 4` → `7` |
+| `-` | 減算 | `10 - 3` → `7` |
+| `*` | 乗算 | `3 * 4` → `12` |
+| `/` | 除算 | `10 / 3` → `3.333...` |
+| `%` | 剰余 | `10 % 3` → `1` |
+| `**` | べき乗 | `2 ** 10` → `1024` |
+
+### 比較演算子
+
+| 演算子 | 説明 |
+|--------|------|
+| `==` | 等価 |
+| `!=` | 非等価 |
+| `<` | 小なり |
+| `<=` | 小なりイコール |
+| `>` | 大なり |
+| `>=` | 大なりイコール |
+
+### 論理演算子
+
+| 演算子 | 説明 |
+|--------|------|
+| `and` | 論理AND（短絡評価） |
+| `or` | 論理OR（短絡評価） |
+| `not` | 論理否定 |
+
+### ビット演算子
+
+| 演算子 | 説明 | 例 |
+|--------|------|-----|
+| `&` | ビットAND | `5 & 3` → `1` |
+| `\|` | ビットOR | `5 \| 3` → `7` |
+| `^` | ビットXOR | `5 ^ 3` → `6` |
+| `~` | ビットNOT | `~5` → `-6` |
+| `<<` | 左シフト | `1 << 3` → `8` |
+| `>>` | 右シフト | `8 >> 2` → `2` |
+
+### 複合代入演算子
+
+```iro
+var x = 10
+x += 5    // x = x + 5
+x -= 3    // x = x - 3
+x *= 2    // x = x * 2
+x /= 4    // x = x / 4
+x %= 3    // x = x % 3
+```
+
+### インクリメント / デクリメント
+
+```iro
+var i = 0
+i++    // 後置: 現在の値を返してから加算
+++i    // 前置: 加算してから値を返す
+i--    // 後置デクリメント
+--i    // 前置デクリメント
+```
+
+### Null 関連演算子
+
+```iro
+// セーフナビゲーション（?.）
+let name = user?.name    // user が null なら null を返す
+
+// Null 合体演算子（??）
+let value = x ?? "default"    // x が null なら "default"
+let a = x ?? y ?? z           // チェーン可能
+```
+
+### 三項演算子
+
+```iro
+let result = condition ? "yes" : "no"
+```
+
+### 演算子の優先度（低→高）
+
+| 優先度 | 演算子 | 結合性 |
+|--------|--------|--------|
+| 1 | `=` `+=` `-=` `*=` `/=` `%=` | 右 |
+| 2 | `? :` | 右 |
+| 3 | `or` `??` | 左 |
+| 4 | `and` | 左 |
+| 5 | `==` `!=` | 左 |
+| 6 | `<` `<=` `>` `>=` | 左 |
+| 7 | `&` `\|` `^` | 左 |
+| 8 | `<<` `>>` | 左 |
+| 9 | `..` `...` | 左 |
+| 10 | `+` `-` | 左 |
+| 11 | `*` `/` `%` | 左 |
+| 12 | `**` | 右 |
+| 13 | `-`(単項) `not` `~` `++` `--`(前置) `await` | 右 |
+| 14 | `()` `.` `?.` `[]` `++` `--`(後置) | 左 |
+
+---
+
+## 8. 制御構造
+
+### if / else if / else
+
+```iro
+if (condition) {
+    expr
+} else if (condition2) {
+    expr
+} else {
+    expr
 }
 ```
 
-### 比較
-
-* `==` `!=` `<` `>` `<=` `>=`
-
-### 論理
-
-* `and` `or` `not`
-
-### 単項
-
-* `+` `-` `not`
-
-### 呼び出し
-
-```
-expr(args)
-```
-
-### メンバアクセス
-
-```
-expr.name
-```
-
-### インデックスアクセス
-
-```
-expr[index]
-```
-
-リストまたはハッシュの要素にアクセスする。
-インデックスは整数（リスト）または文字列（ハッシュ）を指定する。
-
-例:
-```
-let numbers = [1, 2, 3]
-numbers[0]  // 1
-
-let person = {name: "Alice"}
-person["name"]  // "Alice"
-```
-
-### インデックス代入
-
-```
-expr[index] = value
-```
-
-リストまたはハッシュの要素に値を代入する。
-
-例:
-```
-let numbers = [1, 2, 3]
-numbers[0] = 99  // [99, 2, 3]
-
-let person = {name: "Alice"}
-person["age"] = 30  // {name: "Alice", age: 30}
-```
-
----
-
-## if式
-
-```
-if (cond) { expr } else { expr }
-```
-
-* `else` は必須。
-
----
-
-## ループ
+- `else` は必須（if は式であり値を返す）
+- `else if` で複数条件を連鎖可能
 
 ### for ループ
 
-irooonでは、すべてのループを`for`構文で統一しています。
+すべてのループは `for` 構文で統一。
 
 #### 条件ループ
 
-```
-for (cond) {
-  stmt*
-}
-```
-
-条件が真の間、ループを実行します。
-
-**例:**
-```
+```iro
 var i = 0
 for (i < 10) {
     i = i + 1
 }
 ```
 
-#### コレクション反復
+#### コレクション反復（for-in）
 
-```
-for (item in collection) {
-  stmt*
-}
-```
-
-* コレクションはリスト、ハッシュ、または範囲（Range）
-* リストの場合、`item` は各要素
-* ハッシュの場合、`item` は `{key: k, value: v}` のオブジェクト
-* 範囲の場合、`item` は各数値
-
-**例:**
-```
-// リスト
-for (n in [1, 2, 3, 4, 5]) {
-    println(n)
+```iro
+for (item in [1, 2, 3]) {
+    println(item)
 }
 
-// 範囲（排他的）
-for (i in 1..10) {
-    println(i)  // 1から9まで
+for (i in 0..10) {
+    println(i)    // 0 から 9
 }
 
-// 範囲（包括的）
-for (i in 1...10) {
-    println(i)  // 1から10まで
+for (i in 0...10) {
+    println(i)    // 0 から 10
 }
 ```
 
 ### break / continue
 
-```
-break      // ループを中断
-continue   // 次の反復へスキップ
-```
-
-* `break` と `continue` はループ内でのみ使用可能
-* ネストしたループもサポート
-
----
-
-## 例外処理
-
-### try / catch / finally
-
-```
-try {
-  stmt*
-} catch (e) {
-  stmt*
-} finally {
-  stmt*
-}
-```
-
-* `catch` ブロックで例外オブジェクトを受け取る
-* `finally` ブロックは必ず実行される
-* `catch` と `finally` は両方省略できない
-
-### throw
-
-```
-throw expression
-```
-
-* 任意の値を例外として投げる
-* 文字列、オブジェクト、その他任意の型
-
----
-
-## モジュール
-
-### export
-
-```
-export fn name(args) { ... }
-export class Name { ... }
-export let/var name = expr
-```
-
-* 関数、クラス、変数をエクスポートする
-* エクスポートされた要素は他のモジュールから参照可能
-
-### import
-
-```
-import "path/to/module.iro"
-```
-
-* 他のモジュールをインポートする
-* パスは相対パスまたは絶対パス
-* エクスポートされた要素がスコープに追加される
-
----
-
-## ビルトイン関数
-
-### print / println
-
-```
-print(arg1, arg2, ...)    // 改行なし
-println(arg1, arg2, ...)  // 改行あり
-```
-
-* 標準出力に値を出力
-* 複数引数をスペース区切りで出力
-* nullは"null"として表示
-
----
-
-## 文字列メソッド
-
-文字列はCLR相互運用により、以下のメソッドを持つ:
-
-* `length()` - 文字列の長さ
-* `toUpper()` - 大文字に変換
-* `toLower()` - 小文字に変換
-* `trim()` - 前後の空白を削除
-* `substring(start, length)` - 部分文字列を取得
-* `split(separator)` - 文字列を分割
-* `contains(value)` - 文字列が含まれるか
-* `startsWith(value)` - 文字列で始まるか
-* `endsWith(value)` - 文字列で終わるか
-* `replace(oldValue, newValue)` - 文字列を置換
-
----
-
-## 関数
-
-```
-fn name(a, b) {
-  expr
-}
-```
-
-* 関数はファーストクラス。
-* クロージャをサポートする。
-
-### ラムダ
-
-```
-fn (a, b) { expr }
-```
-
----
-
-## クラス
-
-```
-class Name {
-}
-```
-
-### 修飾子
-
-* `public`
-* `private`
-* `static`
-
----
-
-## フィールド
-
-```
-public var name = expr
-private var count = 0
-```
-
-### ルール
-
-* フィールド宣言は必須
-* 宣言されたフィールドは自動プロパティ
-* `obj.x` は常にプロパティアクセス
-* フィールド直アクセスは存在しない
-* 宣言時初期化を行う
-
-### 内部モデル
-
-Instance:
-```
-Dictionary<string, object> fields
-```
-
----
-
-## メソッド
-
-```
-public fn hello() {
-  expr
-}
-```
-
-### staticメソッド
-
-```
-public static fn create() {
-  expr
+```iro
+for (i in 0..100) {
+    if (i == 5) { continue }
+    if (i == 10) { break }
+    println(i)
 }
 ```
 
 ---
 
-## コンストラクタ
+## 9. 関数
 
-```
-init(args) {
+### 関数定義
+
+```iro
+fn add(a, b) {
+    a + b
 }
 ```
 
-### インスタンス生成
+- 関数はファーストクラスオブジェクト
+- 最後の式が戻り値
+- `return` で早期リターン可能
 
-```
-Name(args)
-```
+### ラムダ（無名関数）
 
-生成時に:
-
-1. フィールド初期化
-2. init呼び出し
-
-を行う。
-
----
-
-## プロパティモデル
-
-`obj.x` は常にプロパティアクセス。
-
-### 解決順序
-
-1. 言語内プロパティ
-2. CLRプロパティ
-3. エラー
-
----
-
-## CLR相互運用
-
-CLR型は名前解決で参照可能。
-
-例:
-```
-System.IO.File.ReadAllText(path)
+```iro
+let double = fn (x) { x * 2 }
 ```
 
-リフレクションで呼び出す。
+### アロー関数
 
----
+```iro
+// 単一パラメータ（括弧省略可能）
+let double = x => x * 2
 
-## スコープ
+// 複数パラメータ
+let add = (a, b) => a + b
 
-* グローバルスコープ
-* 関数スコープ
-* ブロックスコープ
-
-クロージャは外側スコープをキャプチャする。
-
----
-
-## AST（最小）
-
-### Expression
-
-* `LiteralExpr`
-* `BinaryExpr`
-* `UnaryExpr`
-* `CallExpr`
-* `MemberExpr`
-* `IndexExpr`
-* `AssignExpr`
-* `IfExpr`
-* `BlockExpr`
-* `LambdaExpr`
-* `NewExpr`
-* `ListExpr`
-* `HashExpr`
-* `StringInterpolationExpr`
-
-### Statement
-
-* `LetStmt`
-* `VarStmt`
-* `ClassStmt`
-* `ExprStmt`
-* `ReturnStmt`
-* `WhileStmt`
-* `ForeachStmt`
-* `BreakStmt`
-* `ContinueStmt`
-* `TryStmt`
-* `ThrowStmt`
-* `ExportStmt`
-* `ImportStmt`
-
-### Class
-
-* `ClassDef`
-* `FieldDef`
-* `MethodDef`
-
----
-
-## 実行パイプライン
-
+// ブロック本体
+let greet = name => {
+    let msg = "Hello, " + name
+    msg
+}
 ```
-Source
-→ Lexer
-→ Parser
-→ AST
-→ Resolver
-→ ExpressionTree Generator
-→ Compile
-→ Invoke
+
+### デフォルトパラメータ
+
+```iro
+fn greet(name = "World") {
+    "Hello, " + name + "!"
+}
+
+greet()         // "Hello, World!"
+greet("Alice")  // "Hello, Alice!"
+```
+
+### レストパラメータ
+
+```iro
+fn sum(first, ...rest) {
+    var total = first
+    for (n in rest) {
+        total = total + n
+    }
+    total
+}
+
+sum(1, 2, 3, 4)  // 10
+```
+
+### スプレッド演算子（関数呼び出し）
+
+```iro
+let args = [1, 2, 3]
+fn add(a, b, c) { a + b + c }
+add(...args)  // 6
+```
+
+### クロージャ
+
+```iro
+fn counter() {
+    var count = 0
+    fn () {
+        count = count + 1
+        count
+    }
+}
+
+let c = counter()
+c()  // 1
+c()  // 2
 ```
 
 ---
 
-## エラー
-
-すべてのASTノードは以下を保持する:
-
-* `line`
-* `column`
-
----
-
-## CLI
-
-```
-irooon script.iro
-```
-
----
-
-## v0.3での実装状況
-
-### 実装済み機能
-* ✅ ビルトイン関数（print/println）
-* ✅ 文字列補間
-* ✅ 文字列メソッド
-* ✅ ループ（for/break/continue）- v0.3で追加、v0.4で統一
-* ✅ 範囲リテラル（.. / ...）- v0.4で追加
-* ✅ 例外処理（try/catch/finally/throw）
-* ✅ モジュールシステム（export/import）
-* ✅ REPL
-
-### 将来の拡張（v0.4以降）
-* 型推論・型注釈
-* ✅ CLR相互運用（.NET標準ライブラリの呼び出し）- v0.4で追加
-* 継承
-* 演算子オーバーロード
-* 括弧省略
-* パッケージ管理
-
----
-
-## CLR相互運用
-
-irooonはCLR（Common Language Runtime）との相互運用をサポートしています。
-.NET標準ライブラリの型とメソッドを直接呼び出すことができます。
+## 10. クラス
 
 ### 基本構文
 
 ```iro
-// 静的メソッドの呼び出し
-let result = System.Math.Abs(-42)
+class Animal {
+    public var name = ""
+    public var sound = ""
 
-// 静的プロパティのアクセス
+    init(name, sound) {
+        this.name = name
+        this.sound = sound
+    }
+
+    public fn speak() {
+        this.name + " says " + this.sound
+    }
+}
+
+let dog = Animal("Rex", "Woof")
+dog.speak()  // "Rex says Woof"
+```
+
+### フィールド
+
+```iro
+class Point {
+    public var x = 0      // public: 外部からアクセス可能
+    private var _id = 0   // private: クラス内部のみ
+}
+```
+
+- フィールド宣言は必須
+- 宣言時に初期化する
+
+### メソッド
+
+```iro
+class Calc {
+    public var value = 0
+
+    public fn add(n) {
+        this.value = this.value + n
+        this
+    }
+
+    public static fn create() {
+        Calc()
+    }
+}
+```
+
+### コンストラクタ（init）
+
+```iro
+class Rect {
+    public var w = 0
+    public var h = 0
+
+    init(w, h) {
+        this.w = w
+        this.h = h
+    }
+}
+
+let r = Rect(10, 20)
+```
+
+- `init` はインスタンス生成時に自動呼び出し
+- フィールド初期化 → init実行の順
+
+### this
+
+メソッド・init 内で現在のインスタンスを参照する。
+
+```iro
+class Builder {
+    public var x = 0
+
+    fn setX(v) {
+        this.x = v
+        this          // 自身を返す（メソッドチェーン）
+    }
+}
+
+let b = Builder()
+b.setX(42).setX(99)
+```
+
+### 継承
+
+```iro
+class Animal {
+    public var name = ""
+
+    public fn speak() {
+        this.name + " speaks"
+    }
+}
+
+class Dog extends Animal {
+    public var breed = ""
+
+    public fn bark() {
+        this.name + " barks!"
+    }
+}
+
+let d = Dog()
+d.name = "Rex"
+d.bark()   // "Rex barks!"
+d.speak()  // "Rex speaks"（親メソッドを継承）
+```
+
+- `extends` で単一継承
+- `super` で親クラスの参照
+
+### 演算子オーバーロード
+
+クラスにマジックメソッドを定義して演算子をオーバーロードする。
+
+```iro
+class Vec {
+    public var x = 0
+    public var y = 0
+
+    fn __add__(other) {
+        let r = Vec()
+        r.x = this.x + other.x
+        r.y = this.y + other.y
+        r
+    }
+
+    fn __eq__(other) {
+        this.x == other.x and this.y == other.y
+    }
+}
+
+let a = Vec()
+a.x = 1
+a.y = 2
+let b = Vec()
+b.x = 3
+b.y = 4
+let c = a + b    // Vec(4, 6)
+a == b           // false
+```
+
+#### マジックメソッド一覧
+
+| 演算子 | メソッド名 | 引数 |
+|--------|-----------|------|
+| `+` | `__add__` | `(other)` |
+| `-` | `__sub__` | `(other)` |
+| `*` | `__mul__` | `(other)` |
+| `/` | `__div__` | `(other)` |
+| `%` | `__mod__` | `(other)` |
+| `**` | `__pow__` | `(other)` |
+| `==` | `__eq__` | `(other)` |
+| `!=` | `__ne__` | `(other)` |
+| `<` | `__lt__` | `(other)` |
+| `<=` | `__le__` | `(other)` |
+| `>` | `__gt__` | `(other)` |
+| `>=` | `__ge__` | `(other)` |
+| `&` | `__band__` | `(other)` |
+| `\|` | `__bor__` | `(other)` |
+| `^` | `__bxor__` | `(other)` |
+| `<<` | `__lshift__` | `(other)` |
+| `>>` | `__rshift__` | `(other)` |
+| `~` | `__bnot__` | `()` |
+| 単項 `-` | `__neg__` | `()` |
+
+---
+
+## 11. match 式
+
+```iro
+let result = match (x) {
+    1 => "one"
+    2 => "two"
+    3 => {
+        let msg = "three"
+        msg
+    }
+    _ => "other"    // ワイルドカード（デフォルト）
+}
+```
+
+- 各アームは `pattern => expression` 形式
+- `_` はワイルドカード（どの値にもマッチ）
+- ブロック式も使用可能
+
+---
+
+## 12. 例外処理
+
+### try / catch / finally
+
+```iro
+try {
+    let result = riskyOperation()
+    result
+} catch (e) {
+    println("Error: " + e)
+    null
+} finally {
+    cleanup()
+}
+```
+
+### throw
+
+```iro
+throw "Something went wrong"
+throw {code: 404, message: "Not found"}
+```
+
+任意の値を例外として投げることができる。
+
+---
+
+## 13. モジュール
+
+### export
+
+```iro
+export fn helper() { ... }
+export class MyClass { ... }
+export let VERSION = "1.0"
+```
+
+### import
+
+```iro
+import "path/to/module.iro"
+```
+
+エクスポートされた要素がスコープに追加される。
+
+---
+
+## 14. 標準ライブラリ
+
+標準ライブラリは `stdlib.iro` として irooon 自身で実装されている。
+
+### String メソッド
+
+| メソッド | 説明 | 例 |
+|---------|------|-----|
+| `length()` | 文字列の長さ | `"abc".length()` → `3` |
+| `toUpper()` | 大文字に変換 | `"abc".toUpper()` → `"ABC"` |
+| `toLower()` | 小文字に変換 | `"ABC".toLower()` → `"abc"` |
+| `trim()` | 前後の空白を削除 | `" hi ".trim()` → `"hi"` |
+| `substring(start)` | 部分文字列 | `"hello".substring(2)` → `"llo"` |
+| `substring(start, len)` | 長さ指定 | `"hello".substring(1, 3)` → `"ell"` |
+| `split(sep)` | 分割 | `"a,b,c".split(",")` → `["a","b","c"]` |
+| `contains(s)` | 含有判定 | `"hello".contains("ell")` → `true` |
+| `startsWith(s)` | 先頭一致 | `"hello".startsWith("he")` → `true` |
+| `endsWith(s)` | 末尾一致 | `"hello".endsWith("lo")` → `true` |
+| `replace(old, new)` | 置換 | `"abc".replace("b", "x")` → `"axc"` |
+
+### List メソッド
+
+| メソッド | 説明 | 例 |
+|---------|------|-----|
+| `length()` | 要素数 | `[1,2,3].length()` → `3` |
+| `map(fn)` | 変換 | `[1,2,3].map(x => x * 2)` → `[2,4,6]` |
+| `filter(fn)` | 絞り込み | `[1,2,3].filter(x => x > 1)` → `[2,3]` |
+| `reduce(init, fn)` | 畳み込み | `[1,2,3].reduce(0, (a,b) => a+b)` → `6` |
+| `forEach(fn)` | 各要素に適用 | `list.forEach(fn (x) { println(x) })` |
+| `first()` | 先頭要素 | `[1,2,3].first()` → `1` |
+| `last()` | 末尾要素 | `[1,2,3].last()` → `3` |
+| `isEmpty()` | 空判定 | `[].isEmpty()` → `true` |
+
+### JSON
+
+| 関数 | 説明 |
+|------|------|
+| `jsonStringify(obj)` | オブジェクトを JSON 文字列に変換 |
+| `jsonParse(str)` | JSON 文字列をパースしてオブジェクトに変換 |
+
+```iro
+let obj = {name: "Alice", age: 30}
+let json = jsonStringify(obj)     // '{"name":"Alice","age":30}'
+let parsed = jsonParse(json)      // {name: "Alice", age: 30}
+```
+
+---
+
+## 15. ビルトイン関数
+
+### print / println
+
+```iro
+print("Hello")              // 改行なし
+println("Hello, World!")    // 改行あり
+println(1, 2, 3)            // スペース区切りで出力
+```
+
+---
+
+## 16. CLR 相互運用
+
+.NET 標準ライブラリの型とメソッドを直接呼び出すことができる。
+
+```iro
+// 静的メソッド
+let abs = System.Math.Abs(-42)
+let sqrt = System.Math.Sqrt(16)
+let pow = System.Math.Pow(2, 8)
+
+// 静的プロパティ
 let now = System.DateTime.Now
-
-// メソッドチェーン
-let sqrt = System.Math.Sqrt(System.Math.Pow(2, 2))
-```
-
-### サポートされている機能
-
-- **静的メソッド呼び出し**: `System.Math.Abs(-42)`
-- **静的プロパティアクセス**: `System.DateTime.Now`
-- **メソッドチェーン**: `System.Math.Sqrt(System.Math.Max(10, 20))`
-
-### 利用可能な主なCLRクラス
-
-#### System.Math
-```iro
-let abs = System.Math.Abs(-42)        // 絶対値
-let max = System.Math.Max(10, 20)     // 最大値
-let min = System.Math.Min(10, 20)     // 最小値
-let sqrt = System.Math.Sqrt(16)       // 平方根
-let pow = System.Math.Pow(2, 3)       // べき乗
-```
-
-#### System.DateTime
-```iro
-let now = System.DateTime.Now         // 現在日時
+let pi = System.Math.PI
 ```
 
 ### 制限事項
 
-- 現在は静的メソッドと静的プロパティのみサポート
-- インスタンスメソッドは将来のバージョンでサポート予定
-- `System`で始まる型名のみサポート（例: `System.Math`, `System.DateTime`）
-- 引数の型は自動的に推論されます（オーバーロードがある場合は最初にマッチしたメソッドが使用されます）
+- `System` で始まる型名のみサポート
+- 静的メソッド・静的プロパティのアクセスのみ
+
+---
+
+## 17. シェルコマンド実行
+
+```iro
+let output = $`echo Hello`
+let branch = $`git branch --show-current`
+```
+
+- `$` の後にバッククォートでコマンドを囲む
+- 標準出力を文字列として返す
+- 終了コードが 0 以外の場合はエラー
+
+---
+
+## 18. async / await
+
+```iro
+async fn fetchData() {
+    let result = await someAsyncOperation()
+    result
+}
+```
+
+- `async fn` で非同期関数を定義
+- `await` で非同期結果を待機
+- 内部的にはブロッキング実行
+
+---
+
+## 19. CLI
+
+```bash
+irooon script.iro           # スクリプト実行
+irooon                      # REPL起動
+```
+
+---
+
+## 20. Truthyness
+
+以下の値は false として扱われる:
+
+- `null`
+- `false`
+- `0` / `0.0`
+- `""` （空文字列）
+
+それ以外はすべて `true`。

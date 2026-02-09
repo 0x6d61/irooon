@@ -1,167 +1,183 @@
+using Irooon.Core;
 using Irooon.Core.Runtime;
+using Xunit;
 
 namespace Irooon.Tests.Runtime;
 
 /// <summary>
-/// 文字列メソッドのテスト
+/// 文字列メソッドのテスト（ScriptEngine経由のE2Eテスト）
+/// stdlib.iroのプロトタイプ実装をテストする
 /// </summary>
 public class StringMethodsTests
 {
-    private ScriptContext _ctx;
-
-    public StringMethodsTests()
+    private ScriptEngine CreateEngine()
     {
-        _ctx = new ScriptContext();
+        return new ScriptEngine();
     }
 
-    #region GetMember Tests (String)
+    #region length Tests
 
     [Fact]
-    public void GetMember_文字列のlengthプロパティを取得()
+    public void Length_ReturnsStringLength()
     {
-        // Arrange
-        var str = "Hello";
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""Hello""
+            str.length()
+        ");
 
-        // Act
-        var lengthWrapper = RuntimeHelpers.GetMember(str, "length");
-
-        // Assert
-        Assert.NotNull(lengthWrapper);
-        Assert.IsType<StringMethodWrapper>(lengthWrapper);
-
-        var callable = (IroCallable)lengthWrapper;
-        var result = callable.Invoke(_ctx, Array.Empty<object>());
         Assert.Equal(5.0, result);
     }
 
     [Fact]
-    public void GetMember_文字列のtoUpperメソッドを取得()
+    public void Length_ReturnsZeroForEmptyString()
     {
-        // Arrange
-        var str = "hello";
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = """"
+            str.length()
+        ");
 
-        // Act
-        var methodWrapper = RuntimeHelpers.GetMember(str, "toUpper");
+        Assert.Equal(0.0, result);
+    }
 
-        // Assert
-        Assert.NotNull(methodWrapper);
-        Assert.IsType<StringMethodWrapper>(methodWrapper);
+    #endregion
 
-        var callable = (IroCallable)methodWrapper;
-        var result = callable.Invoke(_ctx, Array.Empty<object>());
-        Assert.Equal("HELLO", result);
+    #region toUpper Tests
+
+    [Fact]
+    public void ToUpper_ConvertsToUpperCase()
+    {
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""hello world""
+            str.toUpper()
+        ");
+
+        Assert.Equal("HELLO WORLD", result);
     }
 
     [Fact]
-    public void GetMember_文字列のtoLowerメソッドを取得()
+    public void ToUpper_AlreadyUpperCase()
     {
-        // Arrange
-        var str = "HELLO";
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""HELLO""
+            str.toUpper()
+        ");
 
-        // Act
-        var methodWrapper = RuntimeHelpers.GetMember(str, "toLower");
+        Assert.Equal("HELLO", result);
+    }
 
-        // Assert
-        Assert.NotNull(methodWrapper);
-        Assert.IsType<StringMethodWrapper>(methodWrapper);
+    #endregion
 
-        var callable = (IroCallable)methodWrapper;
-        var result = callable.Invoke(_ctx, Array.Empty<object>());
+    #region toLower Tests
+
+    [Fact]
+    public void ToLower_ConvertsToLowerCase()
+    {
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""HELLO WORLD""
+            str.toLower()
+        ");
+
+        Assert.Equal("hello world", result);
+    }
+
+    [Fact]
+    public void ToLower_AlreadyLowerCase()
+    {
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""hello""
+            str.toLower()
+        ");
+
         Assert.Equal("hello", result);
     }
 
     #endregion
 
-    #region StringMethodWrapper Tests
+    #region trim Tests
 
     [Fact]
-    public void StringMethodWrapper_length_文字列の長さを返す()
+    public void Trim_RemovesLeadingAndTrailingSpaces()
     {
-        // Arrange
-        var wrapper = new StringMethodWrapper("Hello", "length");
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""  hello  ""
+            str.trim()
+        ");
 
-        // Act
-        var result = wrapper.Invoke(_ctx, Array.Empty<object>());
-
-        // Assert
-        Assert.Equal(5.0, result);
-    }
-
-    [Fact]
-    public void StringMethodWrapper_toUpper_大文字に変換()
-    {
-        // Arrange
-        var wrapper = new StringMethodWrapper("hello world", "toUpper");
-
-        // Act
-        var result = wrapper.Invoke(_ctx, Array.Empty<object>());
-
-        // Assert
-        Assert.Equal("HELLO WORLD", result);
-    }
-
-    [Fact]
-    public void StringMethodWrapper_toLower_小文字に変換()
-    {
-        // Arrange
-        var wrapper = new StringMethodWrapper("HELLO WORLD", "toLower");
-
-        // Act
-        var result = wrapper.Invoke(_ctx, Array.Empty<object>());
-
-        // Assert
-        Assert.Equal("hello world", result);
-    }
-
-    [Fact]
-    public void StringMethodWrapper_trim_前後の空白を削除()
-    {
-        // Arrange
-        var wrapper = new StringMethodWrapper("  hello  ", "trim");
-
-        // Act
-        var result = wrapper.Invoke(_ctx, Array.Empty<object>());
-
-        // Assert
         Assert.Equal("hello", result);
     }
 
     [Fact]
-    public void StringMethodWrapper_substring_部分文字列を取得()
+    public void Trim_EmptyString()
     {
-        // Arrange
-        var wrapper = new StringMethodWrapper("Hello World", "substring");
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = """"
+            str.trim()
+        ");
 
-        // Act
-        var result = wrapper.Invoke(_ctx, new object[] { 0.0, 5.0 });
+        Assert.Equal("", result);
+    }
 
-        // Assert
+    [Fact]
+    public void Trim_OnlySpaces()
+    {
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""   ""
+            str.trim()
+        ");
+
+        Assert.Equal("", result);
+    }
+
+    #endregion
+
+    #region substring Tests
+
+    [Fact]
+    public void Substring_WithStartAndLength()
+    {
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""Hello World""
+            str.substring(0, 5)
+        ");
+
         Assert.Equal("Hello", result);
     }
 
     [Fact]
-    public void StringMethodWrapper_substring_開始位置のみ指定()
+    public void Substring_WithStartOnly()
     {
-        // Arrange
-        var wrapper = new StringMethodWrapper("Hello World", "substring");
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""Hello World""
+            str.substring(6)
+        ");
 
-        // Act
-        var result = wrapper.Invoke(_ctx, new object[] { 6.0 });
-
-        // Assert
         Assert.Equal("World", result);
     }
 
+    #endregion
+
+    #region split Tests
+
     [Fact]
-    public void StringMethodWrapper_split_文字列を分割()
+    public void Split_ByComma()
     {
-        // Arrange
-        var wrapper = new StringMethodWrapper("apple,banana,cherry", "split");
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""apple,banana,cherry""
+            str.split("","")
+        ");
 
-        // Act
-        var result = wrapper.Invoke(_ctx, new object[] { "," });
-
-        // Assert
         Assert.IsType<List<object>>(result);
         var list = (List<object>)result;
         Assert.Equal(3, list.Count);
@@ -171,15 +187,14 @@ public class StringMethodsTests
     }
 
     [Fact]
-    public void StringMethodWrapper_split_スペースで分割()
+    public void Split_BySpace()
     {
-        // Arrange
-        var wrapper = new StringMethodWrapper("Hello World Test", "split");
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""Hello World Test""
+            str.split("" "")
+        ");
 
-        // Act
-        var result = wrapper.Invoke(_ctx, new object[] { " " });
-
-        // Assert
         Assert.IsType<List<object>>(result);
         var list = (List<object>)result;
         Assert.Equal(3, list.Count);
@@ -188,119 +203,161 @@ public class StringMethodsTests
         Assert.Equal("Test", list[2]);
     }
 
+    #endregion
+
+    #region contains Tests
+
     [Fact]
-    public void StringMethodWrapper_contains_含まれる文字列を検索()
+    public void Contains_ReturnsTrue_WhenSubstringExists()
     {
-        // Arrange
-        var wrapper = new StringMethodWrapper("Hello World", "contains");
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""Hello World""
+            str.contains(""World"")
+        ");
 
-        // Act
-        var result = wrapper.Invoke(_ctx, new object[] { "World" });
-
-        // Assert
-        Assert.Equal(true, result);
+        Assert.True((bool)result);
     }
 
     [Fact]
-    public void StringMethodWrapper_contains_含まれない文字列を検索()
+    public void Contains_ReturnsFalse_WhenSubstringNotExists()
     {
-        // Arrange
-        var wrapper = new StringMethodWrapper("Hello World", "contains");
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""Hello World""
+            str.contains(""Test"")
+        ");
 
-        // Act
-        var result = wrapper.Invoke(_ctx, new object[] { "Test" });
+        Assert.False((bool)result);
+    }
 
-        // Assert
-        Assert.Equal(false, result);
+    #endregion
+
+    #region startsWith Tests
+
+    [Fact]
+    public void StartsWith_ReturnsTrue_WhenMatches()
+    {
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""Hello World""
+            str.startsWith(""Hello"")
+        ");
+
+        Assert.True((bool)result);
     }
 
     [Fact]
-    public void StringMethodWrapper_startsWith_先頭文字列を判定()
+    public void StartsWith_ReturnsFalse_WhenNoMatch()
     {
-        // Arrange
-        var wrapper = new StringMethodWrapper("Hello World", "startsWith");
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""Hello World""
+            str.startsWith(""World"")
+        ");
 
-        // Act
-        var result = wrapper.Invoke(_ctx, new object[] { "Hello" });
+        Assert.False((bool)result);
+    }
 
-        // Assert
-        Assert.Equal(true, result);
+    #endregion
+
+    #region endsWith Tests
+
+    [Fact]
+    public void EndsWith_ReturnsTrue_WhenMatches()
+    {
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""Hello World""
+            str.endsWith(""World"")
+        ");
+
+        Assert.True((bool)result);
     }
 
     [Fact]
-    public void StringMethodWrapper_startsWith_先頭でない文字列を判定()
+    public void EndsWith_ReturnsFalse_WhenNoMatch()
     {
-        // Arrange
-        var wrapper = new StringMethodWrapper("Hello World", "startsWith");
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""Hello World""
+            str.endsWith(""Hello"")
+        ");
 
-        // Act
-        var result = wrapper.Invoke(_ctx, new object[] { "World" });
-
-        // Assert
-        Assert.Equal(false, result);
+        Assert.False((bool)result);
     }
 
-    [Fact]
-    public void StringMethodWrapper_endsWith_末尾文字列を判定()
-    {
-        // Arrange
-        var wrapper = new StringMethodWrapper("Hello World", "endsWith");
+    #endregion
 
-        // Act
-        var result = wrapper.Invoke(_ctx, new object[] { "World" });
-
-        // Assert
-        Assert.Equal(true, result);
-    }
+    #region replace Tests
 
     [Fact]
-    public void StringMethodWrapper_endsWith_末尾でない文字列を判定()
+    public void Replace_ReplacesSubstring()
     {
-        // Arrange
-        var wrapper = new StringMethodWrapper("Hello World", "endsWith");
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""Hello World""
+            str.replace(""World"", ""Universe"")
+        ");
 
-        // Act
-        var result = wrapper.Invoke(_ctx, new object[] { "Hello" });
-
-        // Assert
-        Assert.Equal(false, result);
-    }
-
-    [Fact]
-    public void StringMethodWrapper_replace_文字列を置換()
-    {
-        // Arrange
-        var wrapper = new StringMethodWrapper("Hello World", "replace");
-
-        // Act
-        var result = wrapper.Invoke(_ctx, new object[] { "World", "Universe" });
-
-        // Assert
         Assert.Equal("Hello Universe", result);
     }
 
     [Fact]
-    public void StringMethodWrapper_replace_複数箇所を置換()
+    public void Replace_ReplacesAllOccurrences()
     {
-        // Arrange
-        var wrapper = new StringMethodWrapper("test test test", "replace");
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""test test test""
+            str.replace(""test"", ""demo"")
+        ");
 
-        // Act
-        var result = wrapper.Invoke(_ctx, new object[] { "test", "demo" });
-
-        // Assert
         Assert.Equal("demo demo demo", result);
     }
 
-    [Fact]
-    public void StringMethodWrapper_未知のメソッドで例外()
-    {
-        // Arrange
-        var wrapper = new StringMethodWrapper("Hello", "unknownMethod");
+    #endregion
 
-        // Act & Assert
-        var ex = Assert.Throws<RuntimeException>(() => wrapper.Invoke(_ctx, Array.Empty<object>()));
-        Assert.Contains("Unknown string method: unknownMethod", ex.Message);
+    #region E2E Tests
+
+    [Fact]
+    public void E2E_StringMethodChaining()
+    {
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""  Hello World  ""
+            str.trim().toUpper()
+        ");
+
+        Assert.Equal("HELLO WORLD", result);
+    }
+
+    [Fact]
+    public void E2E_SplitAndJoin()
+    {
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""a,b,c""
+            let parts = str.split("","")
+            parts.length()
+        ");
+
+        Assert.Equal(3.0, result);
+    }
+
+    [Fact]
+    public void E2E_ContainsWithReplace()
+    {
+        var engine = CreateEngine();
+        var result = engine.Execute(@"
+            let str = ""Hello World""
+            if (str.contains(""World"")) {
+                str.replace(""World"", ""irooon"")
+            } else {
+                str
+            }
+        ");
+
+        Assert.Equal("Hello irooon", result);
     }
 
     #endregion

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 
 namespace Irooon.Core.Lexer;
 
@@ -45,6 +46,7 @@ public class Lexer
         { "import", TokenType.Import },
         { "export", TokenType.Export },
         { "from", TokenType.From },
+        { "match", TokenType.Match },
         { "true", TokenType.True },
         { "false", TokenType.False },
         { "null", TokenType.Null },
@@ -138,19 +140,58 @@ public class Lexer
                 }
                 break;
             case '*':
-                AddToken(Match('=') ? TokenType.StarEqual : TokenType.Star);
+                if (Match('*'))
+                    AddToken(TokenType.StarStar);
+                else
+                    AddToken(Match('=') ? TokenType.StarEqual : TokenType.Star);
                 break;
             case '%':
                 AddToken(Match('=') ? TokenType.PercentEqual : TokenType.Percent);
+                break;
+            case '&':
+                AddToken(TokenType.Ampersand);
+                break;
+            case '|':
+                AddToken(TokenType.Pipe);
+                break;
+            case '^':
+                AddToken(TokenType.Caret);
+                break;
+            case '~':
+                AddToken(TokenType.Tilde);
                 break;
 
             // 2文字の可能性があるトークン
             case '/':
                 if (Match('/'))
                 {
-                    // コメント - 行末まで読み飛ばす
+                    // 単一行コメント - 行末まで読み飛ばす
                     while (Peek() != '\n' && !IsAtEnd())
                         Advance();
+                }
+                else if (Match('*'))
+                {
+                    // 複数行コメント - */ まで読み飛ばす
+                    int commentStart = _line;
+                    while (!IsAtEnd())
+                    {
+                        if (Peek() == '\n')
+                        {
+                            _line++;
+                            _column = 0;
+                        }
+                        if (Peek() == '*' && PeekNext() == '/')
+                        {
+                            Advance(); // * を消費
+                            Advance(); // / を消費
+                            break;
+                        }
+                        Advance();
+                    }
+                    if (IsAtEnd() && !(_source.Length >= 2 && _source[_current - 2] == '*' && _source[_current - 1] == '/'))
+                    {
+                        AddError("Unterminated block comment", commentStart, 0);
+                    }
                 }
                 else
                 {
@@ -159,7 +200,12 @@ public class Lexer
                 break;
 
             case '=':
-                AddToken(Match('=') ? TokenType.EqualEqual : TokenType.Equal);
+                if (Match('='))
+                    AddToken(TokenType.EqualEqual);
+                else if (Match('>'))
+                    AddToken(TokenType.Arrow);
+                else
+                    AddToken(TokenType.Equal);
                 break;
 
             case '!':
@@ -175,11 +221,17 @@ public class Lexer
                 break;
 
             case '<':
-                AddToken(Match('=') ? TokenType.LessEqual : TokenType.Less);
+                if (Match('<'))
+                    AddToken(TokenType.LessLess);
+                else
+                    AddToken(Match('=') ? TokenType.LessEqual : TokenType.Less);
                 break;
 
             case '>':
-                AddToken(Match('=') ? TokenType.GreaterEqual : TokenType.Greater);
+                if (Match('>'))
+                    AddToken(TokenType.GreaterGreater);
+                else
+                    AddToken(Match('=') ? TokenType.GreaterEqual : TokenType.Greater);
                 break;
 
             case '?':
@@ -247,6 +299,25 @@ public class Lexer
     /// </summary>
     private void ScanNumber()
     {
+        // 16進数: 0x...
+        if (_source[_start] == '0' && Peek() is 'x' or 'X')
+        {
+            Advance(); // x を消費
+            while (IsHexDigit(Peek()))
+                Advance();
+
+            string hexText = _source.Substring(_start + 2, _current - _start - 2);
+            if (hexText.Length > 0 && long.TryParse(hexText, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out long hexValue))
+            {
+                AddToken(TokenType.Number, (double)hexValue);
+            }
+            else
+            {
+                AddError($"Invalid hex number format: {_source.Substring(_start, _current - _start)}");
+            }
+            return;
+        }
+
         // 整数部分
         while (IsDigit(Peek()))
             Advance();
@@ -262,6 +333,16 @@ public class Lexer
                 Advance();
         }
 
+        // 科学的記数法: e/E
+        if (Peek() is 'e' or 'E')
+        {
+            Advance(); // e を消費
+            if (Peek() is '+' or '-')
+                Advance(); // 符号を消費
+            while (IsDigit(Peek()))
+                Advance();
+        }
+
         string text = _source.Substring(_start, _current - _start);
         if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
         {
@@ -273,13 +354,20 @@ public class Lexer
         }
     }
 
+    private bool IsHexDigit(char c)
+    {
+        return IsDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    }
+
     /// <summary>
     /// 文字列リテラルをスキャンします。
+    /// エスケープシーケンス: \", \\, \n, \t, \r, \0, \$
     /// </summary>
     private void ScanString()
     {
         int startLine = _line;
         int startColumn = _column - 1; // '"'の位置
+        var sb = new StringBuilder();
 
         while (Peek() != '"' && !IsAtEnd())
         {
@@ -288,7 +376,36 @@ public class Lexer
                 _line++;
                 _column = 0; // Advance()で+1されるので0にする
             }
-            Advance();
+
+            if (Peek() == '\\')
+            {
+                Advance(); // '\' を消費
+                if (IsAtEnd())
+                {
+                    AddError("Unterminated string", startLine, startColumn);
+                    return;
+                }
+                char escaped = Peek();
+                switch (escaped)
+                {
+                    case '"': sb.Append('"'); break;
+                    case '\\': sb.Append('\\'); break;
+                    case 'n': sb.Append('\n'); break;
+                    case 't': sb.Append('\t'); break;
+                    case 'r': sb.Append('\r'); break;
+                    case '0': sb.Append('\0'); break;
+                    case '$': sb.Append('\uE000'); break; // プレースホルダ（Parser段階で$に復元）
+                    default:
+                        AddError($"Invalid escape sequence: \\{escaped}", _line, _column);
+                        break;
+                }
+                Advance(); // エスケープ文字を消費
+            }
+            else
+            {
+                sb.Append(Peek());
+                Advance();
+            }
         }
 
         if (IsAtEnd())
@@ -300,9 +417,7 @@ public class Lexer
         // 終端の '"' を消費
         Advance();
 
-        // 引用符を除いた文字列値を取得
-        string value = _source.Substring(_start + 1, _current - _start - 2);
-        AddToken(TokenType.String, value);
+        AddToken(TokenType.String, sb.ToString());
     }
 
     /// <summary>

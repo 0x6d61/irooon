@@ -47,6 +47,7 @@ public class ParserStmtTests
     [Fact]
     public void TestParseEmptyBlock()
     {
+        // {} は空のハッシュリテラルとして解釈される
         var source = "{}";
         var tokens = new Core.Lexer.Lexer(source).ScanTokens();
         var parser = new Core.Parser.Parser(tokens);
@@ -55,10 +56,9 @@ public class ParserStmtTests
         Assert.IsType<BlockExpr>(ast);
         var block = (BlockExpr)ast;
         Assert.NotNull(block.Expression);
-        Assert.IsType<BlockExpr>(block.Expression);
-        var innerBlock = (BlockExpr)block.Expression;
-        Assert.Empty(innerBlock.Statements);
-        Assert.Null(innerBlock.Expression);
+        Assert.IsType<HashExpr>(block.Expression);
+        var hash = (HashExpr)block.Expression;
+        Assert.Empty(hash.Pairs);
     }
 
     [Fact]

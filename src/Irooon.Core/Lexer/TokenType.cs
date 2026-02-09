@@ -41,6 +41,7 @@ public enum TokenType
     Import,
     Export,
     From,
+    Match,
 
     // 演算子
     Plus,           // +
@@ -68,6 +69,14 @@ public enum TokenType
     Or,             // or
     Not,            // not
     Equal,          // =
+    Arrow,          // =>
+    Ampersand,      // &
+    Pipe,           // |
+    Caret,          // ^
+    Tilde,          // ~
+    LessLess,       // <<
+    GreaterGreater, // >>
+    StarStar,       // **
 
     // 区切り文字
     LeftParen,      // (

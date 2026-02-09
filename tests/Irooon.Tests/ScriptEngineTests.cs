@@ -275,11 +275,13 @@ public class ScriptEngineTests
     }
 
     [Fact]
-    public void TestExecute_EmptyBlock()
+    public void TestExecute_EmptyHash()
     {
+        // {} は空のハッシュリテラルとして解釈される
         var engine = new ScriptEngine();
         var result = engine.Execute("{}");
-        Assert.Null(result);
+        Assert.IsType<Dictionary<string, object>>(result);
+        Assert.Empty((Dictionary<string, object>)result!);
     }
 
     [Fact]

@@ -20,6 +20,7 @@ public class ScriptEngine
     public object? Execute(string source)
     {
         var context = new ScriptContext();
+        context.InitializeStdlib((code, ctx) => Execute(code, ctx));
         return Execute(source, context);
     }
 

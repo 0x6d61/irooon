@@ -385,4 +385,44 @@ public class ResolverTests
         Assert.NotEmpty(resolver.GetErrors());
         Assert.Contains("Circular inheritance", resolver.GetErrors()[0].Message);
     }
+
+    [Fact]
+    public void TestForwardReference_Functions()
+    {
+        // 関数の前方参照が可能
+        var source = @"
+        let result = bar()
+        let bar = fn() { 42 }
+        result
+        ";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var ast = new Core.Parser.Parser(tokens).Parse();
+        var resolver = new Core.Resolver.Resolver();
+        resolver.Resolve(ast);
+
+        Assert.Empty(resolver.GetErrors());
+    }
+
+    [Fact]
+    public void TestForwardReference_MutualRecursion()
+    {
+        // 相互再帰が可能
+        var source = @"
+        let isEven = fn(n) {
+            if (n == 0) { true }
+            else { isOdd(n - 1) }
+        }
+        let isOdd = fn(n) {
+            if (n == 0) { false }
+            else { isEven(n - 1) }
+        }
+        isEven(4)
+        ";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var ast = new Core.Parser.Parser(tokens).Parse();
+        var resolver = new Core.Resolver.Resolver();
+        resolver.Resolve(ast);
+
+        Assert.Empty(resolver.GetErrors());
+    }
 }

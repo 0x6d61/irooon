@@ -258,6 +258,12 @@ public class Resolver
             case AwaitExpr awaitExpr:
                 ResolveAwaitExpr(awaitExpr);
                 break;
+            case SpreadExpr spreadExpr:
+                ResolveExpression(spreadExpr.Operand);
+                break;
+            case MatchExpr matchExpr:
+                ResolveMatchExpr(matchExpr);
+                break;
             default:
                 _errors.Add(new ResolveException(
                     $"Unknown expression type: {expr.GetType().Name}",
@@ -362,6 +368,22 @@ public class Resolver
         // ブロックは新しいスコープを作成
         BeginScope();
 
+        // Pass 1: 関数宣言（let/var name = fn(...)）を先に登録（前方参照対応）
+        foreach (var stmt in expr.Statements)
+        {
+            if (stmt is LetStmt letStmt && letStmt.Initializer is LambdaExpr)
+            {
+                if (!_currentScope.IsDefined(letStmt.Name))
+                    Declare(letStmt.Name, true, letStmt.Line, letStmt.Column);
+            }
+            else if (stmt is VarStmt varStmt && varStmt.Initializer is LambdaExpr)
+            {
+                if (!_currentScope.IsDefined(varStmt.Name))
+                    Declare(varStmt.Name, false, varStmt.Line, varStmt.Column);
+            }
+        }
+
+        // Pass 2: 通常の解析
         foreach (var stmt in expr.Statements)
         {
             ResolveStatement(stmt);
@@ -377,6 +399,15 @@ public class Resolver
 
     private void ResolveLambdaExpr(LambdaExpr expr)
     {
+        // デフォルト値は外側のスコープで解決
+        foreach (var param in expr.Parameters)
+        {
+            if (param.DefaultValue != null)
+            {
+                ResolveExpression(param.DefaultValue);
+            }
+        }
+
         // ラムダは新しいスコープを作成
         BeginScope();
 
@@ -471,6 +502,9 @@ public class Resolver
             case VarStmt varStmt:
                 ResolveVarStmt(varStmt);
                 break;
+            case DestructuringStmt destructStmt:
+                ResolveDestructuringStmt(destructStmt);
+                break;
             case ExprStmt exprStmt:
                 ResolveExprStmt(exprStmt);
                 break;
@@ -517,7 +551,9 @@ public class Resolver
         // 初期化式を先に解析（自己参照を防ぐ）
         ResolveExpression(stmt.Initializer);
 
-        // 変数を宣言（読み取り専用）
+        // 変数を宣言（読み取り専用）- 前方参照（ラムダ）で既に宣言済みならスキップ
+        if (stmt.Initializer is LambdaExpr && _currentScope.IsDefined(stmt.Name))
+            return;
         Declare(stmt.Name, true, stmt.Line, stmt.Column);
     }
 
@@ -526,8 +562,28 @@ public class Resolver
         // 初期化式を先に解析
         ResolveExpression(stmt.Initializer);
 
-        // 変数を宣言（読み取り専用ではない）
+        if (stmt.Initializer is LambdaExpr && _currentScope.IsDefined(stmt.Name))
+            return;
         Declare(stmt.Name, false, stmt.Line, stmt.Column);
+    }
+
+    private void ResolveMatchExpr(MatchExpr expr)
+    {
+        ResolveExpression(expr.Subject);
+        foreach (var (pattern, body) in expr.Arms)
+        {
+            if (pattern != null) ResolveExpression(pattern);
+            ResolveExpression(body);
+        }
+    }
+
+    private void ResolveDestructuringStmt(DestructuringStmt stmt)
+    {
+        ResolveExpression(stmt.Initializer);
+        foreach (var name in stmt.Names)
+        {
+            Declare(name, stmt.IsReadOnly, stmt.Line, stmt.Column);
+        }
     }
 
     private void ResolveExprStmt(ExprStmt stmt)
@@ -602,6 +658,15 @@ public class Resolver
         // 関数名をスコープに追加
         Declare(stmt.Name, false, stmt.Line, stmt.Column);
 
+        // デフォルト値は外側のスコープで解決
+        foreach (var param in stmt.Parameters)
+        {
+            if (param.DefaultValue != null)
+            {
+                ResolveExpression(param.DefaultValue);
+            }
+        }
+
         // 新しいスコープを開始
         BeginScope();
 
@@ -650,6 +715,9 @@ public class Resolver
         foreach (var method in stmt.Methods)
         {
             BeginScope();
+
+            // thisをメソッドスコープに宣言（再代入不可）
+            Declare("this", true, method.Line, method.Column);
 
             // クラスのフィールドをメソッドスコープに宣言
             // これにより、メソッド内でフィールドに直接アクセスできる（暗黙のthis参照）

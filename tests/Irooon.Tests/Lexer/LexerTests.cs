@@ -819,4 +819,240 @@ git push
     }
 
     #endregion
+
+    #region 16進数・科学的記数法テスト
+
+    [Fact]
+    public void TestHexNumber()
+    {
+        var lexer = new Core.Lexer.Lexer("0xFF");
+        var tokens = lexer.ScanTokens();
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.Number, tokens[0].Type);
+        Assert.Equal(255.0, tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestHexNumber_Lowercase()
+    {
+        var lexer = new Core.Lexer.Lexer("0x1a");
+        var tokens = lexer.ScanTokens();
+        Assert.Equal(TokenType.Number, tokens[0].Type);
+        Assert.Equal(26.0, tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestScientificNotation()
+    {
+        var lexer = new Core.Lexer.Lexer("1.5e10");
+        var tokens = lexer.ScanTokens();
+        Assert.Equal(TokenType.Number, tokens[0].Type);
+        Assert.Equal(1.5e10, tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestScientificNotation_Negative()
+    {
+        var lexer = new Core.Lexer.Lexer("2.3e-5");
+        var tokens = lexer.ScanTokens();
+        Assert.Equal(TokenType.Number, tokens[0].Type);
+        Assert.Equal(2.3e-5, tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestScientificNotation_UpperE()
+    {
+        var lexer = new Core.Lexer.Lexer("1E3");
+        var tokens = lexer.ScanTokens();
+        Assert.Equal(TokenType.Number, tokens[0].Type);
+        Assert.Equal(1000.0, tokens[0].Value);
+    }
+
+    #endregion
+
+    #region 複数行コメントテスト
+
+    [Fact]
+    public void TestBlockComment_Simple()
+    {
+        var lexer = new Core.Lexer.Lexer("/* comment */ 42");
+        var tokens = lexer.ScanTokens();
+        Assert.Equal(2, tokens.Count); // 42, Eof
+        Assert.Equal(TokenType.Number, tokens[0].Type);
+    }
+
+    [Fact]
+    public void TestBlockComment_Multiline()
+    {
+        var lexer = new Core.Lexer.Lexer("/* line1\nline2\nline3 */ 42");
+        var tokens = lexer.ScanTokens();
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.Number, tokens[0].Type);
+    }
+
+    [Fact]
+    public void TestBlockComment_Empty()
+    {
+        var lexer = new Core.Lexer.Lexer("/**/ 42");
+        var tokens = lexer.ScanTokens();
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.Number, tokens[0].Type);
+    }
+
+    [Fact]
+    public void TestBlockComment_Unterminated()
+    {
+        var lexer = new Core.Lexer.Lexer("/* unterminated");
+        var tokens = lexer.ScanTokens();
+        Assert.Contains(tokens, t => t.Type == TokenType.Error);
+    }
+
+    [Fact]
+    public void TestBlockComment_BetweenTokens()
+    {
+        var lexer = new Core.Lexer.Lexer("1 /* + 2 */ + 3");
+        var tokens = lexer.ScanTokens();
+        Assert.Equal(4, tokens.Count); // 1, +, 3, Eof
+        Assert.Equal(TokenType.Number, tokens[0].Type);
+        Assert.Equal(TokenType.Plus, tokens[1].Type);
+        Assert.Equal(TokenType.Number, tokens[2].Type);
+    }
+
+    #endregion
+
+    #region エスケープシーケンステスト
+
+    [Fact]
+    public void TestEscapeSequence_DoubleQuote()
+    {
+        // irooonソース: "say \"hi\""
+        var lexer = new Core.Lexer.Lexer("\"say \\\"hi\\\"\"");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.String, tokens[0].Type);
+        Assert.Equal("say \"hi\"", tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestEscapeSequence_Backslash()
+    {
+        // irooonソース: "path\\file"
+        var lexer = new Core.Lexer.Lexer("\"path\\\\file\"");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.String, tokens[0].Type);
+        Assert.Equal("path\\file", tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestEscapeSequence_Newline()
+    {
+        // irooonソース: "line1\nline2"
+        var lexer = new Core.Lexer.Lexer("\"line1\\nline2\"");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.String, tokens[0].Type);
+        Assert.Equal("line1\nline2", tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestEscapeSequence_Tab()
+    {
+        // irooonソース: "col1\tcol2"
+        var lexer = new Core.Lexer.Lexer("\"col1\\tcol2\"");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.String, tokens[0].Type);
+        Assert.Equal("col1\tcol2", tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestEscapeSequence_CarriageReturn()
+    {
+        // irooonソース: "a\rb"
+        var lexer = new Core.Lexer.Lexer("\"a\\rb\"");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.String, tokens[0].Type);
+        Assert.Equal("a\rb", tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestEscapeSequence_NullChar()
+    {
+        // irooonソース: "a\0b"
+        var lexer = new Core.Lexer.Lexer("\"a\\0b\"");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.String, tokens[0].Type);
+        Assert.Equal("a\0b", tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestEscapeSequence_Dollar()
+    {
+        // irooonソース: "\${name}" → 文字列 "${name}"（補間ではない）
+        var lexer = new Core.Lexer.Lexer("\"\\${name}\"");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.String, tokens[0].Type);
+        // \$ はプレースホルダ \uE000 に変換され、Parser段階で $ に戻る
+        // Lexer段階では \uE000 が入っている
+        Assert.Contains('\uE000', (string)tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestEscapeSequence_Multiple()
+    {
+        // irooonソース: "a\tb\nc"
+        var lexer = new Core.Lexer.Lexer("\"a\\tb\\nc\"");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.String, tokens[0].Type);
+        Assert.Equal("a\tb\nc", tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestEscapeSequence_BackslashAtEnd()
+    {
+        // irooonソース: "abc\" → バックスラッシュ+引用符でエスケープ済み → 未終端文字列
+        // 実際は "abc" + エスケープされた " → 未終端
+        var lexer = new Core.Lexer.Lexer("\"abc\\\"");
+        var tokens = lexer.ScanTokens();
+
+        // \" がエスケープされて文字列が閉じない
+        Assert.Contains(tokens, t => t.Type == TokenType.Error);
+    }
+
+    [Fact]
+    public void TestEscapeSequence_Invalid()
+    {
+        // irooonソース: "hello\q" → 無効なエスケープ
+        var lexer = new Core.Lexer.Lexer("\"hello\\q\"");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Contains(tokens, t => t.Type == TokenType.Error);
+    }
+
+    [Fact]
+    public void TestEscapeSequence_OnlyEscapes()
+    {
+        // irooonソース: "\\\"\n\t"
+        var lexer = new Core.Lexer.Lexer("\"\\\\\\\"\\n\\t\"");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.String, tokens[0].Type);
+        Assert.Equal("\\\"\n\t", tokens[0].Value);
+    }
+
+    #endregion
 }
