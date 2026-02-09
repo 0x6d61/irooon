@@ -1,0 +1,14 @@
+// シンプルなasync/awaitテスト
+
+async fn test() {
+    return "OK"
+}
+
+async fn main() {
+    let result = await test()
+    println(result)
+    return result
+}
+
+// main関数を実行（awaitなしで呼び出し）
+main()

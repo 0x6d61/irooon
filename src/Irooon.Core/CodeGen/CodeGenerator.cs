@@ -10,15 +10,15 @@ using AstExpr = Irooon.Core.Ast.Expression;
 namespace Irooon.Core.CodeGen;
 
 /// <summary>
-/// ASTノードをDLR（System.Linq.Expressions）のExpressionTreeに変換します。
-/// Task #13: 基本式とリテラルの実装
+/// ASTノ�EドをDLR�E�Eystem.Linq.Expressions�E��EExpressionTreeに変換します、E
+/// Task #13: 基本式とリチE��ルの実裁E
 /// </summary>
 public class CodeGenerator
 {
     private ParameterExpression _ctxParam; // ScriptContext ctx
     private int _labelCounter = 0; // ラベルの一意性確保用
 
-    // ループのbreak/continueラベルを管理するスタック
+    // ループ�Ebreak/continueラベルを管琁E��るスタチE��
     private Stack<(LabelTarget breakLabel, LabelTarget? continueLabel)> _loopLabels = new();
 
     public CodeGenerator()
@@ -28,10 +28,10 @@ public class CodeGenerator
 
     /// <summary>
     /// トップレベルのコンパイル
-    /// ASTをFunc&lt;ScriptContext, object&gt;にコンパイルします
+    /// ASTをFunc&lt;ScriptContext, object&gt;にコンパイルしまぁE
     /// </summary>
     /// <param name="program">プログラム全体を表すBlockExpr</param>
-    /// <returns>実行可能なデリゲート</returns>
+    /// <returns>実行可能なチE��ゲーチE/returns>
     public Func<ScriptContext, object?> Compile(BlockExpr program)
     {
         var bodyExpr = GenerateBlockExpr(program);
@@ -42,10 +42,10 @@ public class CodeGenerator
         return lambda.Compile();
     }
 
-    #region 式の生成（ディスパッチ）
+    #region 式�E生�E�E�ディスパッチE��E
 
     /// <summary>
-    /// 式の生成（ディスパッチ）
+    /// 式�E生�E�E�ディスパッチE��E
     /// </summary>
     private ExprTree GenerateExpression(AstExpr expr)
     {
@@ -74,6 +74,7 @@ public class CodeGenerator
             TernaryExpr e => GenerateTernaryExpr(e),
             NullCoalescingExpr e => GenerateNullCoalescingExpr(e),
             IncrementExpr e => GenerateIncrementExpr(e),
+            AwaitExpr e => GenerateAwaitExpr(e),
             SafeNavigationExpr e => GenerateSafeNavigationExpr(e),
             SuperExpr e => GenerateSuperExpr(e),
             _ => throw new NotImplementedException($"Unknown expression type: {expr.GetType()}")
@@ -82,10 +83,10 @@ public class CodeGenerator
 
     #endregion
 
-    #region 文の生成（ディスパッチ）
+    #region 斁E�E生�E�E�ディスパッチE��E
 
     /// <summary>
-    /// 文の生成（ディスパッチ）
+    /// 斁E�E生�E�E�ディスパッチE��E
     /// </summary>
     private ExprTree GenerateStatement(Statement stmt)
     {
@@ -110,15 +111,15 @@ public class CodeGenerator
 
     #endregion
 
-    #region Task #13: 基本式の実装
+    #region Task #13: 基本式�E実裁E
 
     /// <summary>
-    /// リテラル式の変換
-    /// 仕様: 数値はdoubleに統一、objectにボックス化
+    /// リチE��ル式�E変換
+    /// 仕槁E 数値はdoubleに統一、objectにボックス匁E
     /// </summary>
     private ExprTree GenerateLiteralExpr(LiteralExpr expr)
     {
-        // 数値はdoubleに統一、objectにボックス化
+        // 数値はdoubleに統一、objectにボックス匁E
         if (expr.Value is double d)
         {
             return ExprTree.Convert(
@@ -127,13 +128,13 @@ public class CodeGenerator
             );
         }
 
-        // 文字列、bool、null
+        // 斁E���E、bool、null
         return ExprTree.Constant(expr.Value, typeof(object));
     }
 
     /// <summary>
-    /// 識別子式の変換（変数参照）
-    /// 仕様: ctx.Globals["name"]
+    /// 識別子式�E変換�E�変数参�E�E�E
+    /// 仕槁E ctx.Globals["name"]
     /// </summary>
     private ExprTree GenerateIdentifierExpr(IdentifierExpr expr)
     {
@@ -144,8 +145,8 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// 代入式の変換
-    /// 仕様: ctx.Globals["name"] = value
+    /// 代入式�E変換
+    /// 仕槁E ctx.Globals["name"] = value
     /// </summary>
     private ExprTree GenerateAssignExpr(AssignExpr expr)
     {
@@ -159,8 +160,8 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// let文の変換
-    /// 仕様: let/varの違いはResolverで検査済み、CodeGenは同じ
+    /// let斁E�E変換
+    /// 仕槁E let/varの違いはResolverで検査済み、CodeGenは同じ
     /// </summary>
     private ExprTree GenerateLetStmt(LetStmt stmt)
     {
@@ -172,7 +173,7 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// var文の変換
+    /// var斁E�E変換
     /// </summary>
     private ExprTree GenerateVarStmt(VarStmt stmt)
     {
@@ -190,21 +191,21 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// ブロック式の変換
-    /// 仕様: Expression.Block(vars, exprs...)
-    /// 最後の式が値になる
+    /// ブロチE��式�E変換
+    /// 仕槁E Expression.Block(vars, exprs...)
+    /// 最後�E式が値になめE
     /// </summary>
     private ExprTree GenerateBlockExpr(BlockExpr expr)
     {
         var expressions = new List<ExprTree>();
 
-        // 文を変換
+        // 斁E��変換
         foreach (var stmt in expr.Statements)
         {
             expressions.Add(GenerateStatement(stmt));
         }
 
-        // 最後の式
+        // 最後�E弁E
         if (expr.Expression != null)
         {
             expressions.Add(GenerateExpression(expr.Expression));
@@ -212,7 +213,7 @@ public class CodeGenerator
         else if (expressions.Count == 0 || expr.Statements.Count == 0 ||
                  expr.Statements[^1] is not ReturnStmt)
         {
-            // 最後が文のみの場合（return文以外）はnullを追加
+            // 最後が斁E�Eみの場合！Eeturn斁E��外）�Enullを追加
             expressions.Add(ExprTree.Constant(null, typeof(object)));
         }
 
@@ -221,11 +222,11 @@ public class CodeGenerator
 
     #endregion
 
-    #region Task #14: 演算子の実装
+    #region Task #14: 演算子�E実裁E
 
     /// <summary>
-    /// 二項演算式の変換
-    /// 仕様: すべてRuntimeHelpersに委譲
+    /// 二頁E��算式�E変換
+    /// 仕槁E すべてRuntimeHelpersに委譲
     /// </summary>
     private ExprTree GenerateBinaryExpr(BinaryExpr expr)
     {
@@ -236,7 +237,7 @@ public class CodeGenerator
 
         return expr.Operator switch
         {
-            // 算術演算子
+            // 算術演算孁E
             TokenType.Plus => ExprTree.Call(
                 runtimeType,
                 nameof(RuntimeHelpers.Add),
@@ -273,7 +274,7 @@ public class CodeGenerator
                 right
             ),
 
-            // 比較演算子
+            // 比輁E��算孁E
             TokenType.EqualEqual => ExprTree.Call(
                 runtimeType,
                 nameof(RuntimeHelpers.Eq),
@@ -317,7 +318,7 @@ public class CodeGenerator
                 right
             ),
 
-            // 論理演算子（短絡評価）
+            // 論理演算子（短絡評価�E�E
             TokenType.And => GenerateAndExpr(expr),
             TokenType.Or => GenerateOrExpr(expr),
 
@@ -326,15 +327,15 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// 論理AND演算子の短絡評価
-    /// 仕様: a and b → truthy(a) ? b : a
+    /// 論理AND演算子�E短絡評価
+    /// 仕槁E a and b ↁEtruthy(a) ? b : a
     /// </summary>
     private ExprTree GenerateAndExpr(BinaryExpr expr)
     {
         var left = GenerateExpression(expr.Left);
         var right = GenerateExpression(expr.Right);
 
-        // 左辺を一時変数に格納（一度だけ評価）
+        // 左辺を一時変数に格納（一度だけ評価�E�E
         var tmpVar = ExprTree.Variable(typeof(object), "tmp");
         var runtimeType = typeof(RuntimeHelpers);
 
@@ -363,8 +364,8 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// 論理OR演算子の短絡評価
-    /// 仕様: a or b → truthy(a) ? a : b
+    /// 論理OR演算子�E短絡評価
+    /// 仕槁E a or b ↁEtruthy(a) ? a : b
     /// </summary>
     private ExprTree GenerateOrExpr(BinaryExpr expr)
     {
@@ -397,8 +398,8 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// 単項演算式の変換
-    /// 仕様: すべてRuntimeHelpersに委譲
+    /// 単頁E��算式�E変換
+    /// 仕槁E すべてRuntimeHelpersに委譲
     /// </summary>
     private ExprTree GenerateUnaryExpr(UnaryExpr expr)
     {
@@ -429,11 +430,11 @@ public class CodeGenerator
 
     #endregion
 
-    #region Task #15: 制御構造の実装
+    #region Task #15: 制御構造の実裁E
 
     /// <summary>
-    /// if式の変換
-    /// 仕様（expression-tree-mapping.md セクション7）:
+    /// if式�E変換
+    /// 仕様！Expression-tree-mapping.md セクション7�E�E
     /// condTruth = Runtime.IsTruthy(condObj)
     /// Expression.Condition(condTruth, thenObj, elseObj)
     /// </summary>
@@ -443,7 +444,7 @@ public class CodeGenerator
         var thenExpr = GenerateExpression(expr.ThenBranch);
         var elseExpr = GenerateExpression(expr.ElseBranch);
 
-        // IsTruthy で真偽値判定
+        // IsTruthy で真偽値判宁E
         var truthyCall = ExprTree.Call(
             typeof(RuntimeHelpers),
             nameof(RuntimeHelpers.IsTruthy),
@@ -461,7 +462,7 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// foreach文の変換
+    /// foreach斁E�E変換
     /// foreach (item in collection) { body }
     /// </summary>
     private ExprTree GenerateForeachStmt(ForeachStmt stmt)
@@ -472,7 +473,7 @@ public class CodeGenerator
         // コレクション式を評価
         var collectionExpr = GenerateExpression(stmt.Collection);
 
-        // IEnumerable にキャスト
+        // IEnumerable にキャスチE
         var enumerableVar = ExprTree.Variable(typeof(System.Collections.IEnumerable), "enumerable");
         var enumeratorVar = ExprTree.Variable(typeof(System.Collections.IEnumerator), "enumerator");
         var currentVar = ExprTree.Variable(typeof(object), "current");
@@ -485,15 +486,15 @@ public class CodeGenerator
             currentVar
         );
 
-        // ループラベルをスタックにプッシュ
+        // ループラベルをスタチE��にプッシュ
         _loopLabels.Push((breakLabel, continueLabel));
 
         var bodyExpr = GenerateStatement(stmt.Body);
 
-        // ループラベルをポップ
+        // ループラベルを�EチE�E
         _loopLabels.Pop();
 
-        // ループ本体
+        // ループ本佁E
         var loopBody = ExprTree.Block(
             typeof(void),
             // if (!enumerator.MoveNext()) break;
@@ -509,7 +510,7 @@ public class CodeGenerator
             bodyExpr
         );
 
-        // foreach全体
+        // foreach全佁E
         return ExprTree.Block(
             typeof(object),
             new[] { enumerableVar, enumeratorVar, currentVar },
@@ -531,9 +532,9 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// for文の変換
+    /// for斁E�E変換
     /// パターン1: for (item in collection) { body } - コレクション反復
-    /// パターン2: for (condition) { body } - 条件ループ
+    /// パターン2: for (condition) { body } - 条件ルーチE
     /// </summary>
     private ExprTree GenerateForStmt(ForStmt stmt)
     {
@@ -547,7 +548,7 @@ public class CodeGenerator
 
     /// <summary>
     /// for (item in collection) { body } の変換
-    /// foreach と同じ実装
+    /// foreach と同じ実裁E
     /// </summary>
     private ExprTree GenerateForCollection(ForStmt stmt)
     {
@@ -557,7 +558,7 @@ public class CodeGenerator
         // コレクション式を評価
         var collectionExpr = GenerateExpression(stmt.Collection!);
 
-        // IEnumerable にキャスト
+        // IEnumerable にキャスチE
         var enumerableVar = ExprTree.Variable(typeof(System.Collections.IEnumerable), "enumerable");
         var enumeratorVar = ExprTree.Variable(typeof(System.Collections.IEnumerator), "enumerator");
         var currentVar = ExprTree.Variable(typeof(object), "current");
@@ -570,15 +571,15 @@ public class CodeGenerator
             currentVar
         );
 
-        // ループラベルをスタックにプッシュ
+        // ループラベルをスタチE��にプッシュ
         _loopLabels.Push((breakLabel, continueLabel));
 
         var bodyExpr = GenerateExpression(stmt.Body);
 
-        // ループラベルをポップ
+        // ループラベルを�EチE�E
         _loopLabels.Pop();
 
-        // ループ本体
+        // ループ本佁E
         var loopBody = ExprTree.Block(
             typeof(void),
             // if (!enumerator.MoveNext()) break;
@@ -594,7 +595,7 @@ public class CodeGenerator
             bodyExpr
         );
 
-        // for全体
+        // for全佁E
         return ExprTree.Block(
             typeof(object),
             new[] { enumerableVar, enumeratorVar, currentVar },
@@ -617,23 +618,23 @@ public class CodeGenerator
 
     /// <summary>
     /// for (condition) { body } の変換
-    /// while と同じ実装
+    /// while と同じ実裁E
     /// </summary>
     private ExprTree GenerateForCondition(ForStmt stmt)
     {
         var breakLabel = ExprTree.Label($"forBreak_{_labelCounter}");
         var continueLabel = ExprTree.Label($"forContinue_{_labelCounter++}");
 
-        // ループラベルをスタックにプッシュ
+        // ループラベルをスタチE��にプッシュ
         _loopLabels.Push((breakLabel, continueLabel));
 
         var condExpr = GenerateExpression(stmt.Condition!);
         var bodyExpr = GenerateExpression(stmt.Body);
 
-        // ループラベルをポップ
+        // ループラベルを�EチE�E
         _loopLabels.Pop();
 
-        // IsTruthy で真偽値判定
+        // IsTruthy で真偽値判宁E
         var truthyCall = ExprTree.Call(
             typeof(RuntimeHelpers),
             nameof(RuntimeHelpers.IsTruthy),
@@ -663,7 +664,7 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// break文の変換
+    /// break斁E�E変換
     /// </summary>
     private ExprTree GenerateBreakStmt(BreakStmt stmt)
     {
@@ -677,7 +678,7 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// continue文の変換
+    /// continue斁E�E変換
     /// </summary>
     private ExprTree GenerateContinueStmt(ContinueStmt stmt)
     {
@@ -696,9 +697,9 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// return文の変換
+    /// return斁E�E変換
     /// v0.1では単純に式を返す
-    /// （関数内でのreturnは後で実装）
+    /// �E�関数冁E��のreturnは後で実裁E��E
     /// </summary>
     private ExprTree GenerateReturnStmt(ReturnStmt stmt)
     {
@@ -714,26 +715,26 @@ public class CodeGenerator
 
     #endregion
 
-    #region Task #15以降の実装（スタブ）
+    #region Task #15以降�E実裁E��スタブ！E
 
-    // Task #16: 関数とクロージャの実装（簡易実装）
+    // Task #16: 関数とクロージャの実裁E��簡易実裁E��E
     /// <summary>
-    /// 関数呼び出しの変換
-    /// 仕様: RuntimeHelpers.Invoke(callee, ctx, args, thisArg)
+    /// 関数呼び出し�E変換
+    /// 仕槁E RuntimeHelpers.Invoke(callee, ctx, args, thisArg)
     /// </summary>
     private ExprTree GenerateCallExpr(CallExpr expr)
     {
-        // CalleeがMemberExprの場合、CLR型のメソッド呼び出しまたはコンストラクタかチェック
+        // CalleeがMemberExprの場合、CLR型�EメソチE��呼び出しまた�EコンストラクタかチェチE��
         if (expr.Callee is MemberExpr memberExpr)
         {
             var (isCLRType, typeName, methodName) = ExtractCLRTypeName(memberExpr);
 
             if (isCLRType)
             {
-                // methodNameが空の場合、コンストラクタ呼び出し
+                // methodNameが空の場合、コンストラクタ呼び出ぁE
                 if (string.IsNullOrEmpty(methodName))
                 {
-                    // CLR型のコンストラクタを生成
+                    // CLR型�Eコンストラクタを生戁E
                     var argExprsConstructor = expr.Arguments.Select(GenerateExpression).ToArray();
                     var argsArrayConstructor = ExprTree.NewArrayInit(typeof(object), argExprsConstructor);
 
@@ -755,7 +756,7 @@ public class CodeGenerator
                     );
                 }
 
-                // CLR型のメソッド呼び出しを生成
+                // CLR型�EメソチE��呼び出しを生�E
                 var argExprs = expr.Arguments.Select(GenerateExpression).ToArray();
                 var argsArray = ExprTree.NewArrayInit(typeof(object), argExprs);
 
@@ -778,11 +779,11 @@ public class CodeGenerator
                 );
             }
 
-            // 通常のインスタンスメソッド呼び出し
+            // 通常のインスタンスメソチE��呼び出ぁE
             var targetExpr = GenerateExpression(memberExpr.Target);
             var thisArg = targetExpr;
 
-            // メソッドを取得
+            // メソチE��を取征E
             var calleeExpr = ExprTree.Call(
                 typeof(RuntimeHelpers),
                 "GetMember",
@@ -804,13 +805,13 @@ public class CodeGenerator
                 thisArg
             );
         }
-        // CalleeがIdentifierExprまたはMemberExprで、CLR型のコンストラクタ呼び出しかチェック
+        // CalleeがIdentifierExprまた�EMemberExprで、CLR型�Eコンストラクタ呼び出しかチェチE��
         else if (expr.Callee is IdentifierExpr identExpr)
         {
-            // ドット区切りの型名をチェック（例: System.Text.StringBuilder）
+            // ドット区刁E��の型名をチェチE���E�侁E System.Text.StringBuilder�E�E
             var typeName = identExpr.Name;
 
-            // System で始まる場合、CLR型のコンストラクタと判断
+            // System で始まる場合、CLR型�Eコンストラクタと判断
             if (typeName.StartsWith("System."))
             {
                 var argExprsConstructor = expr.Arguments.Select(GenerateExpression).ToArray();
@@ -835,7 +836,7 @@ public class CodeGenerator
             }
         }
 
-        // 通常の関数呼び出し
+        // 通常の関数呼び出ぁE
         var calleeExprFinal = GenerateExpression(expr.Callee);
         var argExprsFinal = expr.Arguments.Select(GenerateExpression).ToArray();
         var argsArrayFinal = ExprTree.NewArrayInit(typeof(object), argExprsFinal);
@@ -852,7 +853,7 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// MemberExprからCLR型名を抽出します。
+    /// MemberExprからCLR型名を抽出します、E
     /// </summary>
     /// <param name="memberExpr">MemberExpr</param>
     /// <returns>(isCLRType, typeName, methodName)</returns>
@@ -861,7 +862,7 @@ public class CodeGenerator
         var parts = new List<string>();
         var current = memberExpr;
 
-        // MemberExprをたどってドット区切りの名前を構築
+        // MemberExprをたどってドット区刁E��の名前を構篁E
         while (current != null)
         {
             parts.Insert(0, current.Name);
@@ -877,26 +878,26 @@ public class CodeGenerator
             }
             else
             {
-                // CLR型ではない
+                // CLR型ではなぁE
                 return (false, "", "");
             }
         }
 
-        // System で始まる場合、CLR型とみなす
+        // System で始まる場合、CLR型とみなぁE
         if (parts.Count >= 2 && parts[0] == "System")
         {
-            // 型名全体を構築して確認
+            // 型名全体を構築して確誁E
             var fullTypeName = string.Join(".", parts);
 
-            // 型が解決できるかチェック
+            // 型が解決できるかチェチE��
             var resolvedType = RuntimeHelpers.ResolveCLRType(fullTypeName);
             if (resolvedType != null)
             {
-                // コンストラクタ呼び出し（型名全体で解決できた場合）
+                // コンストラクタ呼び出し（型名�E体で解決できた場合！E
                 return (true, fullTypeName, "");
             }
 
-            // 最後の要素がメソッド名
+            // 最後�E要素がメソチE��吁E
             var methodName = parts[^1];
             var typeName = string.Join(".", parts.Take(parts.Count - 1));
             return (true, typeName, methodName);
@@ -906,9 +907,9 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// ラムダ式の変換
-    /// 仕様（expression-tree-mapping.md セクション9）:
-    /// Closureオブジェクトを生成し、IroCallableとして扱う
+    /// ラムダ式�E変換
+    /// 仕様！Expression-tree-mapping.md セクション9�E�E
+    /// Closureオブジェクトを生�Eし、IroCallableとして扱ぁE
     /// </summary>
     private ExprTree GenerateLambdaExpr(LambdaExpr expr)
     {
@@ -918,7 +919,7 @@ public class CodeGenerator
 
         var bodyExprs = new List<ExprTree>();
 
-        // パラメータを args[0], args[1], ... にバインド
+        // パラメータめEargs[0], args[1], ... にバインチE
         for (int i = 0; i < expr.Parameters.Count; i++)
         {
             var param = expr.Parameters[i];
@@ -929,7 +930,7 @@ public class CodeGenerator
             bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
         }
 
-        // 本体を実行（一時的に _ctxParam を切り替える）
+        // 本体を実行（一時的に _ctxParam を�Eり替える�E�E
         var savedCtxParam = _ctxParam;
         _ctxParam = ctxParamForFunc;
         var bodyExpr = GenerateExpression(expr.Body);
@@ -939,7 +940,7 @@ public class CodeGenerator
 
         var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
 
-        // Lambda<Func<ScriptContext, object[], object>> を作成
+        // Lambda<Func<ScriptContext, object[], object>> を作�E
         var lambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(
             bodyBlock,
             ctxParamForFunc,
@@ -948,14 +949,14 @@ public class CodeGenerator
 
         var compiled = lambda.Compile();
 
-        // パラメータ名のリストを作成
+        // パラメータ名�Eリストを作�E
         var paramNames = expr.Parameters.Select(p => p.Name).ToList();
         var paramNamesListNew = ExprTree.New(
             typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
             ExprTree.NewArrayInit(typeof(string), paramNames.Select(n => ExprTree.Constant(n)))
         );
 
-        // Closure オブジェクトを作成（位置情報を含む）
+        // Closure オブジェクトを作�E�E�位置惁E��を含む�E�E
         var closureNew = ExprTree.New(
             typeof(Closure).GetConstructor(new[] {
                 typeof(string),
@@ -976,18 +977,24 @@ public class CodeGenerator
 
     /// <summary>
     /// 関数定義の変換
-    /// 仕様（expression-tree-mapping.md セクション9）:
-    /// Closureオブジェクトを生成し、ctx.Globals[name] に登録
+    /// 仕様！Expression-tree-mapping.md セクション9�E�E
+    /// Closureオブジェクトを生�Eし、ctx.Globals[name] に登録
     /// </summary>
     private ExprTree GenerateFunctionDef(FunctionDef stmt)
     {
+        // Check if this is an async function
+        if (stmt.IsAsync)
+        {
+            return GenerateAsyncFunctionDef(stmt);
+        }
+
         // 関数本体を Func<ScriptContext, object[], object> にコンパイル
         var argsParam = ExprTree.Parameter(typeof(object[]), "args");
         var ctxParamForFunc = ExprTree.Parameter(typeof(ScriptContext), "ctx");
 
         var bodyExprs = new List<ExprTree>();
 
-        // パラメータを args[0], args[1], ... にバインド
+        // パラメータめEargs[0], args[1], ... にバインチE
         for (int i = 0; i < stmt.Parameters.Count; i++)
         {
             var param = stmt.Parameters[i];
@@ -998,7 +1005,7 @@ public class CodeGenerator
             bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
         }
 
-        // 本体を実行（一時的に _ctxParam を切り替える）
+        // 本体を実行（一時的に _ctxParam を�Eり替える�E�E
         var savedCtxParam = _ctxParam;
         _ctxParam = ctxParamForFunc;
         var bodyExpr = GenerateExpression(stmt.Body);
@@ -1008,7 +1015,7 @@ public class CodeGenerator
 
         var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
 
-        // Lambda<Func<ScriptContext, object[], object>> を作成
+        // Lambda<Func<ScriptContext, object[], object>> を作�E
         var lambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(
             bodyBlock,
             ctxParamForFunc,
@@ -1017,14 +1024,14 @@ public class CodeGenerator
 
         var compiled = lambda.Compile();
 
-        // パラメータ名のリストを作成
+        // パラメータ名�Eリストを作�E
         var paramNames = stmt.Parameters.Select(p => p.Name).ToList();
         var paramNamesListNew = ExprTree.New(
             typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
             ExprTree.NewArrayInit(typeof(string), paramNames.Select(n => ExprTree.Constant(n)))
         );
 
-        // Closure オブジェクトを作成（位置情報を含む）
+        // Closure オブジェクトを作�E�E�位置惁E��を含む�E�E
         var closureNew = ExprTree.New(
             typeof(Closure).GetConstructor(new[] {
                 typeof(string),
@@ -1048,11 +1055,99 @@ public class CodeGenerator
         return ExprTree.Assign(itemProperty, ExprTree.Convert(closureNew, typeof(object)));
     }
 
-    // Task #17: クラスとインスタンスの実装
+    /// <summary>
+    /// �񓯊��֐���`�̐���
+    /// Task<object>��Ԃ��֐��𐶐�
+    /// </summary>
+    private ExprTree GenerateAsyncFunctionDef(FunctionDef stmt)
+    {
+        // �֐��{�̂� Func<ScriptContext, object[], object> �ɃR���p�C��
+        var argsParam = ExprTree.Parameter(typeof(object[]), "args");
+        var ctxParamForFunc = ExprTree.Parameter(typeof(ScriptContext), "ctx");
+
+        var bodyExprs = new List<ExprTree>();
+
+        // �p�����[�^�� args[0], args[1], ... �Ƀo�C���h
+        for (int i = 0; i < stmt.Parameters.Count; i++)
+        {
+            var param = stmt.Parameters[i];
+            var argAccess = ExprTree.ArrayIndex(argsParam, ExprTree.Constant(i));
+            var globalsForParam = ExprTree.Property(ctxParamForFunc, "Globals");
+            var paramName = ExprTree.Constant(param.Name);
+            var itemForParam = ExprTree.Property(globalsForParam, "Item", paramName);
+            bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
+        }
+
+        // �{�̂����s�i�ꎞ�I�� _ctxParam ��؂�ւ���j
+        var savedCtxParam = _ctxParam;
+        _ctxParam = ctxParamForFunc;
+        var bodyExpr = GenerateExpression(stmt.Body);
+        _ctxParam = savedCtxParam;
+
+        bodyExprs.Add(bodyExpr);
+
+        var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
+
+        // Wrap the result in Task.FromResult to make it async
+        // RuntimeHelpers.WrapInTask(result)
+        var wrapInTaskMethod = typeof(RuntimeHelpers).GetMethod(
+            "WrapInTask",
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static
+        );
+
+        if (wrapInTaskMethod == null)
+        {
+            throw new InvalidOperationException("WrapInTask method not found in RuntimeHelpers");
+        }
+
+        var wrappedBody = ExprTree.Call(wrapInTaskMethod, bodyBlock);
+
+        // Lambda<Func<ScriptContext, object[], object>> ���쐬
+        // The async function returns Task<object>, but we wrap it to return object
+        var asyncLambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(
+            ExprTree.Convert(wrappedBody, typeof(object)),
+            ctxParamForFunc,
+            argsParam
+        );
+
+        var compiled = asyncLambda.Compile();
+
+        // �p�����[�^���̃��X�g���쐬
+        var paramNames = stmt.Parameters.Select(p => p.Name).ToList();
+        var paramNamesListNew = ExprTree.New(
+            typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
+            ExprTree.NewArrayInit(typeof(string), paramNames.Select(n => ExprTree.Constant(n)))
+        );
+
+        // Closure �I�u�W�F�N�g���쐬�i�ʒu�����܂ށj
+        var closureNew = ExprTree.New(
+            typeof(Closure).GetConstructor(new[] {
+                typeof(string),
+                typeof(Func<ScriptContext, object[], object>),
+                typeof(List<string>),
+                typeof(int),
+                typeof(int)
+            })!,
+            ExprTree.Constant(stmt.Name),
+            ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>)),
+            paramNamesListNew,
+            ExprTree.Constant(stmt.Line),
+            ExprTree.Constant(stmt.Column)
+        );
+
+        // ctx.Globals[name] = closure
+        var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
+        var nameExpr = ExprTree.Constant(stmt.Name);
+        var itemProperty = ExprTree.Property(globalsExpr, "Item", nameExpr);
+
+        return ExprTree.Assign(itemProperty, ExprTree.Convert(closureNew, typeof(object)));
+    }
+
+    // Task #17: クラスとインスタンスの実裁E
 
     /// <summary>
     /// クラス定義の変換
-    /// 仕様: IroClass オブジェクトを作成し、ctx.Classes に登録
+    /// 仕槁E IroClass オブジェクトを作�Eし、ctx.Classes に登録
     /// </summary>
     private ExprTree GenerateClassDef(ClassDef stmt)
     {
@@ -1086,20 +1181,20 @@ public class CodeGenerator
 
         var fieldsArray = ExprTree.NewArrayInit(typeof(Runtime.FieldDef), fieldDefs);
 
-        // メソッド定義を変換
+        // メソチE��定義を変換
         var methodDefs = stmt.Methods.Select(m =>
         {
-            // メソッド本体をClosureにコンパイル
+            // メソチE��本体をClosureにコンパイル
             var argsParam = ExprTree.Parameter(typeof(object[]), "args");
             var ctxParamForFunc = ExprTree.Parameter(typeof(ScriptContext), "ctx");
 
-            // 一時的にctxParamを切り替える
+            // 一時的にctxParamを�Eり替える
             var savedCtxParam = _ctxParam;
             _ctxParam = ctxParamForFunc;
 
             var bodyExprs = new List<ExprTree>();
 
-            // 引数を ctx.Globals に格納
+            // 引数めEctx.Globals に格紁E
             for (int i = 0; i < m.Parameters.Count; i++)
             {
                 var param = m.Parameters[i];
@@ -1110,10 +1205,10 @@ public class CodeGenerator
                 bodyExprs.Add(ExprTree.Assign(itemProperty, argAccess));
             }
 
-            // メソッド本体を追加
+            // メソチE��本体を追加
             bodyExprs.Add(GenerateExpression(m.Body));
 
-            // ctxParamを元に戻す
+            // ctxParamを�Eに戻ぁE
             _ctxParam = savedCtxParam;
 
             var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
@@ -1125,7 +1220,7 @@ public class CodeGenerator
 
             var compiled = lambda.Compile();
 
-            // パラメータ名のリストを作成
+            // パラメータ名�Eリストを作�E
             var paramNames = m.Parameters.Select(p => p.Name).ToList();
             var closure = new Closure(m.Name, compiled, paramNames, m.Line, m.Column);
 
@@ -1145,7 +1240,7 @@ public class CodeGenerator
 
         var methodsArray = ExprTree.NewArrayInit(typeof(Runtime.MethodDef), methodDefs);
 
-        // 親クラスを取得（存在する場合）
+        // 親クラスを取得（存在する場合！E
         ExprTree parentClassExpr;
         if (!string.IsNullOrEmpty(stmt.ParentClass))
         {
@@ -1159,7 +1254,7 @@ public class CodeGenerator
             parentClassExpr = ExprTree.Constant(null, typeof(IroClass));
         }
 
-        // IroClass を作成
+        // IroClass を作�E
         var classNew = ExprTree.New(
             typeof(IroClass).GetConstructor(new[] {
                 typeof(string),
@@ -1182,8 +1277,8 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// インスタンス生成の変換
-    /// 仕様: Runtime.NewInstance(className, ctx, args)
+    /// インスタンス生�Eの変換
+    /// 仕槁E Runtime.NewInstance(className, ctx, args)
     /// </summary>
     private ExprTree GenerateNewExpr(NewExpr expr)
     {
@@ -1203,16 +1298,16 @@ public class CodeGenerator
 
     /// <summary>
     /// メンバアクセスの変換
-    /// 仕様: Runtime.GetMember(target, name)
+    /// 仕槁E Runtime.GetMember(target, name)
     /// </summary>
     private ExprTree GenerateMemberExpr(MemberExpr expr)
     {
-        // CLR型のプロパティアクセスかチェック
+        // CLR型�EプロパティアクセスかチェチE��
         var (isCLRType, typeName, propertyName) = ExtractCLRTypeName(expr);
 
         if (isCLRType)
         {
-            // CLR型のプロパティアクセスを生成
+            // CLR型�Eプロパティアクセスを生戁E
             // RuntimeHelpers.ResolveCLRType(typeName)
             var resolveTypeCall = ExprTree.Call(
                 typeof(RuntimeHelpers),
@@ -1247,8 +1342,8 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// インデックスアクセスの変換
-    /// 仕様: RuntimeHelpers.GetIndexed を使用
+    /// インチE��クスアクセスの変換
+    /// 仕槁E RuntimeHelpers.GetIndexed を使用
     /// </summary>
     private ExprTree GenerateIndexExpr(IndexExpr expr)
     {
@@ -1267,11 +1362,11 @@ public class CodeGenerator
 
     #endregion
 
-    #region Task #25: リスト・ハッシュの実装
+    #region Task #25: リスト�Eハッシュの実裁E
 
     /// <summary>
-    /// リストリテラルの変換
-    /// 仕様: [1, 2, 3] → RuntimeHelpers.CreateList(new object[] { 1, 2, 3 })
+    /// リストリチE��ルの変換
+    /// 仕槁E [1, 2, 3] ↁERuntimeHelpers.CreateList(new object[] { 1, 2, 3 })
     /// </summary>
     private ExprTree GenerateListExpr(ListExpr expr)
     {
@@ -1287,8 +1382,8 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// ハッシュリテラルの変換
-    /// 仕様: {name: "Alice", age: 30} → RuntimeHelpers.CreateHash(new[] { ("name", "Alice"), ("age", 30) })
+    /// ハッシュリチE��ルの変換
+    /// 仕槁E {name: "Alice", age: 30} ↁERuntimeHelpers.CreateHash(new[] { ("name", "Alice"), ("age", 30) })
     /// </summary>
     private ExprTree GenerateHashExpr(HashExpr expr)
     {
@@ -1314,9 +1409,9 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// 範囲リテラルの変換
-    /// 仕様: 1..10 → RuntimeHelpers.CreateRange(1, 10, false)
-    ///       1...10 → RuntimeHelpers.CreateRange(1, 10, true)
+    /// 篁E��リチE��ルの変換
+    /// 仕槁E 1..10 ↁERuntimeHelpers.CreateRange(1, 10, false)
+    ///       1...10 ↁERuntimeHelpers.CreateRange(1, 10, true)
     /// </summary>
     private ExprTree GenerateRangeExpr(RangeExpr expr)
     {
@@ -1335,8 +1430,8 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// インデックス代入の変換
-    /// 仕様: arr[0] = value → RuntimeHelpers.SetIndexed(arr, 0, value)
+    /// インチE��クス代入の変換
+    /// 仕槁E arr[0] = value ↁERuntimeHelpers.SetIndexed(arr, 0, value)
     /// </summary>
     private ExprTree GenerateIndexAssignExpr(IndexAssignExpr expr)
     {
@@ -1356,7 +1451,7 @@ public class CodeGenerator
 
     /// <summary>
     /// メンバ代入の変換
-    /// 仕様: obj.field = value → RuntimeHelpers.SetMember(obj, "field", value)
+    /// 仕槁E obj.field = value ↁERuntimeHelpers.SetMember(obj, "field", value)
     /// </summary>
     private ExprTree GenerateMemberAssignExpr(MemberAssignExpr expr)
     {
@@ -1375,29 +1470,29 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// 文字列補間の変換
-    /// 仕様: "Hello, ${name}!" → string.Concat("Hello, ", name.ToString(), "!")
+    /// 斁E���E補間の変換
+    /// 仕槁E "Hello, ${name}!" ↁEstring.Concat("Hello, ", name.ToString(), "!")
     /// </summary>
     private ExprTree GenerateStringInterpolationExpr(StringInterpolationExpr expr)
     {
-        // 各パートを式に変換
+        // 吁E��ートを式に変換
         var partExprs = expr.Parts.Select<object, ExprTree>(part =>
         {
             if (part is string str)
             {
-                // 文字列パートはそのまま
+                // 斁E���Eパ�Eト�Eそ�Eまま
                 return ExprTree.Constant(str, typeof(object));
             }
             else
             {
-                // 式パートはToString()を呼び出す
+                // 式パート�EToString()を呼び出ぁE
                 var partExpr = GenerateExpression((AstExpr)part);
                 var toStringMethod = typeof(object).GetMethod("ToString")!;
                 return ExprTree.Call(partExpr, toStringMethod);
             }
         }).ToArray();
 
-        // string.Concat(object[]) を呼び出す
+        // string.Concat(object[]) を呼び出ぁE
         var concatMethod = typeof(string).GetMethod(
             nameof(string.Concat),
             new[] { typeof(object[]) }
@@ -1409,28 +1504,28 @@ public class CodeGenerator
 
     #endregion
 
-    #region try/catch/finally の生成
+    #region try/catch/finally の生�E
 
     /// <summary>
-    /// try/catch/finally式の生成
+    /// try/catch/finally式�E生�E
     /// </summary>
     private ExprTree GenerateTryExpr(TryExpr tryExpr)
     {
-        // try ブロックの本体
+        // try ブロチE��の本佁E
         var tryBody = GenerateExpression(tryExpr.TryBody);
 
-        // catch ブロック（オプション）
+        // catch ブロチE���E�オプション�E�E
         CatchBlock? catchBlock = null;
         if (tryExpr.Catch != null)
         {
-            // 例外変数を作成（IroExceptionをキャッチ）
+            // 例外変数を作�E�E�EroExceptionをキャチE���E�E
             var exceptionParam = ExprTree.Parameter(typeof(IroException), "ex");
 
-            // 例外変数が指定されている場合、ctx.Globals に登録
+            // 例外変数が指定されてぁE��場合、ctx.Globals に登録
             ExprTree catchBody;
             if (tryExpr.Catch.ExceptionVariable != null)
             {
-                // ex.Value を取得
+                // ex.Value を取征E
                 var exceptionValueExpr = ExprTree.Property(exceptionParam, nameof(IroException.Value));
 
                 // ctx.Globals["e"] = ex.Value
@@ -1439,10 +1534,10 @@ public class CodeGenerator
                 var itemProperty = ExprTree.Property(globalsExpr, "Item", nameExpr);
                 var assignExpr = ExprTree.Assign(itemProperty, exceptionValueExpr);
 
-                // catch ブロック本体を生成
+                // catch ブロチE��本体を生�E
                 var catchBodyExpr = GenerateExpression(tryExpr.Catch.Body);
 
-                // Block で例外変数を登録して本体を実行
+                // Block で例外変数を登録して本体を実衁E
                 catchBody = ExprTree.Block(
                     assignExpr,
                     catchBodyExpr
@@ -1450,21 +1545,21 @@ public class CodeGenerator
             }
             else
             {
-                // 例外変数なしの場合、そのまま本体を実行
+                // 例外変数なし�E場合、そのまま本体を実衁E
                 catchBody = GenerateExpression(tryExpr.Catch.Body);
             }
 
             catchBlock = ExprTree.Catch(exceptionParam, catchBody);
         }
 
-        // finally ブロック（オプション）
+        // finally ブロチE���E�オプション�E�E
         ExprTree? finallyBody = null;
         if (tryExpr.Finally != null)
         {
             finallyBody = GenerateExpression(tryExpr.Finally);
         }
 
-        // TryCatchFinally を構築
+        // TryCatchFinally を構篁E
         if (catchBlock != null && finallyBody != null)
         {
             return ExprTree.TryCatchFinally(tryBody, finallyBody, catchBlock);
@@ -1479,37 +1574,37 @@ public class CodeGenerator
         }
         else
         {
-            // catch も finally もない場合（通常はパーサーで弾かれるはず）
+            // catch めEfinally もなぁE��合（通常はパ�Eサーで弾かれる�Eず！E
             throw new InvalidOperationException("Try expression must have catch or finally block.");
         }
     }
 
     /// <summary>
-    /// throw文の生成
+    /// throw斁E�E生�E
     /// </summary>
     private ExprTree GenerateThrowStmt(ThrowStmt throwStmt)
     {
         // throw する値を評価
         var valueExpr = GenerateExpression(throwStmt.Value);
 
-        // IroException(value) のコンストラクタを呼び出す
+        // IroException(value) のコンストラクタを呼び出ぁE
         var ctor = typeof(IroException).GetConstructor(new[] { typeof(object) })!;
         var newException = ExprTree.New(ctor, valueExpr);
 
-        // throw 式を生成
+        // throw 式を生�E
         return ExprTree.Throw(newException, typeof(object));
     }
 
     /// <summary>
-    /// export文の変換
-    /// 仕様: エクスポートする宣言を実行し、ctx.Exports に登録
+    /// export斁E�E変換
+    /// 仕槁E エクスポ�Eトする宣言を実行し、ctx.Exports に登録
     /// </summary>
     private ExprTree GenerateExportStmt(ExportStmt stmt)
     {
-        // エクスポートする宣言を生成
+        // エクスポ�Eトする宣言を生戁E
         var declExpr = GenerateStatement(stmt.Declaration);
 
-        // エクスポート名を取得
+        // エクスポ�Eト名を取征E
         string exportName;
         if (stmt.Declaration is LetStmt letStmt)
         {
@@ -1534,30 +1629,30 @@ public class CodeGenerator
             exportValue
         );
 
-        // 宣言の実行とエクスポートを順に実行
+        // 宣言の実行とエクスポ�Eトを頁E��実衁E
         return ExprTree.Block(declExpr, exportAssign);
     }
 
     /// <summary>
-    /// import文の変換
-    /// 仕様: ModuleLoader を使ってモジュールをロードし、インポートする名前を ctx.Globals に登録
+    /// import斁E�E変換
+    /// 仕槁E ModuleLoader を使ってモジュールをロードし、インポ�Eトする名前を ctx.Globals に登録
     /// </summary>
     private ExprTree GenerateImportStmt(ImportStmt stmt)
     {
-        // TODO: 現時点では簡略化のため、実装をスキップします
-        // 実際の実装では、ModuleLoaderを呼び出してモジュールをロードし、
-        // インポートする名前を ctx.Globals に登録する必要があります
+        // TODO: 現時点では簡略化�Eため、実裁E��スキチE�EしまぁE
+        // 実際の実裁E��は、ModuleLoaderを呼び出してモジュールをロードし、E
+        // インポ�Eトする名前を ctx.Globals に登録する忁E��がありまぁE
 
-        // 空のブロックを返す（何もしない）
+        // 空のブロチE��を返す�E�何もしなぁE��E
         return ExprTree.Empty();
     }
 
     /// <summary>
-    /// シェルコマンド実行式を生成します
+    /// シェルコマンド実行式を生�EしまぁE
     /// </summary>
     private ExprTree GenerateShellExpr(ShellExpr expr)
     {
-        // RuntimeHelpers.ExecuteShellCommand(command) を呼び出す
+        // RuntimeHelpers.ExecuteShellCommand(command) を呼び出ぁE
         var method = typeof(RuntimeHelpers).GetMethod(
             nameof(RuntimeHelpers.ExecuteShellCommand),
             System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static
@@ -1575,11 +1670,11 @@ public class CodeGenerator
 
     #endregion
 
-    #region v0.5.6: 便利な演算子の実装
+    #region v0.5.6: 便利な演算子�E実裁E
 
     /// <summary>
-    /// 三項演算式の生成
-    /// 仕様: condition ? trueValue : falseValue → Expression.Condition(IsTruthy(condition), trueValue, falseValue)
+    /// 三頁E��算式�E生�E
+    /// 仕槁E condition ? trueValue : falseValue ↁEExpression.Condition(IsTruthy(condition), trueValue, falseValue)
     /// </summary>
     private ExprTree GenerateTernaryExpr(TernaryExpr expr)
     {
@@ -1587,7 +1682,7 @@ public class CodeGenerator
         var trueValueExpr = GenerateExpression(expr.TrueValue);
         var falseValueExpr = GenerateExpression(expr.FalseValue);
 
-        // IsTruthy で真偽値判定
+        // IsTruthy で真偽値判宁E
         var truthyCall = ExprTree.Call(
             typeof(RuntimeHelpers),
             nameof(RuntimeHelpers.IsTruthy),
@@ -1605,8 +1700,8 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// Null合体演算式の生成
-    /// 仕様: value ?? defaultValue → Expression.Coalesce(value, defaultValue)
+    /// Null合体演算式�E生�E
+    /// 仕槁E value ?? defaultValue ↁEExpression.Coalesce(value, defaultValue)
     /// </summary>
     private ExprTree GenerateNullCoalescingExpr(NullCoalescingExpr expr)
     {
@@ -1618,14 +1713,14 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// インクリメント/デクリメント演算式の生成
-    /// 仕様:
-    /// - 前置（++x, --x）: var temp = Increment/Decrement(value); SetVariable(temp); return temp;
-    /// - 後置（x++, x--）: var temp = value; SetVariable(Increment/Decrement(value)); return temp;
+    /// インクリメンチEチE��リメント演算式�E生�E
+    /// 仕槁E
+    /// - 前置�E�E+x, --x�E�E var temp = Increment/Decrement(value); SetVariable(temp); return temp;
+    /// - 後置�E�E++, x--�E�E var temp = value; SetVariable(Increment/Decrement(value)); return temp;
     /// </summary>
     private ExprTree GenerateIncrementExpr(IncrementExpr expr)
     {
-        // オペランドが変数の場合のみサポート
+        // オペランドが変数の場合�Eみサポ�EチE
         if (expr.Operand is not IdentifierExpr identExpr)
         {
             throw new NotImplementedException("Increment/Decrement only supports variables currently");
@@ -1634,7 +1729,7 @@ public class CodeGenerator
         var variableName = identExpr.Name;
         var runtimeType = typeof(RuntimeHelpers);
 
-        // Increment/Decrementメソッドを取得
+        // Increment/DecrementメソチE��を取征E
         var method = runtimeType.GetMethod(
             expr.IsIncrement ? nameof(RuntimeHelpers.Increment) : nameof(RuntimeHelpers.Decrement)
         )!;
@@ -1644,7 +1739,7 @@ public class CodeGenerator
             // 前置: var newValue = Increment/Decrement(currentValue); ctx.Globals["name"] = newValue; return newValue;
             var tempVar = ExprTree.Variable(typeof(object), "temp");
 
-            // 現在の変数値を取得
+            // 現在の変数値を取征E
             var getCurrentValue = ExprTree.Property(
                 ExprTree.Property(_ctxParam, "Globals"),
                 "Item",
@@ -1680,7 +1775,7 @@ public class CodeGenerator
             var tempVar = ExprTree.Variable(typeof(object), "temp");
             var newValueVar = ExprTree.Variable(typeof(object), "newValue");
 
-            // 現在の変数値を取得して保存
+            // 現在の変数値を取得して保孁E
             var getCurrentValue = ExprTree.Property(
                 ExprTree.Property(_ctxParam, "Globals"),
                 "Item",
@@ -1688,7 +1783,7 @@ public class CodeGenerator
             );
             var assignOldExpr = ExprTree.Assign(tempVar, getCurrentValue);
 
-            // インクリメント/デクリメントして新しい値を保存
+            // インクリメンチEチE��リメントして新しい値を保孁E
             var incrementedExpr = ExprTree.Call(method, tempVar);
             var assignNewExpr = ExprTree.Assign(newValueVar, incrementedExpr);
 
@@ -1716,8 +1811,28 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// 安全なナビゲーション演算式の生成
-    /// 仕様: obj?.property → RuntimeHelpers.SafeNavigation(obj, "property")
+    /// await���̐���
+    /// RuntimeHelpers.AwaitTask���Ăяo����Task������ҋ@
+    /// </summary>
+    private ExprTree GenerateAwaitExpr(AwaitExpr expr)
+    {
+        var awaitedExpr = GenerateExpression(expr.Expression);
+
+        // Call RuntimeHelpers.AwaitTask
+        var awaitTaskMethod = typeof(RuntimeHelpers).GetMethod(
+            "AwaitTask",
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static
+        );
+        if (awaitTaskMethod == null)
+        {
+            throw new InvalidOperationException("AwaitTask method not found in RuntimeHelpers");
+        }
+        return ExprTree.Call(awaitTaskMethod, awaitedExpr);
+    }
+
+    /// <summary>
+    /// 安�Eなナビゲーション演算式�E生�E
+    /// 仕槁E obj?.property ↁERuntimeHelpers.SafeNavigation(obj, "property")
     /// </summary>
     private ExprTree GenerateSafeNavigationExpr(SafeNavigationExpr expr)
     {
@@ -1735,37 +1850,37 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// super式の生成
-    /// 仕様: super.method() → 親クラスのメソッドを呼び出す
+    /// super式�E生�E
+    /// 仕槁E super.method() ↁE親クラスのメソチE��を呼び出ぁE
     ///
-    /// 実装方針:
-    /// 1. thisインスタンス（現在のインスタンス）をctx.Globals["this"]から取得
-    /// 2. インスタンスの親クラスを取得
-    /// 3. 親クラスのメソッドを取得
-    /// 4. メソッドを返す（呼び出しはCallExprで行われる）
+    /// 実裁E��釁E
+    /// 1. thisインスタンス�E�現在のインスタンス�E�をctx.Globals["this"]から取征E
+    /// 2. インスタンスの親クラスを取征E
+    /// 3. 親クラスのメソチE��を取征E
+    /// 4. メソチE��を返す�E�呼び出し�ECallExprで行われる�E�E
     /// </summary>
     private ExprTree GenerateSuperExpr(SuperExpr expr)
     {
-        // ctx.Globals["this"] からthisインスタンスを取得
+        // ctx.Globals["this"] からthisインスタンスを取征E
         var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
         var thisNameExpr = ExprTree.Constant("this");
         var thisExpr = ExprTree.Property(globalsExpr, "Item", thisNameExpr);
 
-        // IroInstanceにキャスト
+        // IroInstanceにキャスチE
         var instanceExpr = ExprTree.Convert(thisExpr, typeof(IroInstance));
 
-        // instance.Class.Parent を取得
+        // instance.Class.Parent を取征E
         var classExpr = ExprTree.Property(instanceExpr, nameof(IroInstance.Class));
         var parentClassExpr = ExprTree.Property(classExpr, nameof(IroClass.Parent));
 
-        // parentClass.GetMethod(memberName) を呼び出し
+        // parentClass.GetMethod(memberName) を呼び出ぁE
         var getMethodCall = ExprTree.Call(
             parentClassExpr,
             typeof(IroClass).GetMethod(nameof(IroClass.GetMethod))!,
             ExprTree.Constant(expr.MemberName)
         );
 
-        // メソッドがnullの場合はエラー
+        // メソチE��がnullの場合�Eエラー
         var nullCheck = ExprTree.Condition(
             ExprTree.Equal(getMethodCall, ExprTree.Constant(null, typeof(IroCallable))),
             ExprTree.Throw(

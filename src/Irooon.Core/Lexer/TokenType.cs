@@ -28,6 +28,8 @@ public enum TokenType
     Class,
     Extends,
     Super,
+    Async,
+    Await,
     Public,
     Private,
     Static,

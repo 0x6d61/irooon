@@ -12,6 +12,7 @@ public class Resolver
 {
     private Scope _currentScope;
     private readonly List<ResolveException> _errors = new();
+    private bool _inAsyncFunction = false;
     private readonly Dictionary<string, ClassDef> _classes = new();
     private ClassDef? _currentClass = null; // 現在解析中のクラス
 
@@ -253,6 +254,9 @@ public class Resolver
                 break;
             case SuperExpr superExpr:
                 ResolveSuperExpr(superExpr);
+                break;
+            case AwaitExpr awaitExpr:
+                ResolveAwaitExpr(awaitExpr);
                 break;
             default:
                 _errors.Add(new ResolveException(
@@ -601,6 +605,10 @@ public class Resolver
         // 新しいスコープを開始
         BeginScope();
 
+        // 現在の async コンテキストを保存
+        var previousAsyncContext = _inAsyncFunction;
+        _inAsyncFunction = stmt.IsAsync;
+
         // パラメータを宣言
         foreach (var param in stmt.Parameters)
         {
@@ -609,6 +617,9 @@ public class Resolver
 
         // 本体を解析
         ResolveExpression(stmt.Body);
+
+        // async コンテキストを復元
+        _inAsyncFunction = previousAsyncContext;
 
         // スコープを終了
         EndScope();
@@ -837,6 +848,18 @@ public class Resolver
     {
         // 安全なナビゲーション: obj?.member
         ResolveExpression(expr.Object);
+    }
+
+    private void ResolveAwaitExpr(AwaitExpr expr)
+    {
+        if (!_inAsyncFunction)
+        {
+            _errors.Add(new ResolveException(
+                $"'await' can only be used inside async functions",
+                expr.Line, expr.Column));
+        }
+        
+        ResolveExpression(expr.Expression);
     }
 
     #endregion

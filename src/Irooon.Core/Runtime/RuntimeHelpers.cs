@@ -1243,4 +1243,42 @@ public static class RuntimeHelpers
     }
 
     #endregion
+
+    #region Async/Await Support
+
+    /// <summary>
+    /// Taskをラップして結果を返す
+    /// </summary>
+    public static object AwaitTask(object taskObj)
+    {
+        if (taskObj == null)
+            throw new RuntimeException("Cannot await null");
+
+        // Task<object>の場合
+        if (taskObj is System.Threading.Tasks.Task<object> taskOfObject)
+        {
+            taskOfObject.Wait();
+            return taskOfObject.Result;
+        }
+
+        // Taskの場合（結果なし）
+        if (taskObj is System.Threading.Tasks.Task task)
+        {
+            task.Wait();
+            return null;
+        }
+
+        // Taskでない場合はそのまま返す（同期的な値）
+        return taskObj;
+    }
+
+    /// <summary>
+    /// 値をTask<object>でラップする
+    /// </summary>
+    public static System.Threading.Tasks.Task<object> WrapInTask(object value)
+    {
+        return System.Threading.Tasks.Task.FromResult(value);
+    }
+
+    #endregion
 }

@@ -21,6 +21,11 @@ public class FunctionDef : Statement
     public Expression Body { get; }
 
     /// <summary>
+    /// 非同期関数かどうか
+    /// </summary>
+    public bool IsAsync { get; }
+
+    /// <summary>
     /// FunctionDefの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="name">関数名</param>
@@ -28,11 +33,13 @@ public class FunctionDef : Statement
     /// <param name="body">関数本体</param>
     /// <param name="line">行番号</param>
     /// <param name="column">列番号</param>
-    public FunctionDef(string name, List<Parameter> parameters, Expression body, int line, int column)
+    /// <param name="isAsync">非同期関数かどうか（デフォルト: false）</param>
+    public FunctionDef(string name, List<Parameter> parameters, Expression body, int line, int column, bool isAsync = false)
         : base(line, column)
     {
         Name = name;
         Parameters = parameters;
         Body = body;
+        IsAsync = isAsync;
     }
 }

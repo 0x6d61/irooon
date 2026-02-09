@@ -48,8 +48,11 @@ public class Parser
             // fn の後が ( ならラムダ式（式として扱う）
             bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
 
-            // 文をパース（関数定義、クラス定義、変数宣言、モジュール）
-            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.For) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Export) || Check(TokenType.Import))
+            // async fn は常に文として扱う
+            bool isAsyncFunctionDef = Check(TokenType.Async);
+
+            // 文をパース（async fn, 関数定義、クラス定義、変数宣言、モジュール）
+            if (isAsyncFunctionDef || isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.For) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Export) || Check(TokenType.Import))
             {
                 statements.Add(Statement());
                 // 文の後の改行をスキップ
@@ -331,6 +334,14 @@ public class Parser
     /// </summary>
     private Expression Unary()
     {
+        // await 式
+        if (Match(TokenType.Await))
+        {
+            var awaitToken = Previous();
+            var expr = Unary();
+            return new AwaitExpr(expr, awaitToken.Line, awaitToken.Column);
+        }
+
         // $ トークンの場合（シェルコマンド）
         if (Match(TokenType.Dollar))
         {
@@ -599,8 +610,11 @@ public class Parser
             // fn の後が ( ならラムダ式（式として扱う）
             bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
 
-            // 文の場合（fn, class, for, foreach, break, continue, return, throw, let, var）
-            if (isFunctionDef || Check(TokenType.Class) || Check(TokenType.For) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Let) || Check(TokenType.Var))
+            // async fn は常に文として扱う
+            bool isAsyncFunctionDef = Check(TokenType.Async);
+
+            // 文の場合（async fn, fn, class, for, foreach, break, continue, return, throw, let, var）
+            if (isAsyncFunctionDef || isFunctionDef || Check(TokenType.Class) || Check(TokenType.For) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Let) || Check(TokenType.Var))
             {
                 statements.Add(Statement());
                 // 文の後の改行をスキップ
@@ -853,6 +867,16 @@ public class Parser
             return ImportStatement();
         }
 
+        // async fn の処理
+        if (Match(TokenType.Async))
+        {
+            if (Match(TokenType.Fn))
+            {
+                return FunctionDefinition(isAsync: true);
+            }
+            throw Error(Previous(), "Expected 'fn' after 'async'.");
+        }
+
         if (Match(TokenType.Fn))
         {
             return FunctionDefinition();
@@ -1079,7 +1103,7 @@ public class Parser
     /// 関数定義をパースします。
     /// fn name(params) { body }
     /// </summary>
-    private FunctionDef FunctionDefinition()
+    private FunctionDef FunctionDefinition(bool isAsync = false)
     {
         var fnToken = Previous();
         var name = Consume(TokenType.Identifier, "Expect function name.");
@@ -1091,7 +1115,7 @@ public class Parser
         Consume(TokenType.LeftBrace, "Expect '{' before function body.");
         var body = BlockExpression();
 
-        return new FunctionDef(name.Lexeme, parameters, body, fnToken.Line, fnToken.Column);
+        return new FunctionDef(name.Lexeme, parameters, body, fnToken.Line, fnToken.Column, isAsync);
     }
 
     /// <summary>

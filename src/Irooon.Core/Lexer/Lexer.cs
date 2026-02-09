@@ -32,6 +32,8 @@ public class Lexer
         { "class", TokenType.Class },
         { "extends", TokenType.Extends },
         { "super", TokenType.Super },
+        { "async", TokenType.Async },
+        { "await", TokenType.Await },
         { "public", TokenType.Public },
         { "private", TokenType.Private },
         { "static", TokenType.Static },

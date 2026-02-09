@@ -1,0 +1,59 @@
+// v0.7.0 非同期処理（async/await）のデモ
+
+println("=== Async/Await Demo ===")
+
+// 非同期関数の定義
+async fn fetchData() {
+    println("Fetching data...")
+    return "Data from async function"
+}
+
+// 非同期関数の呼び出しと待機
+println("\nCalling async function...")
+let result = await fetchData()
+println("Result:", result)
+
+// 複数の非同期関数
+async fn processTask(taskName) {
+    println("Processing:", taskName)
+    return taskName + " completed"
+}
+
+println("\n=== Multiple Async Tasks ===")
+let task1 = await processTask("Task 1")
+println(task1)
+
+let task2 = await processTask("Task 2")
+println(task2)
+
+let task3 = await processTask("Task 3")
+println(task3)
+
+// 非同期関数からの値の返却
+async fn calculate(x, y) {
+    return x + y
+}
+
+println("\n=== Async Calculation ===")
+let sum = await calculate(10, 20)
+println("10 + 20 =", sum)
+
+// 非同期関数のネスト
+async fn outerAsync() {
+    println("Outer async function")
+
+    async fn innerAsync() {
+        println("Inner async function")
+        return "Inner result"
+    }
+
+    let innerResult = await innerAsync()
+    return "Outer: " + innerResult
+}
+
+println("\n=== Nested Async ===")
+let nested = await outerAsync()
+println(nested)
+
+println("\n=== Demo Complete ===")
+"Async/await test completed"
