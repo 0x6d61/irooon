@@ -27,6 +27,16 @@ public class ScriptContext
     /// </summary>
     public Dictionary<string, Dictionary<string, object>> Prototypes { get; }
 
+    /// <summary>
+    /// モジュールローダー（import文で使用）
+    /// </summary>
+    public ModuleLoader? ModuleLoader { get; set; }
+
+    /// <summary>
+    /// モジュール解決のベースディレクトリ
+    /// </summary>
+    public string ModuleBaseDir { get; set; } = Directory.GetCurrentDirectory();
+
     private bool _stdlibInitialized;
 
     public ScriptContext()
@@ -77,6 +87,9 @@ public class ScriptContext
         Globals["deleteFile"] = new BuiltinFunction("deleteFile", RuntimeHelpers.DeleteFile);
         Globals["listDir"] = new BuiltinFunction("listDir", RuntimeHelpers.ListDir);
 
+        // 入力
+        Globals["input"] = new BuiltinFunction("input", RuntimeHelpers.Input);
+
         // 日時
         Globals["now"] = new BuiltinFunction("now", RuntimeHelpers.Now);
 
@@ -97,6 +110,30 @@ public class ScriptContext
         Globals["__typeOf"] = new BuiltinFunction("__typeOf", RuntimeHelpers.__typeOf);
         Globals["__hashNew"] = new BuiltinFunction("__hashNew", RuntimeHelpers.__hashNew);
         Globals["__hashKeys"] = new BuiltinFunction("__hashKeys", RuntimeHelpers.__hashKeys);
+        Globals["__hashValues"] = new BuiltinFunction("__hashValues", RuntimeHelpers.__hashValues);
+        Globals["__hashHas"] = new BuiltinFunction("__hashHas", RuntimeHelpers.__hashHas);
+        Globals["__hashDelete"] = new BuiltinFunction("__hashDelete", RuntimeHelpers.__hashDelete);
+        Globals["__hashSize"] = new BuiltinFunction("__hashSize", RuntimeHelpers.__hashSize);
+
+        // List追加プリミティブ
+        Globals["__listPop"] = new BuiltinFunction("__listPop", RuntimeHelpers.__listPop);
+        Globals["__listSlice"] = new BuiltinFunction("__listSlice", RuntimeHelpers.__listSlice);
+        Globals["__listIndexOf"] = new BuiltinFunction("__listIndexOf", RuntimeHelpers.__listIndexOf);
+        Globals["__listJoin"] = new BuiltinFunction("__listJoin", RuntimeHelpers.__listJoin);
+        Globals["__listConcat"] = new BuiltinFunction("__listConcat", RuntimeHelpers.__listConcat);
+        Globals["__listReverse"] = new BuiltinFunction("__listReverse", RuntimeHelpers.__listReverse);
+        Globals["__listSort"] = new BuiltinFunction("__listSort", RuntimeHelpers.__listSort);
+
+        // Mathプリミティブ
+        Globals["__mathAbs"] = new BuiltinFunction("__mathAbs", RuntimeHelpers.__mathAbs);
+        Globals["__mathFloor"] = new BuiltinFunction("__mathFloor", RuntimeHelpers.__mathFloor);
+        Globals["__mathCeil"] = new BuiltinFunction("__mathCeil", RuntimeHelpers.__mathCeil);
+        Globals["__mathRound"] = new BuiltinFunction("__mathRound", RuntimeHelpers.__mathRound);
+        Globals["__mathSqrt"] = new BuiltinFunction("__mathSqrt", RuntimeHelpers.__mathSqrt);
+        Globals["__mathMin"] = new BuiltinFunction("__mathMin", RuntimeHelpers.__mathMin);
+        Globals["__mathMax"] = new BuiltinFunction("__mathMax", RuntimeHelpers.__mathMax);
+        Globals["__mathRandom"] = new BuiltinFunction("__mathRandom", RuntimeHelpers.__mathRandom);
+
         Globals["__registerPrototype"] = new BuiltinFunction("__registerPrototype", RuntimeHelpers.__registerPrototype);
     }
 }

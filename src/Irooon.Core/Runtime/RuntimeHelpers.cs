@@ -1583,6 +1583,35 @@ public static class RuntimeHelpers
 
     #endregion
 
+    #region Module Import
+
+    /// <summary>
+    /// モジュールをインポートし、指定された名前をctx.Globalsに登録する
+    /// </summary>
+    public static object ImportModule(ScriptContext ctx, string[] names, string modulePath)
+    {
+        if (ctx.ModuleLoader == null)
+            throw new RuntimeException("Module system not initialized. Use ScriptEngine to run scripts with import.");
+
+        var exports = ctx.ModuleLoader.LoadModule(modulePath, ctx.ModuleBaseDir);
+
+        foreach (var name in names)
+        {
+            if (exports.TryGetValue(name, out var value))
+            {
+                ctx.Globals[name] = value!;
+            }
+            else
+            {
+                throw new RuntimeException($"Module '{modulePath}' does not export '{name}'");
+            }
+        }
+
+        return null!;
+    }
+
+    #endregion
+
     #region Stdlib Primitives
 
     /// <summary>
@@ -1767,6 +1796,270 @@ public static class RuntimeHelpers
         if (args.Length != 1 || args[0] is not Dictionary<string, object> hash)
             throw new RuntimeException("__hashKeys requires a Hash argument");
         return new List<object>(hash.Keys);
+    }
+
+    // ========================================
+    // Hash追加プリミティブ
+    // ========================================
+
+    /// <summary>
+    /// ハッシュの値をリストとして返す
+    /// </summary>
+    public static object __hashValues(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not Dictionary<string, object> hash)
+            throw new RuntimeException("__hashValues requires a Hash argument");
+        return new List<object>(hash.Values);
+    }
+
+    /// <summary>
+    /// ハッシュにキーが存在するか判定する
+    /// </summary>
+    public static object __hashHas(params object[] args)
+    {
+        if (args.Length != 2 || args[0] is not Dictionary<string, object> hash)
+            throw new RuntimeException("__hashHas requires a Hash and key argument");
+        var key = args[1]?.ToString() ?? "";
+        return (object)hash.ContainsKey(key);
+    }
+
+    /// <summary>
+    /// ハッシュからキーを削除する
+    /// </summary>
+    public static object __hashDelete(params object[] args)
+    {
+        if (args.Length != 2 || args[0] is not Dictionary<string, object> hash)
+            throw new RuntimeException("__hashDelete requires a Hash and key argument");
+        var key = args[1]?.ToString() ?? "";
+        return (object)hash.Remove(key);
+    }
+
+    /// <summary>
+    /// ハッシュのサイズを返す
+    /// </summary>
+    public static object __hashSize(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not Dictionary<string, object> hash)
+            throw new RuntimeException("__hashSize requires a Hash argument");
+        return (double)hash.Count;
+    }
+
+    // ========================================
+    // List追加プリミティブ
+    // ========================================
+
+    /// <summary>
+    /// リストの末尾要素を削除して返す
+    /// </summary>
+    public static object __listPop(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not List<object> list)
+            throw new RuntimeException("__listPop requires a list argument");
+        if (list.Count == 0)
+            throw new RuntimeException("Cannot pop from empty list");
+        var item = list[list.Count - 1];
+        list.RemoveAt(list.Count - 1);
+        return item;
+    }
+
+    /// <summary>
+    /// リストの部分リストを返す（非破壊的）
+    /// </summary>
+    public static object __listSlice(params object[] args)
+    {
+        if (args.Length < 2 || args[0] is not List<object> list)
+            throw new RuntimeException("__listSlice requires a list and start index");
+        var start = (int)Convert.ToDouble(args[1]);
+        var count = list.Count;
+        if (start < 0) start = Math.Max(0, count + start);
+        if (start > count) start = count;
+
+        int end;
+        if (args.Length >= 3 && args[2] != null)
+        {
+            end = (int)Convert.ToDouble(args[2]);
+            if (end < 0) end = Math.Max(0, count + end);
+            if (end > count) end = count;
+        }
+        else
+        {
+            end = count;
+        }
+
+        var result = new List<object>();
+        for (var i = start; i < end; i++)
+        {
+            result.Add(list[i]);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// リスト内の要素のインデックスを返す（見つからない場合は-1）
+    /// </summary>
+    public static object __listIndexOf(params object[] args)
+    {
+        if (args.Length != 2 || args[0] is not List<object> list)
+            throw new RuntimeException("__listIndexOf requires a list and value");
+        var target = args[1];
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (Equals(list[i], target)) return (double)i;
+            // double比較
+            if (list[i] is double d1 && target is double d2 && d1 == d2) return (double)i;
+        }
+        return -1.0;
+    }
+
+    /// <summary>
+    /// リストの要素を文字列で結合する
+    /// </summary>
+    public static object __listJoin(params object[] args)
+    {
+        if (args.Length < 1 || args[0] is not List<object> list)
+            throw new RuntimeException("__listJoin requires a list argument");
+        var separator = args.Length >= 2 ? args[1]?.ToString() ?? "" : ",";
+        return string.Join(separator, list.Select(x => x?.ToString() ?? "null"));
+    }
+
+    /// <summary>
+    /// 2つのリストを連結した新しいリストを返す
+    /// </summary>
+    public static object __listConcat(params object[] args)
+    {
+        if (args.Length != 2 || args[0] is not List<object> list1 || args[1] is not List<object> list2)
+            throw new RuntimeException("__listConcat requires two list arguments");
+        var result = new List<object>(list1);
+        result.AddRange(list2);
+        return result;
+    }
+
+    /// <summary>
+    /// リストを反転する（破壊的）
+    /// </summary>
+    public static object __listReverse(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not List<object> list)
+            throw new RuntimeException("__listReverse requires a list argument");
+        list.Reverse();
+        return list;
+    }
+
+    /// <summary>
+    /// リストをソートする（破壊的）
+    /// </summary>
+    public static object __listSort(params object[] args)
+    {
+        if (args.Length < 1 || args[0] is not List<object> list)
+            throw new RuntimeException("__listSort requires a list argument");
+        list.Sort((a, b) =>
+        {
+            if (a is double d1 && b is double d2) return d1.CompareTo(d2);
+            return (a?.ToString() ?? "").CompareTo(b?.ToString() ?? "");
+        });
+        return list;
+    }
+
+    // ========================================
+    // Math プリミティブ
+    // ========================================
+
+    /// <summary>
+    /// 絶対値を返す
+    /// </summary>
+    public static object __mathAbs(params object[] args)
+    {
+        if (args.Length != 1) throw new RuntimeException("__mathAbs requires one argument");
+        return Math.Abs(Convert.ToDouble(args[0]));
+    }
+
+    /// <summary>
+    /// 切り捨てを返す
+    /// </summary>
+    public static object __mathFloor(params object[] args)
+    {
+        if (args.Length != 1) throw new RuntimeException("__mathFloor requires one argument");
+        return Math.Floor(Convert.ToDouble(args[0]));
+    }
+
+    /// <summary>
+    /// 切り上げを返す
+    /// </summary>
+    public static object __mathCeil(params object[] args)
+    {
+        if (args.Length != 1) throw new RuntimeException("__mathCeil requires one argument");
+        return Math.Ceiling(Convert.ToDouble(args[0]));
+    }
+
+    /// <summary>
+    /// 四捨五入を返す
+    /// </summary>
+    public static object __mathRound(params object[] args)
+    {
+        if (args.Length != 1) throw new RuntimeException("__mathRound requires one argument");
+        return Math.Round(Convert.ToDouble(args[0]), MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>
+    /// 平方根を返す
+    /// </summary>
+    public static object __mathSqrt(params object[] args)
+    {
+        if (args.Length != 1) throw new RuntimeException("__mathSqrt requires one argument");
+        return Math.Sqrt(Convert.ToDouble(args[0]));
+    }
+
+    /// <summary>
+    /// 最小値を返す
+    /// </summary>
+    public static object __mathMin(params object[] args)
+    {
+        if (args.Length == 0) throw new RuntimeException("__mathMin requires at least one argument");
+        // リストが渡された場合はその中の最小値
+        if (args.Length == 1 && args[0] is List<object> list)
+        {
+            if (list.Count == 0) throw new RuntimeException("__mathMin: empty list");
+            return list.Select(x => Convert.ToDouble(x)).Min();
+        }
+        return args.Select(x => Convert.ToDouble(x)).Min();
+    }
+
+    /// <summary>
+    /// 最大値を返す
+    /// </summary>
+    public static object __mathMax(params object[] args)
+    {
+        if (args.Length == 0) throw new RuntimeException("__mathMax requires at least one argument");
+        if (args.Length == 1 && args[0] is List<object> list)
+        {
+            if (list.Count == 0) throw new RuntimeException("__mathMax: empty list");
+            return list.Select(x => Convert.ToDouble(x)).Max();
+        }
+        return args.Select(x => Convert.ToDouble(x)).Max();
+    }
+
+    private static readonly Random _random = new();
+
+    /// <summary>
+    /// 0以上1未満のランダムな数を返す
+    /// </summary>
+    public static object __mathRandom(params object[] args)
+    {
+        return _random.NextDouble();
+    }
+
+    // ========================================
+    // Input 関数
+    // ========================================
+
+    /// <summary>
+    /// 標準入力から1行読み取る。プロンプト引数がある場合は先に表示する。
+    /// </summary>
+    public static object Input(params object[] args)
+    {
+        if (args.Length > 0)
+            Console.Write(args[0]?.ToString() ?? "");
+        return Console.ReadLine() ?? "";
     }
 
     /// <summary>
