@@ -275,6 +275,119 @@ __registerPrototype("List", "isEmpty", fn(self) {
     __listLength(self) == 0
 })
 
+// push(value) → any: 末尾に要素を追加して、追加した値を返す
+__registerPrototype("List", "push", fn(self, value) {
+    __listPush(self, value)
+})
+
+// pop() → any: 末尾の要素を削除して返す
+__registerPrototype("List", "pop", fn(self) {
+    __listPop(self)
+})
+
+// indexOf(value) → double: 要素のインデックスを返す（見つからない場合は-1）
+__registerPrototype("List", "indexOf", fn(self, value) {
+    __listIndexOf(self, value)
+})
+
+// includes(value) → bool: 要素が含まれるか判定する
+__registerPrototype("List", "includes", fn(self, value) {
+    __listIndexOf(self, value) >= 0
+})
+
+// find(fn) → any: 条件に合う最初の要素を返す（見つからない場合はnull）
+__registerPrototype("List", "find", fn(self, f) {
+    let len = __listLength(self)
+    var i = 0
+    var found = null
+    var done = false
+    for (i < len and not done) {
+        let item = self[i]
+        if (f(item)) {
+            found = item
+            done = true
+        } else { null }
+        i = i + 1
+    }
+    found
+})
+
+// join(separator) → string: 要素を文字列で結合する
+__registerPrototype("List", "join", fn(self, separator) {
+    __listJoin(self, separator)
+})
+
+// concat(other) → List: 2つのリストを連結した新しいリストを返す
+__registerPrototype("List", "concat", fn(self, other) {
+    __listConcat(self, other)
+})
+
+// reverse() → List: リストを反転する（破壊的）
+__registerPrototype("List", "reverse", fn(self) {
+    __listReverse(self)
+})
+
+// sort() → List: リストをソートする（破壊的）
+__registerPrototype("List", "sort", fn(self) {
+    __listSort(self)
+})
+
+// slice(start, end) → List: 部分リストを返す（非破壊的）
+__registerPrototype("List", "slice", fn(self, start, end) {
+    __listSlice(self, start, end)
+})
+
+// ============================================================
+// HASH METHODS
+// ============================================================
+
+// keys() → List: キーのリストを返す
+__registerPrototype("Hash", "keys", fn(self) {
+    __hashKeys(self)
+})
+
+// values() → List: 値のリストを返す
+__registerPrototype("Hash", "values", fn(self) {
+    __hashValues(self)
+})
+
+// has(key) → bool: キーが存在するか判定する
+__registerPrototype("Hash", "has", fn(self, key) {
+    __hashHas(self, key)
+})
+
+// delete(key) → bool: キーを削除する（削除された場合はtrue）
+__registerPrototype("Hash", "delete", fn(self, key) {
+    __hashDelete(self, key)
+})
+
+// size() → double: エントリ数を返す
+__registerPrototype("Hash", "size", fn(self) {
+    __hashSize(self)
+})
+
+// isEmpty() → bool: 空かどうかを返す
+__registerPrototype("Hash", "isEmpty", fn(self) {
+    __hashSize(self) == 0
+})
+
+// ============================================================
+// MATH FUNCTIONS
+// ============================================================
+
+// Mathオブジェクトとして定義（グローバル変数）
+let Math = __hashNew()
+Math["abs"] = fn(n) { __mathAbs(n) }
+Math["floor"] = fn(n) { __mathFloor(n) }
+Math["ceil"] = fn(n) { __mathCeil(n) }
+Math["round"] = fn(n) { __mathRound(n) }
+Math["sqrt"] = fn(n) { __mathSqrt(n) }
+Math["min"] = fn(a, b) { __mathMin(a, b) }
+Math["max"] = fn(a, b) { __mathMax(a, b) }
+Math["random"] = fn() { __mathRandom() }
+Math["PI"] = 3.141592653589793
+Math["E"] = 2.718281828459045
+
 // ============================================================
 // JSON OPERATIONS
 // ============================================================

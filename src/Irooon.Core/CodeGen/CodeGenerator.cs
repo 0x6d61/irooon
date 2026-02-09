@@ -1787,12 +1787,20 @@ public class CodeGenerator
     /// </summary>
     private ExprTree GenerateImportStmt(ImportStmt stmt)
     {
-        // TODO: 現時点では簡略化�Eため、実裁E��スキチE�EしまぁE
-        // 実際の実裁E��は、ModuleLoaderを呼び出してモジュールをロードし、E
-        // インポ�Eトする名前を ctx.Globals に登録する忁E��がありまぁE
+        // RuntimeHelpers.ImportModule(ctx, names, modulePath)
+        var namesArray = ExprTree.NewArrayInit(
+            typeof(string),
+            stmt.Names.Select(n => ExprTree.Constant(n))
+        );
 
-        // 空のブロチE��を返す�E�何もしなぁE��E
-        return ExprTree.Empty();
+        return ExprTree.Call(
+            typeof(RuntimeHelpers),
+            nameof(RuntimeHelpers.ImportModule),
+            null,
+            _ctxParam,
+            namesArray,
+            ExprTree.Constant(stmt.ModulePath)
+        );
     }
 
     /// <summary>

@@ -21,6 +21,7 @@ public class ScriptEngine
     {
         var context = new ScriptContext();
         context.InitializeStdlib((code, ctx) => Execute(code, ctx));
+        context.ModuleLoader = new ModuleLoader((code, ctx) => Execute(code, ctx));
         return Execute(source, context);
     }
 
