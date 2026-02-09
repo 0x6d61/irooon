@@ -86,3 +86,6 @@ Desktop.ini
 
 # Publish output
 publish/
+
+# Release builds
+/Release/
