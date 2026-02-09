@@ -857,11 +857,10 @@ public class ParserExprTests
         var ast = parser.Parse();
 
         Assert.NotNull(ast);
-        // 空の {} はブロック式として解釈される
-        Assert.IsType<BlockExpr>(ast.Expression);
-        var block = (BlockExpr)ast.Expression;
-        Assert.Empty(block.Statements);
-        Assert.Null(block.Expression);
+        // 空の {} はハッシュリテラルとして解釈される
+        Assert.IsType<HashExpr>(ast.Expression);
+        var hash = (HashExpr)ast.Expression;
+        Assert.Empty(hash.Pairs);
     }
 
     [Fact]

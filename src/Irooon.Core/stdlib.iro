@@ -1,0 +1,510 @@
+// irooon 標準ライブラリ (stdlib.iro)
+// プリミティブ関数を使って、メソッド構文で呼び出せるプロトタイプメソッドを登録する
+// このファイルはScriptEngine初期化時に自動的に読み込まれる
+
+// ============================================================
+// STRING METHODS
+// ============================================================
+
+// length() → double: 文字列の長さを返す
+__registerPrototype("String", "length", fn(self) {
+    __stringLength(self)
+})
+
+// toUpper() → string: ASCII小文字(a-z)を大文字(A-Z)に変換する
+__registerPrototype("String", "toUpper", fn(self) {
+    let len = __stringLength(self)
+    let sb = __stringBuilder()
+    var i = 0
+    for (i < len) {
+        let code = __charCodeAt(self, i)
+        // a=97, z=122 → A=65, Z=90 (差分 = 32)
+        if (code >= 97 and code <= 122) {
+            __sbAppend(sb, __fromCharCode(code - 32))
+        } else {
+            __sbAppend(sb, __charAt(self, i))
+        }
+        i = i + 1
+    }
+    __sbToString(sb)
+})
+
+// toLower() → string: ASCII大文字(A-Z)を小文字(a-z)に変換する
+__registerPrototype("String", "toLower", fn(self) {
+    let len = __stringLength(self)
+    let sb = __stringBuilder()
+    var i = 0
+    for (i < len) {
+        let code = __charCodeAt(self, i)
+        // A=65, Z=90 → a=97, z=122 (差分 = 32)
+        if (code >= 65 and code <= 90) {
+            __sbAppend(sb, __fromCharCode(code + 32))
+        } else {
+            __sbAppend(sb, __charAt(self, i))
+        }
+        i = i + 1
+    }
+    __sbToString(sb)
+})
+
+// trim() → string: 先頭・末尾の空白文字(space, tab, newline, CR)を除去する
+__registerPrototype("String", "trim", fn(self) {
+    let len = __stringLength(self)
+    // 空文字列の場合はそのまま返す
+    if (len == 0) {
+        ""
+    } else {
+        // 先頭の空白をスキップ
+        var start = 0
+        var startDone = false
+        for (start < len and not startDone) {
+            let code = __charCodeAt(self, start)
+            // space=32, tab=9, newline=10, CR=13
+            if (code == 32 or code == 9 or code == 10 or code == 13) {
+                start = start + 1
+            } else {
+                startDone = true
+            }
+        }
+        // 末尾の空白をスキップ
+        var end = len - 1
+        var endDone = false
+        for (end >= start and not endDone) {
+            let code = __charCodeAt(self, end)
+            if (code == 32 or code == 9 or code == 10 or code == 13) {
+                end = end - 1
+            } else {
+                endDone = true
+            }
+        }
+        // 部分文字列を返す
+        if (start > end) {
+            ""
+        } else {
+            __substring(self, start, end - start + 1)
+        }
+    }
+})
+
+// substring(start) or substring(start, length) → string: 部分文字列を取得する
+// Closureのnullパディングにより、lengthが省略された場合はnullが渡される
+__registerPrototype("String", "substring", fn(self, start, length) {
+    if (length == null) {
+        __substring(self, start)
+    } else {
+        __substring(self, start, length)
+    }
+})
+
+// split(separator) → List: 文字列をセパレータで分割してリストを返す
+__registerPrototype("String", "split", fn(self, separator) {
+    let result = []
+    let selfLen = __stringLength(self)
+    let sepLen = __stringLength(separator)
+    // セパレータが空文字列の場合は各文字を分割
+    if (sepLen == 0) {
+        var i = 0
+        for (i < selfLen) {
+            __listPush(result, __charAt(self, i))
+            i = i + 1
+        }
+    } else {
+        var pos = 0
+        var found = true
+        for (found) {
+            let idx = __indexOf(self, separator, pos)
+            if (idx < 0) {
+                // 残りの文字列を追加
+                __listPush(result, __substring(self, pos))
+                found = false
+            } else {
+                // セパレータ前の部分を追加
+                if (idx == pos) {
+                    __listPush(result, "")
+                } else {
+                    __listPush(result, __substring(self, pos, idx - pos))
+                }
+                pos = idx + sepLen
+            }
+        }
+    }
+    result
+})
+
+// contains(search) → bool: 文字列に部分文字列が含まれるか判定する
+__registerPrototype("String", "contains", fn(self, search) {
+    __indexOf(self, search) >= 0
+})
+
+// startsWith(prefix) → bool: 文字列が指定のプレフィックスで始まるか判定する
+__registerPrototype("String", "startsWith", fn(self, prefix) {
+    let selfLen = __stringLength(self)
+    let prefixLen = __stringLength(prefix)
+    if (prefixLen > selfLen) {
+        false
+    } else {
+        // __indexOf で先頭位置(0)に見つかるか判定
+        __indexOf(self, prefix) == 0
+    }
+})
+
+// endsWith(suffix) → bool: 文字列が指定のサフィックスで終わるか判定する
+__registerPrototype("String", "endsWith", fn(self, suffix) {
+    let selfLen = __stringLength(self)
+    let suffixLen = __stringLength(suffix)
+    if (suffixLen > selfLen) {
+        false
+    } else {
+        // 末尾の期待位置から検索して見つかるか判定
+        let expectedPos = selfLen - suffixLen
+        __indexOf(self, suffix, expectedPos) == expectedPos
+    }
+})
+
+// replace(old, new) → string: 全てのoldをnewに置換する
+__registerPrototype("String", "replace", fn(self, old, new) {
+    let sb = __stringBuilder()
+    let selfLen = __stringLength(self)
+    let oldLen = __stringLength(old)
+    // oldが空文字列の場合はそのまま返す
+    if (oldLen == 0) {
+        self
+    } else {
+        var pos = 0
+        var done = false
+        for (not done) {
+            let idx = __indexOf(self, old, pos)
+            if (idx < 0) {
+                // 残りの文字列を追加
+                __sbAppend(sb, __substring(self, pos))
+                done = true
+            } else {
+                // マッチ前の部分を追加
+                if (idx > pos) {
+                    __sbAppend(sb, __substring(self, pos, idx - pos))
+                } else { null }
+                // 置換文字列を追加
+                __sbAppend(sb, new)
+                pos = idx + oldLen
+            }
+        }
+        __sbToString(sb)
+    }
+})
+
+// ============================================================
+// LIST METHODS
+// ============================================================
+
+// map(fn) → List: 各要素に関数を適用して新しいリストを返す
+__registerPrototype("List", "map", fn(self, f) {
+    let result = []
+    let len = __listLength(self)
+    var i = 0
+    for (i < len) {
+        __listPush(result, f(self[i]))
+        i = i + 1
+    }
+    result
+})
+
+// filter(fn) → List: 条件に合う要素を抽出して新しいリストを返す
+__registerPrototype("List", "filter", fn(self, f) {
+    let result = []
+    let len = __listLength(self)
+    var i = 0
+    for (i < len) {
+        let item = self[i]
+        if (f(item)) {
+            __listPush(result, item)
+        } else { null }
+        i = i + 1
+    }
+    result
+})
+
+// reduce(initial, fn) → any: 畳み込み演算を行う
+__registerPrototype("List", "reduce", fn(self, initial, f) {
+    var acc = initial
+    let len = __listLength(self)
+    var i = 0
+    for (i < len) {
+        acc = f(acc, self[i])
+        i = i + 1
+    }
+    acc
+})
+
+// forEach(fn) → null: 副作用のある反復処理を行う
+__registerPrototype("List", "forEach", fn(self, f) {
+    let len = __listLength(self)
+    var i = 0
+    for (i < len) {
+        f(self[i])
+        i = i + 1
+    }
+    null
+})
+
+// first() → any: 最初の要素を返す
+__registerPrototype("List", "first", fn(self) {
+    if (__listLength(self) == 0) {
+        throw "Cannot get first element of empty list"
+    } else {
+        self[0]
+    }
+})
+
+// last() → any: 最後の要素を返す
+__registerPrototype("List", "last", fn(self) {
+    let len = __listLength(self)
+    if (len == 0) {
+        throw "Cannot get last element of empty list"
+    } else {
+        self[len - 1]
+    }
+})
+
+// length() → double: 要素数を返す
+__registerPrototype("List", "length", fn(self) {
+    __listLength(self)
+})
+
+// isEmpty() → bool: 空かどうかを返す
+__registerPrototype("List", "isEmpty", fn(self) {
+    __listLength(self) == 0
+})
+
+// ============================================================
+// JSON OPERATIONS
+// ============================================================
+
+// JSON用定数: irooonの文字列リテラルはエスケープシーケンス未対応のため__fromCharCodeを使用
+let __BS = __fromCharCode(92)   // バックスラッシュ
+let __DQ = __fromCharCode(34)   // ダブルクォート
+
+// jsonStringify(obj) → string: オブジェクトをJSON文字列に変換する
+fn jsonStringify(obj) {
+    let t = __typeOf(obj)
+    if (t == "Null") { "null" }
+    else { if (t == "Boolean") { if (obj) { "true" } else { "false" } }
+    else { if (t == "Number") { __toString(obj) }
+    else { if (t == "String") {
+        let sb = __stringBuilder()
+        __sbAppend(sb, __DQ)
+        let len = __stringLength(obj)
+        var i = 0
+        for (i < len) {
+            let code = __charCodeAt(obj, i)
+            if (code == 34) { __sbAppend(sb, "${__BS}${__DQ}") }
+            else { if (code == 92) { __sbAppend(sb, "${__BS}${__BS}") }
+            else { if (code == 10) { __sbAppend(sb, "${__BS}n") }
+            else { if (code == 13) { __sbAppend(sb, "${__BS}r") }
+            else { if (code == 9) { __sbAppend(sb, "${__BS}t") }
+            else { __sbAppend(sb, __charAt(obj, i)) }}}}}
+            i = i + 1
+        }
+        __sbAppend(sb, __DQ)
+        __sbToString(sb)
+    }
+    else { if (t == "List") {
+        let sb = __stringBuilder()
+        __sbAppend(sb, "[")
+        let len = __listLength(obj)
+        var i = 0
+        for (i < len) {
+            if (i > 0) { __sbAppend(sb, ",") } else { null }
+            __sbAppend(sb, jsonStringify(obj[i]))
+            i = i + 1
+        }
+        __sbAppend(sb, "]")
+        __sbToString(sb)
+    }
+    else { if (t == "Hash") {
+        let sb = __stringBuilder()
+        __sbAppend(sb, "{")
+        let keys = __hashKeys(obj)
+        let len = __listLength(keys)
+        var i = 0
+        for (i < len) {
+            if (i > 0) { __sbAppend(sb, ",") } else { null }
+            let key = keys[i]
+            __sbAppend(sb, jsonStringify(key))
+            __sbAppend(sb, ":")
+            __sbAppend(sb, jsonStringify(obj[key]))
+            i = i + 1
+        }
+        __sbAppend(sb, "}")
+        __sbToString(sb)
+    }
+    else { throw "Cannot convert to JSON: unsupported type" }}}}}}
+}
+
+// jsonParse(input) → any: JSON文字列をパースしてオブジェクトに変換する
+fn jsonParse(input) {
+    let len = __stringLength(input)
+    var pos = 0
+
+    // 相互再帰のための前方宣言
+    var parseValue = null
+    var parseArr = null
+    var parseObj = null
+
+    fn skipWS() {
+        var done = false
+        for (pos < len and not done) {
+            let code = __charCodeAt(input, pos)
+            if (code == 32 or code == 9 or code == 10 or code == 13) {
+                pos = pos + 1
+            } else {
+                done = true
+            }
+        }
+    }
+
+    fn parseStr() {
+        pos = pos + 1
+        let sb = __stringBuilder()
+        var done = false
+        for (not done) {
+            if (pos >= len) { throw "Unexpected end of JSON string" } else { null }
+            let code = __charCodeAt(input, pos)
+            if (code == 34) {
+                pos = pos + 1
+                done = true
+            } else { if (code == 92) {
+                pos = pos + 1
+                if (pos >= len) { throw "Unexpected end of JSON escape" } else { null }
+                let escCode = __charCodeAt(input, pos)
+                pos = pos + 1
+                if (escCode == 34) { __sbAppend(sb, __DQ) }
+                else { if (escCode == 92) { __sbAppend(sb, __BS) }
+                else { if (escCode == 47) { __sbAppend(sb, "/") }
+                else { if (escCode == 110) { __sbAppend(sb, __fromCharCode(10)) }
+                else { if (escCode == 114) { __sbAppend(sb, __fromCharCode(13)) }
+                else { if (escCode == 116) { __sbAppend(sb, __fromCharCode(9)) }
+                else { if (escCode == 98) { __sbAppend(sb, __fromCharCode(8)) }
+                else { if (escCode == 102) { __sbAppend(sb, __fromCharCode(12)) }
+                else { throw "Unknown JSON escape sequence" }}}}}}}}
+            } else {
+                __sbAppend(sb, __charAt(input, pos))
+                pos = pos + 1
+            }}
+        }
+        __sbToString(sb)
+    }
+
+    fn parseNum() {
+        let start = pos
+        if (pos < len and __charCodeAt(input, pos) == 45) { pos = pos + 1 } else { null }
+        var numDone = false
+        for (pos < len and not numDone) {
+            let code = __charCodeAt(input, pos)
+            if ((code >= 48 and code <= 57) or code == 46 or code == 101 or code == 69 or code == 43 or code == 45) {
+                pos = pos + 1
+            } else {
+                numDone = true
+            }
+        }
+        __toNumber(__substring(input, start, pos - start))
+    }
+
+    // 相互再帰する関数をvarに代入
+    parseArr = fn() {
+        pos = pos + 1
+        skipWS()
+        let result = []
+        if (pos < len and __charCodeAt(input, pos) == 93) {
+            pos = pos + 1
+            result
+        } else {
+            var arrDone = false
+            for (not arrDone) {
+                __listPush(result, parseValue())
+                skipWS()
+                if (pos < len and __charCodeAt(input, pos) == 44) {
+                    pos = pos + 1
+                } else {
+                    arrDone = true
+                }
+            }
+            skipWS()
+            if (pos >= len or __charCodeAt(input, pos) != 93) {
+                throw "Invalid JSON: expected ']'"
+            } else { null }
+            pos = pos + 1
+            result
+        }
+    }
+
+    parseObj = fn() {
+        pos = pos + 1
+        skipWS()
+        let result = __hashNew()
+        if (pos < len and __charCodeAt(input, pos) == 125) {
+            pos = pos + 1
+            result
+        } else {
+            var objDone = false
+            for (not objDone) {
+                skipWS()
+                if (__charCodeAt(input, pos) != 34) {
+                    throw "Invalid JSON: expected string key"
+                } else { null }
+                let key = parseStr()
+                skipWS()
+                if (pos >= len or __charCodeAt(input, pos) != 58) {
+                    throw "Invalid JSON: expected ':'"
+                } else { null }
+                pos = pos + 1
+                let value = parseValue()
+                result[key] = value
+                skipWS()
+                if (pos < len and __charCodeAt(input, pos) == 44) {
+                    pos = pos + 1
+                } else {
+                    objDone = true
+                }
+            }
+            skipWS()
+            if (pos >= len or __charCodeAt(input, pos) != 125) {
+                throw "Invalid JSON: expected '}'"
+            } else { null }
+            pos = pos + 1
+            result
+        }
+    }
+
+    parseValue = fn() {
+        skipWS()
+        if (pos >= len) { throw "Unexpected end of JSON" } else { null }
+        let code = __charCodeAt(input, pos)
+        if (code == 34) { parseStr() }
+        else { if (code == 123) { parseObj() }
+        else { if (code == 91) { parseArr() }
+        else { if (code == 116) {
+            if (pos + 4 <= len and __substring(input, pos, 4) == "true") {
+                pos = pos + 4
+                true
+            } else { throw "Invalid JSON: expected 'true'" }
+        }
+        else { if (code == 102) {
+            if (pos + 5 <= len and __substring(input, pos, 5) == "false") {
+                pos = pos + 5
+                false
+            } else { throw "Invalid JSON: expected 'false'" }
+        }
+        else { if (code == 110) {
+            if (pos + 4 <= len and __substring(input, pos, 4) == "null") {
+                pos = pos + 4
+                null
+            } else { throw "Invalid JSON: expected 'null'" }
+        }
+        else { if ((code >= 48 and code <= 57) or code == 45) { parseNum() }
+        else { throw "Invalid JSON: unexpected character" }}}}}}}
+    }
+
+    let result = parseValue()
+    skipWS()
+    result
+}

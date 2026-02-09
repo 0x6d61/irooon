@@ -38,15 +38,44 @@ public static class RuntimeHelpers
 
     #endregion
 
+    #region Operator Overloading Helper
+
+    /// <summary>
+    /// IroInstanceのマジックメソッドを呼び出す
+    /// </summary>
+    private static bool TryCallMagicMethod(object target, string methodName, object[] args, ScriptContext ctx, out object result)
+    {
+        if (target is IroInstance instance)
+        {
+            var method = instance.Class.GetMethod(methodName);
+            if (method != null)
+            {
+                result = Invoke(method, ctx, args, instance);
+                return true;
+            }
+        }
+        result = null!;
+        return false;
+    }
+
+    #endregion
+
     #region Arithmetic Operations
 
     /// <summary>
     /// 加算演算
     /// </summary>
-    public static object Add(object a, object b)
+    public static object Add(object a, object b, ScriptContext? ctx = null)
     {
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot add null values");
+
+        if (ctx != null && TryCallMagicMethod(a, "__add__", new[] { b }, ctx, out var result))
+            return result;
+
+        // 片方が文字列なら文字列連結
+        if (a is string || b is string)
+            return a.ToString() + b.ToString();
 
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
@@ -56,10 +85,13 @@ public static class RuntimeHelpers
     /// <summary>
     /// 減算演算
     /// </summary>
-    public static object Sub(object a, object b)
+    public static object Sub(object a, object b, ScriptContext? ctx = null)
     {
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot subtract null values");
+
+        if (ctx != null && TryCallMagicMethod(a, "__sub__", new[] { b }, ctx, out var result))
+            return result;
 
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
@@ -69,10 +101,13 @@ public static class RuntimeHelpers
     /// <summary>
     /// 乗算演算
     /// </summary>
-    public static object Mul(object a, object b)
+    public static object Mul(object a, object b, ScriptContext? ctx = null)
     {
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot multiply null values");
+
+        if (ctx != null && TryCallMagicMethod(a, "__mul__", new[] { b }, ctx, out var result))
+            return result;
 
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
@@ -82,10 +117,13 @@ public static class RuntimeHelpers
     /// <summary>
     /// 除算演算
     /// </summary>
-    public static object Div(object a, object b)
+    public static object Div(object a, object b, ScriptContext? ctx = null)
     {
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot divide null values");
+
+        if (ctx != null && TryCallMagicMethod(a, "__div__", new[] { b }, ctx, out var result))
+            return result;
 
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
@@ -99,14 +137,84 @@ public static class RuntimeHelpers
     /// <summary>
     /// 剰余演算
     /// </summary>
-    public static object Mod(object a, object b)
+    public static object Mod(object a, object b, ScriptContext? ctx = null)
     {
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot modulo null values");
 
+        if (ctx != null && TryCallMagicMethod(a, "__mod__", new[] { b }, ctx, out var result))
+            return result;
+
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
         return da % db;
+    }
+
+    public static object Power(object a, object b, ScriptContext? ctx = null)
+    {
+        if (a == null || b == null)
+            throw new InvalidOperationException("Cannot exponentiate null values");
+
+        if (ctx != null && TryCallMagicMethod(a, "__pow__", new[] { b }, ctx, out var result))
+            return result;
+
+        return Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b));
+    }
+
+    public static object BitwiseAnd(object a, object b, ScriptContext? ctx = null)
+    {
+        if (ctx != null && TryCallMagicMethod(a, "__band__", new[] { b }, ctx, out var result))
+            return result;
+        return (double)((long)Convert.ToDouble(a) & (long)Convert.ToDouble(b));
+    }
+
+    public static object BitwiseOr(object a, object b, ScriptContext? ctx = null)
+    {
+        if (ctx != null && TryCallMagicMethod(a, "__bor__", new[] { b }, ctx, out var result))
+            return result;
+        return (double)((long)Convert.ToDouble(a) | (long)Convert.ToDouble(b));
+    }
+
+    public static object BitwiseXor(object a, object b, ScriptContext? ctx = null)
+    {
+        if (ctx != null && TryCallMagicMethod(a, "__bxor__", new[] { b }, ctx, out var result))
+            return result;
+        return (double)((long)Convert.ToDouble(a) ^ (long)Convert.ToDouble(b));
+    }
+
+    public static object ShiftLeft(object a, object b, ScriptContext? ctx = null)
+    {
+        if (ctx != null && TryCallMagicMethod(a, "__lshift__", new[] { b }, ctx, out var result))
+            return result;
+        return (double)((long)Convert.ToDouble(a) << (int)Convert.ToDouble(b));
+    }
+
+    public static object ShiftRight(object a, object b, ScriptContext? ctx = null)
+    {
+        if (ctx != null && TryCallMagicMethod(a, "__rshift__", new[] { b }, ctx, out var result))
+            return result;
+        return (double)((long)Convert.ToDouble(a) >> (int)Convert.ToDouble(b));
+    }
+
+    public static object BitwiseNot(object value, ScriptContext? ctx = null)
+    {
+        if (ctx != null && TryCallMagicMethod(value, "__bnot__", Array.Empty<object>(), ctx, out var result))
+            return result;
+        return (double)(~(long)Convert.ToDouble(value));
+    }
+
+    /// <summary>
+    /// 単項マイナス演算
+    /// </summary>
+    public static object Negate(object value, ScriptContext? ctx = null)
+    {
+        if (value == null)
+            throw new InvalidOperationException("Cannot negate null value");
+
+        if (ctx != null && TryCallMagicMethod(value, "__neg__", Array.Empty<object>(), ctx, out var result))
+            return result;
+
+        return -Convert.ToDouble(value);
     }
 
     /// <summary>
@@ -140,34 +248,64 @@ public static class RuntimeHelpers
     /// <summary>
     /// 等価演算 (==)
     /// </summary>
-    public static object Eq(object a, object b)
+    public static object Eq(object a, object b, ScriptContext? ctx = null)
     {
+        if (ctx != null && a is IroInstance)
+        {
+            if (TryCallMagicMethod(a, "__eq__", new[] { b }, ctx, out var result))
+                return result;
+        }
+
         if (a == null && b == null)
             return true;
 
         if (a == null || b == null)
             return false;
 
-        double da = Convert.ToDouble(a);
-        double db = Convert.ToDouble(b);
-        return da == db;
+        // 同一型の場合は型固有の比較
+        if (a is string sa && b is string sb)
+            return sa == sb;
+
+        if (a is bool ba && b is bool bb)
+            return ba == bb;
+
+        // 数値比較
+        try
+        {
+            double da = Convert.ToDouble(a);
+            double db = Convert.ToDouble(b);
+            return da == db;
+        }
+        catch (FormatException)
+        {
+            // 数値変換できない場合はobject.Equalsで比較
+            return a.Equals(b);
+        }
     }
 
     /// <summary>
     /// 非等価演算 (!=)
     /// </summary>
-    public static object Ne(object a, object b)
+    public static object Ne(object a, object b, ScriptContext? ctx = null)
     {
-        return !(bool)Eq(a, b);
+        if (ctx != null && TryCallMagicMethod(a, "__ne__", new[] { b }, ctx, out var result))
+            return result;
+        return !(bool)Eq(a, b, ctx);
     }
 
     /// <summary>
     /// 小なり演算 (&lt;)
     /// </summary>
-    public static object Lt(object a, object b)
+    public static object Lt(object a, object b, ScriptContext? ctx = null)
     {
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot compare null values");
+
+        if (ctx != null && TryCallMagicMethod(a, "__lt__", new[] { b }, ctx, out var result))
+            return result;
+
+        if (a is string sa && b is string sb)
+            return string.Compare(sa, sb, StringComparison.Ordinal) < 0;
 
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
@@ -177,10 +315,16 @@ public static class RuntimeHelpers
     /// <summary>
     /// 小なりイコール演算 (&lt;=)
     /// </summary>
-    public static object Le(object a, object b)
+    public static object Le(object a, object b, ScriptContext? ctx = null)
     {
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot compare null values");
+
+        if (ctx != null && TryCallMagicMethod(a, "__le__", new[] { b }, ctx, out var result))
+            return result;
+
+        if (a is string sa && b is string sb)
+            return string.Compare(sa, sb, StringComparison.Ordinal) <= 0;
 
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
@@ -190,10 +334,16 @@ public static class RuntimeHelpers
     /// <summary>
     /// 大なり演算 (&gt;)
     /// </summary>
-    public static object Gt(object a, object b)
+    public static object Gt(object a, object b, ScriptContext? ctx = null)
     {
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot compare null values");
+
+        if (ctx != null && TryCallMagicMethod(a, "__gt__", new[] { b }, ctx, out var result))
+            return result;
+
+        if (a is string sa && b is string sb)
+            return string.Compare(sa, sb, StringComparison.Ordinal) > 0;
 
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
@@ -203,10 +353,16 @@ public static class RuntimeHelpers
     /// <summary>
     /// 大なりイコール演算 (&gt;=)
     /// </summary>
-    public static object Ge(object a, object b)
+    public static object Ge(object a, object b, ScriptContext? ctx = null)
     {
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot compare null values");
+
+        if (ctx != null && TryCallMagicMethod(a, "__ge__", new[] { b }, ctx, out var result))
+            return result;
+
+        if (a is string sa && b is string sb)
+            return string.Compare(sa, sb, StringComparison.Ordinal) >= 0;
 
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
@@ -241,21 +397,38 @@ public static class RuntimeHelpers
 
         if (callee is IroCallable callable)
         {
-            // Closureの場合、パラメータ名のみを保存/復元する
-            // これにより、再帰呼び出しでパラメータが上書きされるのを防ぎつつ、
-            // グローバル変数の変更は維持される
+            // Closureの場合、パラメータ名とローカル変数名を保存/復元する
+            // これにより、再帰呼び出しでパラメータやローカル変数が上書きされるのを防ぐ
             Dictionary<string, object>? savedParams = null;
             List<string>? paramNames = null;
+            Dictionary<string, object>? savedLocals = null;
+            List<string>? localNames = null;
 
-            if (callable is Closure closure && closure.ParameterNames.Count > 0)
+            if (callable is Closure closure)
             {
-                paramNames = closure.ParameterNames;
-                savedParams = new Dictionary<string, object>();
-                foreach (var paramName in paramNames)
+                if (closure.ParameterNames.Count > 0)
                 {
-                    if (ctx.Globals.TryGetValue(paramName, out var value))
+                    paramNames = closure.ParameterNames;
+                    savedParams = new Dictionary<string, object>();
+                    foreach (var paramName in paramNames)
                     {
-                        savedParams[paramName] = value;
+                        if (ctx.Globals.TryGetValue(paramName, out var value))
+                        {
+                            savedParams[paramName] = value;
+                        }
+                    }
+                }
+
+                if (closure.LocalNames.Count > 0)
+                {
+                    localNames = closure.LocalNames;
+                    savedLocals = new Dictionary<string, object>();
+                    foreach (var name in localNames)
+                    {
+                        if (ctx.Globals.TryGetValue(name, out var value))
+                        {
+                            savedLocals[name] = value;
+                        }
                     }
                 }
             }
@@ -323,6 +496,22 @@ public static class RuntimeHelpers
                     }
                 }
 
+                // ローカル変数を元の値に復元（または削除）
+                if (savedLocals != null && localNames != null)
+                {
+                    foreach (var name in localNames)
+                    {
+                        if (savedLocals.TryGetValue(name, out var savedValue))
+                        {
+                            ctx.Globals[name] = savedValue;
+                        }
+                        else
+                        {
+                            ctx.Globals.Remove(name);
+                        }
+                    }
+                }
+
                 // フィールドをGlobalsから削除し、元の値を復元
                 if (instance != null && savedFields != null)
                 {
@@ -355,38 +544,44 @@ public static class RuntimeHelpers
     }
 
     /// <summary>
-    /// メンバを取得する
+    /// メンバを取得する（プロトタイプ検索なし、内部呼び出し用）
     /// </summary>
     public static object GetMember(object target, string name)
+        => GetMember(null!, target, name);
+
+    /// <summary>
+    /// メンバを取得する
+    /// </summary>
+    public static object GetMember(ScriptContext ctx, object target, string name)
     {
         if (target == null)
             throw new InvalidOperationException("Cannot get member of null");
 
-        // 文字列の場合、StringMethodWrapperを返す
-        if (target is string str)
+        // プロトタイプ検索（全型共通、ctxがある場合のみ）
+        var typeName = target switch
         {
-            return new StringMethodWrapper(str, name);
+            string => "String",
+            double => "Number",
+            bool => "Boolean",
+            List<object> => "List",
+            Dictionary<string, object> => "Hash",
+            _ => null
+        };
+
+        if (typeName != null && TryGetPrototypeMethod(ctx, target, typeName, name, out var boundMethod))
+        {
+            return boundMethod!;
         }
 
-        // リストの場合、ListMethodWrapperを優先する（irooon内部のリストメソッドをサポート）
-        if (target is List<object> list)
+        // 文字列のメンバ（プロトタイプで見つからなかった場合）
+        if (target is string)
         {
-            // ListMethodWrapperのメソッド名をチェック（大文字小文字を区別しない）
-            var listMethods = new[] { "map", "filter", "reduce", "foreach", "first", "last", "length", "isempty" };
-            var lowerName = name.ToLower();
-            if (listMethods.Contains(lowerName))
-            {
-                // forEach と isEmpty を正規化
-                var normalizedName = lowerName switch
-                {
-                    "foreach" => "forEach",
-                    "isempty" => "isEmpty",
-                    _ => lowerName
-                };
-                return new ListMethodWrapper(list, normalizedName);
-            }
+            throw new InvalidOperationException($"Member '{name}' not found on String");
+        }
 
-            // それ以外はCLRメソッド/プロパティとして扱う
+        // リストのメンバ（プロトタイプで見つからなかった場合、CLRメソッドにフォールバック）
+        if (target is List<object>)
+        {
             var type = target.GetType();
 
             // プロパティを試す
@@ -413,6 +608,16 @@ public static class RuntimeHelpers
             }
 
             throw new InvalidOperationException($"Member '{name}' not found on List");
+        }
+
+        // ハッシュの場合（プロトタイプで見つからなかった場合はキーアクセス）
+        if (target is Dictionary<string, object> hash)
+        {
+            if (hash.TryGetValue(name, out var value))
+            {
+                return value;
+            }
+            throw new InvalidOperationException($"Key '{name}' not found on Hash");
         }
 
         // CLRオブジェクトの場合
@@ -470,9 +675,26 @@ public static class RuntimeHelpers
     }
 
     /// <summary>
+    /// プロトタイプからメソッドを検索し、BoundMethodとして返す
+    /// </summary>
+    private static bool TryGetPrototypeMethod(ScriptContext? ctx, object target, string typeName, string methodName, out object? result)
+    {
+        if (ctx != null &&
+            ctx.Prototypes.TryGetValue(typeName, out var methods) &&
+            methods.TryGetValue(methodName, out var method) &&
+            method is IroCallable callable)
+        {
+            result = new BoundMethod(callable, target);
+            return true;
+        }
+        result = null;
+        return false;
+    }
+
+    /// <summary>
     /// メンバを設定する
     /// </summary>
-    public static object SetMember(object target, string name, object value)
+    public static object SetMember(object target, string name, object value, ScriptContext? ctx = null)
     {
         if (target == null)
             throw new InvalidOperationException("Cannot set member of null");
@@ -480,6 +702,14 @@ public static class RuntimeHelpers
         if (target is IroInstance instance)
         {
             instance.Fields[name] = value;
+
+            // this.field = value の場合、ctx.Globalsも同期する
+            // （Invokeのフィールド復元で上書きされるのを防ぐ）
+            if (ctx != null && ctx.Globals.TryGetValue("this", out var currentThis) && ReferenceEquals(currentThis, instance))
+            {
+                ctx.Globals[name] = value;
+            }
+
             return value;
         }
 
@@ -592,6 +822,13 @@ public static class RuntimeHelpers
     /// </summary>
     public static object GetIndexed(object target, object index)
     {
+        if (target is string str)
+        {
+            int idx = Convert.ToInt32(index);
+            if (idx < 0 || idx >= str.Length)
+                throw new RuntimeException($"String index out of range: {idx}");
+            return str[idx].ToString();
+        }
         if (target is List<object> list)
         {
             int idx = Convert.ToInt32(index);
@@ -1278,6 +1515,273 @@ public static class RuntimeHelpers
     public static System.Threading.Tasks.Task<object> WrapInTask(object value)
     {
         return System.Threading.Tasks.Task.FromResult(value);
+    }
+
+    /// <summary>
+    /// レストパラメータ用: args配列のstartIndex以降をList&lt;object&gt;として返す
+    /// </summary>
+    /// <summary>
+    /// スプレッドマーカー付きの要素からリストを構築
+    /// </summary>
+    public static object CreateListWithSpread(object[] items)
+    {
+        var list = new List<object>();
+        foreach (var item in items)
+        {
+            if (item is SpreadMarker marker && marker.Value is IList<object> spreadList)
+            {
+                list.AddRange(spreadList);
+            }
+            else if (item is SpreadMarker marker2 && marker2.Value is System.Collections.IList ilist)
+            {
+                foreach (var elem in ilist) list.Add(elem!);
+            }
+            else
+            {
+                list.Add(item);
+            }
+        }
+        return list;
+    }
+
+    public static object MarkSpread(object value) => new SpreadMarker(value);
+
+    /// <summary>
+    /// スプレッド付き引数を展開してobject[]に変換
+    /// </summary>
+    public static object[] ExpandSpreadArgs(object[] args)
+    {
+        var result = new List<object>();
+        foreach (var arg in args)
+        {
+            if (arg is SpreadMarker marker && marker.Value is IList<object> list)
+            {
+                result.AddRange(list);
+            }
+            else if (arg is SpreadMarker marker2 && marker2.Value is System.Collections.IList ilist)
+            {
+                foreach (var elem in ilist) result.Add(elem!);
+            }
+            else
+            {
+                result.Add(arg);
+            }
+        }
+        return result.ToArray();
+    }
+
+    public static object CollectRestArgs(object[] args, int startIndex)
+    {
+        var list = new List<object>();
+        for (int i = startIndex; i < args.Length; i++)
+        {
+            if (args[i] != null)
+                list.Add(args[i]);
+        }
+        return list;
+    }
+
+    #endregion
+
+    #region Stdlib Primitives
+
+    /// <summary>
+    /// 文字列の長さを返す
+    /// </summary>
+    public static object __stringLength(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not string str)
+            throw new RuntimeException("__stringLength requires a string argument");
+        return (double)str.Length;
+    }
+
+    /// <summary>
+    /// 指定位置の文字を返す
+    /// </summary>
+    public static object __charAt(params object[] args)
+    {
+        if (args.Length != 2 || args[0] is not string str)
+            throw new RuntimeException("__charAt requires a string and index");
+        int index = Convert.ToInt32(args[1]);
+        if (index < 0 || index >= str.Length)
+            throw new RuntimeException($"String index out of range: {index}");
+        return str[index].ToString();
+    }
+
+    /// <summary>
+    /// 文字のUnicode値を返す
+    /// </summary>
+    public static object __charCodeAt(params object[] args)
+    {
+        if (args.Length != 2 || args[0] is not string str)
+            throw new RuntimeException("__charCodeAt requires a string and index");
+        int index = Convert.ToInt32(args[1]);
+        if (index < 0 || index >= str.Length)
+            throw new RuntimeException($"String index out of range: {index}");
+        return (double)str[index];
+    }
+
+    /// <summary>
+    /// Unicode値から文字を生成する
+    /// </summary>
+    public static object __fromCharCode(params object[] args)
+    {
+        if (args.Length != 1)
+            throw new RuntimeException("__fromCharCode requires a character code");
+        int code = Convert.ToInt32(args[0]);
+        return ((char)code).ToString();
+    }
+
+    /// <summary>
+    /// 部分文字列を取得する
+    /// </summary>
+    public static object __substring(params object[] args)
+    {
+        if (args.Length < 2 || args[0] is not string str)
+            throw new RuntimeException("__substring requires a string and start index");
+        int start = Convert.ToInt32(args[1]);
+        if (args.Length >= 3)
+        {
+            int length = Convert.ToInt32(args[2]);
+            return str.Substring(start, length);
+        }
+        return str.Substring(start);
+    }
+
+    /// <summary>
+    /// リストの長さを返す
+    /// </summary>
+    public static object __listLength(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not List<object> list)
+            throw new RuntimeException("__listLength requires a list argument");
+        return (double)list.Count;
+    }
+
+    /// <summary>
+    /// リストに要素を追加する（破壊的操作）
+    /// </summary>
+    public static object __listPush(params object[] args)
+    {
+        if (args.Length != 2 || args[0] is not List<object> list)
+            throw new RuntimeException("__listPush requires a list and value");
+        list.Add(args[1]);
+        return args[1];
+    }
+
+    /// <summary>
+    /// StringBuilderを作成する（高速文字列構築用）
+    /// </summary>
+    public static object __stringBuilder(params object[] args)
+    {
+        return new System.Text.StringBuilder();
+    }
+
+    /// <summary>
+    /// StringBuilderに文字列を追加する
+    /// </summary>
+    public static object __sbAppend(params object[] args)
+    {
+        if (args.Length != 2 || args[0] is not System.Text.StringBuilder sb)
+            throw new RuntimeException("__sbAppend requires a StringBuilder and string");
+        sb.Append(args[1]?.ToString() ?? "");
+        return null!;
+    }
+
+    /// <summary>
+    /// StringBuilderの内容を文字列として返す
+    /// </summary>
+    public static object __sbToString(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not System.Text.StringBuilder sb)
+            throw new RuntimeException("__sbToString requires a StringBuilder");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 文字列内の部分文字列の位置を返す（見つからない場合は-1）
+    /// </summary>
+    public static object __indexOf(params object[] args)
+    {
+        if (args.Length < 2 || args[0] is not string str || args[1] is not string search)
+            throw new RuntimeException("__indexOf requires a string and search string");
+        int startIndex = args.Length >= 3 ? Convert.ToInt32(args[2]) : 0;
+        return (double)str.IndexOf(search, startIndex, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 文字列を数値に変換する
+    /// </summary>
+    public static object __toNumber(params object[] args)
+    {
+        if (args.Length != 1)
+            throw new RuntimeException("__toNumber requires one argument");
+        return Convert.ToDouble(args[0]);
+    }
+
+    /// <summary>
+    /// 値を文字列に変換する
+    /// </summary>
+    public static object __toString(params object[] args)
+    {
+        if (args.Length != 1)
+            throw new RuntimeException("__toString requires one argument");
+        if (args[0] == null) return "null";
+        if (args[0] is bool b) return b ? "true" : "false";
+        return args[0].ToString() ?? "";
+    }
+
+    /// <summary>
+    /// オブジェクトの型名を返す
+    /// </summary>
+    public static object __typeOf(params object[] args)
+    {
+        if (args.Length != 1)
+            throw new RuntimeException("__typeOf requires one argument");
+        return args[0] switch
+        {
+            null => "Null",
+            string => "String",
+            double => "Number",
+            bool => "Boolean",
+            List<object> => "List",
+            Dictionary<string, object> => "Hash",
+            IroInstance inst => inst.Class.Name,
+            _ => args[0].GetType().Name
+        };
+    }
+
+    /// <summary>
+    /// 空のハッシュを作成する
+    /// </summary>
+    public static object __hashNew(params object[] args)
+    {
+        return new Dictionary<string, object>();
+    }
+
+    /// <summary>
+    /// ハッシュのキーをリストとして返す
+    /// </summary>
+    public static object __hashKeys(params object[] args)
+    {
+        if (args.Length != 1 || args[0] is not Dictionary<string, object> hash)
+            throw new RuntimeException("__hashKeys requires a Hash argument");
+        return new List<object>(hash.Keys);
+    }
+
+    /// <summary>
+    /// プロトタイプにメソッドを登録する
+    /// </summary>
+    public static object __registerPrototype(ScriptContext ctx, object[] args)
+    {
+        if (args.Length != 3 || args[0] is not string typeName || args[1] is not string methodName)
+            throw new RuntimeException("__registerPrototype requires typeName, methodName, function");
+
+        if (!ctx.Prototypes.ContainsKey(typeName))
+            ctx.Prototypes[typeName] = new Dictionary<string, object>();
+
+        ctx.Prototypes[typeName][methodName] = args[2];
+        return null!;
     }
 
     #endregion

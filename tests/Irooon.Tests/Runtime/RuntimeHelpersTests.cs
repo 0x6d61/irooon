@@ -97,6 +97,34 @@ public class RuntimeHelpersTests
         Assert.Equal(2.0, result);
     }
 
+    [Fact]
+    public void Add_文字列同士の連結()
+    {
+        var result = RuntimeHelpers.Add("hello", " world");
+        Assert.Equal("hello world", result);
+    }
+
+    [Fact]
+    public void Add_文字列と数値の連結()
+    {
+        var result = RuntimeHelpers.Add("value: ", 42.0);
+        Assert.Equal("value: 42", result);
+    }
+
+    [Fact]
+    public void Add_数値と文字列の連結()
+    {
+        var result = RuntimeHelpers.Add(42.0, " items");
+        Assert.Equal("42 items", result);
+    }
+
+    [Fact]
+    public void Add_文字列とboolの連結()
+    {
+        var result = RuntimeHelpers.Add("result: ", true);
+        Assert.Equal("result: True", result);
+    }
+
     #endregion
 
     #region Sub Tests
@@ -372,6 +400,37 @@ public class RuntimeHelpersTests
 
         // Assert
         Assert.False((bool)result);
+    }
+
+    [Fact]
+    public void Lt_文字列の辞書順比較()
+    {
+        Assert.True((bool)RuntimeHelpers.Lt("abc", "def"));
+        Assert.False((bool)RuntimeHelpers.Lt("def", "abc"));
+        Assert.False((bool)RuntimeHelpers.Lt("abc", "abc"));
+    }
+
+    [Fact]
+    public void Gt_文字列の辞書順比較()
+    {
+        Assert.True((bool)RuntimeHelpers.Gt("def", "abc"));
+        Assert.False((bool)RuntimeHelpers.Gt("abc", "def"));
+    }
+
+    [Fact]
+    public void Le_文字列の辞書順比較()
+    {
+        Assert.True((bool)RuntimeHelpers.Le("abc", "abc"));
+        Assert.True((bool)RuntimeHelpers.Le("abc", "def"));
+        Assert.False((bool)RuntimeHelpers.Le("def", "abc"));
+    }
+
+    [Fact]
+    public void Ge_文字列の辞書順比較()
+    {
+        Assert.True((bool)RuntimeHelpers.Ge("def", "abc"));
+        Assert.True((bool)RuntimeHelpers.Ge("abc", "abc"));
+        Assert.False((bool)RuntimeHelpers.Ge("abc", "def"));
     }
 
     #endregion
@@ -809,10 +868,23 @@ public class RuntimeHelpersTests
     }
 
     [Fact]
-    public void GetIndexed_サポートされていない型は例外を投げる()
+    public void GetIndexed_文字列のインデックスアクセス()
     {
         // Arrange
-        var notIndexable = "string";
+        var str = "hello";
+
+        // Act
+        var result = RuntimeHelpers.GetIndexed(str, 0);
+
+        // Assert
+        Assert.Equal("h", result);
+    }
+
+    [Fact]
+    public void GetIndexed_サポートされていない型は例外を投げる()
+    {
+        // Arrange - 数値はインデックスアクセスできない
+        var notIndexable = 42.0;
 
         // Act & Assert
         var ex = Assert.Throws<RuntimeException>(() => RuntimeHelpers.GetIndexed(notIndexable, 0));

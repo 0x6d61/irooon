@@ -185,9 +185,70 @@ public class CodeGenControlFlowTests
         Assert.Equal(200.0, result);
     }
 
+    [Fact]
+    public void TestIfExpr_ElseIf()
+    {
+        var result = ExecuteScript(@"
+            let x = 5
+            if (x > 10) {
+                ""large""
+            } else if (x > 3) {
+                ""medium""
+            } else {
+                ""small""
+            }
+        ");
+        Assert.Equal("medium", result);
+    }
+
+    [Fact]
+    public void TestIfExpr_ElseIf_First()
+    {
+        var result = ExecuteScript(@"
+            let x = 20
+            if (x > 10) {
+                ""large""
+            } else if (x > 3) {
+                ""medium""
+            } else {
+                ""small""
+            }
+        ");
+        Assert.Equal("large", result);
+    }
+
+    [Fact]
+    public void TestIfExpr_ElseIf_Last()
+    {
+        var result = ExecuteScript(@"
+            let x = 1
+            if (x > 10) {
+                ""large""
+            } else if (x > 3) {
+                ""medium""
+            } else {
+                ""small""
+            }
+        ");
+        Assert.Equal("small", result);
+    }
+
+    [Fact]
+    public void TestIfExpr_ElseIf_MultipleChain()
+    {
+        var result = ExecuteScript(@"
+            let x = 3
+            if (x == 1) { ""one"" }
+            else if (x == 2) { ""two"" }
+            else if (x == 3) { ""three"" }
+            else { ""other"" }
+        ");
+        Assert.Equal("three", result);
+    }
+
     #endregion
 
-    #region while文のテスト
+    #region for文のテスト
 
     [Fact]
     public void TestWhileStmt_BasicLoop()

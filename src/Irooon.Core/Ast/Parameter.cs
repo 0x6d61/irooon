@@ -11,13 +11,27 @@ public class Parameter : AstNode
     public string Name { get; }
 
     /// <summary>
+    /// デフォルト値（オプション）
+    /// </summary>
+    public Expression? DefaultValue { get; }
+
+    /// <summary>
+    /// レストパラメータかどうか（...args）
+    /// </summary>
+    public bool IsRest { get; }
+
+    /// <summary>
     /// Parameterの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="name">パラメータ名</param>
     /// <param name="line">行番号</param>
     /// <param name="column">列番号</param>
-    public Parameter(string name, int line, int column) : base(line, column)
+    /// <param name="defaultValue">デフォルト値（オプション）</param>
+    /// <param name="isRest">レストパラメータかどうか</param>
+    public Parameter(string name, int line, int column, Expression? defaultValue = null, bool isRest = false) : base(line, column)
     {
         Name = name;
+        DefaultValue = defaultValue;
+        IsRest = isRest;
     }
 }

@@ -77,6 +77,8 @@ public class CodeGenerator
             AwaitExpr e => GenerateAwaitExpr(e),
             SafeNavigationExpr e => GenerateSafeNavigationExpr(e),
             SuperExpr e => GenerateSuperExpr(e),
+            MatchExpr e => GenerateMatchExpr(e),
+            SpreadExpr e => GenerateExpression(e.Operand), // スプレッドは呼び出し側で処理
             _ => throw new NotImplementedException($"Unknown expression type: {expr.GetType()}")
         };
     }
@@ -94,6 +96,7 @@ public class CodeGenerator
         {
             LetStmt s => GenerateLetStmt(s),
             VarStmt s => GenerateVarStmt(s),
+            DestructuringStmt s => GenerateDestructuringStmt(s),
             ExprStmt s => GenerateExprStmt(s),
             ReturnStmt s => GenerateReturnStmt(s),
             ForStmt s => GenerateForStmt(s),
@@ -182,6 +185,49 @@ public class CodeGenerator
         );
     }
 
+    private ExprTree GenerateDestructuringStmt(DestructuringStmt stmt)
+    {
+        // 初期化式を一時変数に格納
+        var initExpr = GenerateExpression(stmt.Initializer);
+        var tempVar = ExprTree.Variable(typeof(object), "__dest_tmp");
+
+        var exprs = new List<ExprTree>();
+        exprs.Add(ExprTree.Assign(tempVar, initExpr));
+
+        // 各変数への代入
+        for (int i = 0; i < stmt.Names.Count; i++)
+        {
+            var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
+            var nameExpr = ExprTree.Constant(stmt.Names[i]);
+            var itemProperty = ExprTree.Property(globalsExpr, "Item", nameExpr);
+
+            ExprTree valueExpr;
+            if (stmt.IsHash)
+            {
+                // ハッシュ: RuntimeHelpers.GetMember(ctx, tmp, "name")
+                valueExpr = ExprTree.Call(
+                    typeof(RuntimeHelpers).GetMethod("GetMember", new[] { typeof(ScriptContext), typeof(object), typeof(string) })!,
+                    _ctxParam,
+                    tempVar,
+                    ExprTree.Constant(stmt.Names[i])
+                );
+            }
+            else
+            {
+                // リスト: RuntimeHelpers.GetIndexed(tmp, i)
+                valueExpr = ExprTree.Call(
+                    typeof(RuntimeHelpers).GetMethod("GetIndexed")!,
+                    tempVar,
+                    ExprTree.Convert(ExprTree.Constant((double)i), typeof(object))
+                );
+            }
+
+            exprs.Add(ExprTree.Assign(itemProperty, valueExpr));
+        }
+
+        return ExprTree.Block(new[] { tempVar }, exprs);
+    }
+
     /// <summary>
     /// 式文の変換
     /// </summary>
@@ -235,90 +281,34 @@ public class CodeGenerator
 
         var runtimeType = typeof(RuntimeHelpers);
 
+        var ctxExpr = ExprTree.Convert(_ctxParam, typeof(ScriptContext));
+
         return expr.Operator switch
         {
-            // 算術演算孁E
-            TokenType.Plus => ExprTree.Call(
-                runtimeType,
-                nameof(RuntimeHelpers.Add),
-                null,
-                left,
-                right
-            ),
-            TokenType.Minus => ExprTree.Call(
-                runtimeType,
-                nameof(RuntimeHelpers.Sub),
-                null,
-                left,
-                right
-            ),
-            TokenType.Star => ExprTree.Call(
-                runtimeType,
-                nameof(RuntimeHelpers.Mul),
-                null,
-                left,
-                right
-            ),
-            TokenType.Slash => ExprTree.Call(
-                runtimeType,
-                nameof(RuntimeHelpers.Div),
-                null,
-                left,
-                right
-            ),
-            TokenType.Percent => ExprTree.Call(
-                runtimeType,
-                nameof(RuntimeHelpers.Mod),
-                null,
-                left,
-                right
-            ),
+            // 算術演算子
+            TokenType.Plus => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Add), null, left, right, ctxExpr),
+            TokenType.Minus => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Sub), null, left, right, ctxExpr),
+            TokenType.Star => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Mul), null, left, right, ctxExpr),
+            TokenType.Slash => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Div), null, left, right, ctxExpr),
+            TokenType.Percent => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Mod), null, left, right, ctxExpr),
 
-            // 比輁E��算孁E
-            TokenType.EqualEqual => ExprTree.Call(
-                runtimeType,
-                nameof(RuntimeHelpers.Eq),
-                null,
-                left,
-                right
-            ),
-            TokenType.BangEqual => ExprTree.Call(
-                runtimeType,
-                nameof(RuntimeHelpers.Ne),
-                null,
-                left,
-                right
-            ),
-            TokenType.Less => ExprTree.Call(
-                runtimeType,
-                nameof(RuntimeHelpers.Lt),
-                null,
-                left,
-                right
-            ),
-            TokenType.LessEqual => ExprTree.Call(
-                runtimeType,
-                nameof(RuntimeHelpers.Le),
-                null,
-                left,
-                right
-            ),
-            TokenType.Greater => ExprTree.Call(
-                runtimeType,
-                nameof(RuntimeHelpers.Gt),
-                null,
-                left,
-                right
-            ),
-            TokenType.GreaterEqual => ExprTree.Call(
-                runtimeType,
-                nameof(RuntimeHelpers.Ge),
-                null,
-                left,
-                right
-            ),
+            // 比較演算子
+            TokenType.EqualEqual => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Eq), null, left, right, ctxExpr),
+            TokenType.BangEqual => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Ne), null, left, right, ctxExpr),
+            TokenType.Less => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Lt), null, left, right, ctxExpr),
+            TokenType.LessEqual => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Le), null, left, right, ctxExpr),
+            TokenType.Greater => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Gt), null, left, right, ctxExpr),
+            TokenType.GreaterEqual => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Ge), null, left, right, ctxExpr),
 
-            // 論理演算子（短絡評価�E�E
+            // ビット演算子
+            TokenType.Ampersand => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.BitwiseAnd), null, left, right, ctxExpr),
+            TokenType.Pipe => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.BitwiseOr), null, left, right, ctxExpr),
+            TokenType.Caret => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.BitwiseXor), null, left, right, ctxExpr),
+            TokenType.LessLess => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.ShiftLeft), null, left, right, ctxExpr),
+            TokenType.GreaterGreater => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.ShiftRight), null, left, right, ctxExpr),
+            TokenType.StarStar => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Power), null, left, right, ctxExpr),
+
+            // 論理演算子（短絡評価）
             TokenType.And => GenerateAndExpr(expr),
             TokenType.Or => GenerateOrExpr(expr),
 
@@ -406,23 +396,29 @@ public class CodeGenerator
         var operand = GenerateExpression(expr.Operand);
         var runtimeType = typeof(RuntimeHelpers);
 
+        var ctxExpr = ExprTree.Convert(_ctxParam, typeof(ScriptContext));
+
         return expr.Operator switch
         {
             TokenType.Minus => ExprTree.Call(
                 runtimeType,
-                nameof(RuntimeHelpers.Sub),
+                nameof(RuntimeHelpers.Negate),
                 null,
-                ExprTree.Convert(
-                    ExprTree.Constant(0.0, typeof(double)),
-                    typeof(object)
-                ),
-                operand
+                operand,
+                ctxExpr
             ),
             TokenType.Not => ExprTree.Call(
                 runtimeType,
                 nameof(RuntimeHelpers.Not),
                 null,
                 operand
+            ),
+            TokenType.Tilde => ExprTree.Call(
+                runtimeType,
+                nameof(RuntimeHelpers.BitwiseNot),
+                null,
+                operand,
+                ctxExpr
             ),
             _ => throw new NotImplementedException($"Unary operator {expr.Operator} not implemented")
         };
@@ -783,11 +779,12 @@ public class CodeGenerator
             var targetExpr = GenerateExpression(memberExpr.Target);
             var thisArg = targetExpr;
 
-            // メソチE��を取征E
+            // メソッドを取得
             var calleeExpr = ExprTree.Call(
                 typeof(RuntimeHelpers),
                 "GetMember",
                 null,
+                _ctxParam,
                 targetExpr,
                 ExprTree.Constant(memberExpr.Name)
             );
@@ -836,10 +833,20 @@ public class CodeGenerator
             }
         }
 
-        // 通常の関数呼び出ぁE
+        // 通常の関数呼び出し
         var calleeExprFinal = GenerateExpression(expr.Callee);
-        var argExprsFinal = expr.Arguments.Select(GenerateExpression).ToArray();
-        var argsArrayFinal = ExprTree.NewArrayInit(typeof(object), argExprsFinal);
+        bool hasSpread = expr.Arguments.Any(a => a is SpreadExpr);
+        var argExprsFinal = expr.Arguments.Select(a =>
+        {
+            if (a is SpreadExpr spread)
+                return ExprTree.Call(typeof(RuntimeHelpers).GetMethod("MarkSpread")!, GenerateExpression(spread.Operand));
+            return GenerateExpression(a);
+        }).ToArray();
+        ExprTree argsArrayFinal = ExprTree.NewArrayInit(typeof(object), argExprsFinal);
+        if (hasSpread)
+        {
+            argsArrayFinal = ExprTree.Call(typeof(RuntimeHelpers), nameof(RuntimeHelpers.ExpandSpreadArgs), null, argsArrayFinal);
+        }
 
         return ExprTree.Call(
             typeof(RuntimeHelpers),
@@ -919,18 +926,51 @@ public class CodeGenerator
 
         var bodyExprs = new List<ExprTree>();
 
-        // パラメータめEargs[0], args[1], ... にバインチE
+        // パラメータを args[0], args[1], ... にバインド
         for (int i = 0; i < expr.Parameters.Count; i++)
         {
             var param = expr.Parameters[i];
-            var argAccess = ExprTree.ArrayIndex(argsParam, ExprTree.Constant(i));
             var globalsForParam = ExprTree.Property(ctxParamForFunc, "Globals");
             var paramName = ExprTree.Constant(param.Name);
             var itemForParam = ExprTree.Property(globalsForParam, "Item", paramName);
-            bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
+
+            if (param.IsRest)
+            {
+                // レストパラメータ: RuntimeHelpers.CollectRestArgs(args, i)
+                var collectCall = ExprTree.Call(
+                    typeof(RuntimeHelpers).GetMethod("CollectRestArgs")!,
+                    argsParam,
+                    ExprTree.Constant(i)
+                );
+                bodyExprs.Add(ExprTree.Assign(itemForParam, collectCall));
+            }
+            else
+            {
+                var argAccess = ExprTree.ArrayIndex(argsParam, ExprTree.Constant(i));
+
+                if (param.DefaultValue != null)
+                {
+                    // デフォルト値がある場合: args[i] == null なら デフォルト値を使用
+                    var savedCtx = _ctxParam;
+                    _ctxParam = ctxParamForFunc;
+                    var defaultExpr = GenerateExpression(param.DefaultValue);
+                    _ctxParam = savedCtx;
+
+                    var valueExpr = ExprTree.Condition(
+                        ExprTree.Equal(argAccess, ExprTree.Constant(null, typeof(object))),
+                        defaultExpr,
+                        argAccess
+                    );
+                    bodyExprs.Add(ExprTree.Assign(itemForParam, valueExpr));
+                }
+                else
+                {
+                    bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
+                }
+            }
         }
 
-        // 本体を実行（一時的に _ctxParam を�Eり替える�E�E
+        // 本体を実行（一時的に _ctxParam を切り替える）
         var savedCtxParam = _ctxParam;
         _ctxParam = ctxParamForFunc;
         var bodyExpr = GenerateExpression(expr.Body);
@@ -949,27 +989,36 @@ public class CodeGenerator
 
         var compiled = lambda.Compile();
 
-        // パラメータ名�Eリストを作�E
+        // パラメータ名のリストを作成
         var paramNames = expr.Parameters.Select(p => p.Name).ToList();
         var paramNamesListNew = ExprTree.New(
             typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
             ExprTree.NewArrayInit(typeof(string), paramNames.Select(n => ExprTree.Constant(n)))
         );
 
-        // Closure オブジェクトを作�E�E�位置惁E��を含む�E�E
+        // ローカル変数名を収集
+        var localNames = CollectLocalNames(expr.Body, paramNames);
+        var localNamesListNew = ExprTree.New(
+            typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
+            ExprTree.NewArrayInit(typeof(string), localNames.Select(n => ExprTree.Constant(n)))
+        );
+
+        // Closure オブジェクトを作成（位置情報 + ローカル変数名を含む）
         var closureNew = ExprTree.New(
             typeof(Closure).GetConstructor(new[] {
                 typeof(string),
                 typeof(Func<ScriptContext, object[], object>),
                 typeof(List<string>),
                 typeof(int),
-                typeof(int)
+                typeof(int),
+                typeof(List<string>)
             })!,
             ExprTree.Constant("<lambda>"),
             ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>)),
             paramNamesListNew,
             ExprTree.Constant(expr.Line),
-            ExprTree.Constant(expr.Column)
+            ExprTree.Constant(expr.Column),
+            localNamesListNew
         );
 
         return ExprTree.Convert(closureNew, typeof(object));
@@ -994,18 +1043,49 @@ public class CodeGenerator
 
         var bodyExprs = new List<ExprTree>();
 
-        // パラメータめEargs[0], args[1], ... にバインチE
+        // パラメータを args[0], args[1], ... にバインド
         for (int i = 0; i < stmt.Parameters.Count; i++)
         {
             var param = stmt.Parameters[i];
-            var argAccess = ExprTree.ArrayIndex(argsParam, ExprTree.Constant(i));
             var globalsForParam = ExprTree.Property(ctxParamForFunc, "Globals");
             var paramName = ExprTree.Constant(param.Name);
             var itemForParam = ExprTree.Property(globalsForParam, "Item", paramName);
-            bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
+
+            if (param.IsRest)
+            {
+                var collectCall = ExprTree.Call(
+                    typeof(RuntimeHelpers).GetMethod("CollectRestArgs")!,
+                    argsParam,
+                    ExprTree.Constant(i)
+                );
+                bodyExprs.Add(ExprTree.Assign(itemForParam, collectCall));
+            }
+            else
+            {
+                var argAccess = ExprTree.ArrayIndex(argsParam, ExprTree.Constant(i));
+
+                if (param.DefaultValue != null)
+                {
+                    var savedCtx = _ctxParam;
+                    _ctxParam = ctxParamForFunc;
+                    var defaultExpr = GenerateExpression(param.DefaultValue);
+                    _ctxParam = savedCtx;
+
+                    var valueExpr = ExprTree.Condition(
+                        ExprTree.Equal(argAccess, ExprTree.Constant(null, typeof(object))),
+                        defaultExpr,
+                        argAccess
+                    );
+                    bodyExprs.Add(ExprTree.Assign(itemForParam, valueExpr));
+                }
+                else
+                {
+                    bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
+                }
+            }
         }
 
-        // 本体を実行（一時的に _ctxParam を�Eり替える�E�E
+        // 本体を実行（一時的に _ctxParam を切り替える）
         var savedCtxParam = _ctxParam;
         _ctxParam = ctxParamForFunc;
         var bodyExpr = GenerateExpression(stmt.Body);
@@ -1015,7 +1095,7 @@ public class CodeGenerator
 
         var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
 
-        // Lambda<Func<ScriptContext, object[], object>> を作�E
+        // Lambda<Func<ScriptContext, object[], object>> を作成
         var lambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(
             bodyBlock,
             ctxParamForFunc,
@@ -1024,27 +1104,36 @@ public class CodeGenerator
 
         var compiled = lambda.Compile();
 
-        // パラメータ名�Eリストを作�E
+        // パラメータ名のリストを作成
         var paramNames = stmt.Parameters.Select(p => p.Name).ToList();
         var paramNamesListNew = ExprTree.New(
             typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
             ExprTree.NewArrayInit(typeof(string), paramNames.Select(n => ExprTree.Constant(n)))
         );
 
-        // Closure オブジェクトを作�E�E�位置惁E��を含む�E�E
+        // ローカル変数名を収集
+        var localNames = CollectLocalNames(stmt.Body, paramNames);
+        var localNamesListNew = ExprTree.New(
+            typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
+            ExprTree.NewArrayInit(typeof(string), localNames.Select(n => ExprTree.Constant(n)))
+        );
+
+        // Closure オブジェクトを作成（位置情報 + ローカル変数名を含む）
         var closureNew = ExprTree.New(
             typeof(Closure).GetConstructor(new[] {
                 typeof(string),
                 typeof(Func<ScriptContext, object[], object>),
                 typeof(List<string>),
                 typeof(int),
-                typeof(int)
+                typeof(int),
+                typeof(List<string>)
             })!,
             ExprTree.Constant(stmt.Name),
             ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>)),
             paramNamesListNew,
             ExprTree.Constant(stmt.Line),
-            ExprTree.Constant(stmt.Column)
+            ExprTree.Constant(stmt.Column),
+            localNamesListNew
         );
 
         // ctx.Globals[name] = closure
@@ -1056,8 +1145,8 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// �񓯊��֐���`�̐���
-    /// Task<object>��Ԃ��֐��𐶐�
+    /// 非同期関数定義の生成
+    /// Task<object>を返す関数を生成
     /// </summary>
     private ExprTree GenerateAsyncFunctionDef(FunctionDef stmt)
     {
@@ -1067,18 +1156,49 @@ public class CodeGenerator
 
         var bodyExprs = new List<ExprTree>();
 
-        // �p�����[�^�� args[0], args[1], ... �Ƀo�C���h
+        // パラメータを args[0], args[1], ... にバインド
         for (int i = 0; i < stmt.Parameters.Count; i++)
         {
             var param = stmt.Parameters[i];
-            var argAccess = ExprTree.ArrayIndex(argsParam, ExprTree.Constant(i));
             var globalsForParam = ExprTree.Property(ctxParamForFunc, "Globals");
             var paramName = ExprTree.Constant(param.Name);
             var itemForParam = ExprTree.Property(globalsForParam, "Item", paramName);
-            bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
+
+            if (param.IsRest)
+            {
+                var collectCall = ExprTree.Call(
+                    typeof(RuntimeHelpers).GetMethod("CollectRestArgs")!,
+                    argsParam,
+                    ExprTree.Constant(i)
+                );
+                bodyExprs.Add(ExprTree.Assign(itemForParam, collectCall));
+            }
+            else
+            {
+                var argAccess = ExprTree.ArrayIndex(argsParam, ExprTree.Constant(i));
+
+                if (param.DefaultValue != null)
+                {
+                    var savedCtx = _ctxParam;
+                    _ctxParam = ctxParamForFunc;
+                    var defaultExpr = GenerateExpression(param.DefaultValue);
+                    _ctxParam = savedCtx;
+
+                    var valueExpr = ExprTree.Condition(
+                        ExprTree.Equal(argAccess, ExprTree.Constant(null, typeof(object))),
+                        defaultExpr,
+                        argAccess
+                    );
+                    bodyExprs.Add(ExprTree.Assign(itemForParam, valueExpr));
+                }
+                else
+                {
+                    bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
+                }
+            }
         }
 
-        // �{�̂����s�i�ꎞ�I�� _ctxParam ��؂�ւ���j
+        // 本体を実行（一時的に _ctxParam を切り替える）
         var savedCtxParam = _ctxParam;
         _ctxParam = ctxParamForFunc;
         var bodyExpr = GenerateExpression(stmt.Body);
@@ -1112,27 +1232,36 @@ public class CodeGenerator
 
         var compiled = asyncLambda.Compile();
 
-        // �p�����[�^���̃��X�g���쐬
+        // パラメータ名のリストを作成
         var paramNames = stmt.Parameters.Select(p => p.Name).ToList();
         var paramNamesListNew = ExprTree.New(
             typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
             ExprTree.NewArrayInit(typeof(string), paramNames.Select(n => ExprTree.Constant(n)))
         );
 
-        // Closure �I�u�W�F�N�g���쐬�i�ʒu�����܂ށj
+        // ローカル変数名を収集
+        var localNames = CollectLocalNames(stmt.Body, paramNames);
+        var localNamesListNew = ExprTree.New(
+            typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
+            ExprTree.NewArrayInit(typeof(string), localNames.Select(n => ExprTree.Constant(n)))
+        );
+
+        // Closure オブジェクトを作成（位置情報 + ローカル変数名を含む）
         var closureNew = ExprTree.New(
             typeof(Closure).GetConstructor(new[] {
                 typeof(string),
                 typeof(Func<ScriptContext, object[], object>),
                 typeof(List<string>),
                 typeof(int),
-                typeof(int)
+                typeof(int),
+                typeof(List<string>)
             })!,
             ExprTree.Constant(stmt.Name),
             ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>)),
             paramNamesListNew,
             ExprTree.Constant(stmt.Line),
-            ExprTree.Constant(stmt.Column)
+            ExprTree.Constant(stmt.Column),
+            localNamesListNew
         );
 
         // ctx.Globals[name] = closure
@@ -1143,7 +1272,7 @@ public class CodeGenerator
         return ExprTree.Assign(itemProperty, ExprTree.Convert(closureNew, typeof(object)));
     }
 
-    // Task #17: クラスとインスタンスの実裁E
+    // Task #17: クラスとインスタンスの実装
 
     /// <summary>
     /// クラス定義の変換
@@ -1220,9 +1349,10 @@ public class CodeGenerator
 
             var compiled = lambda.Compile();
 
-            // パラメータ名�Eリストを作�E
+            // パラメータ名のリストを作成
             var paramNames = m.Parameters.Select(p => p.Name).ToList();
-            var closure = new Closure(m.Name, compiled, paramNames, m.Line, m.Column);
+            var localNames = CollectLocalNames(m.Body, paramNames);
+            var closure = new Closure(m.Name, compiled, paramNames, m.Line, m.Column, localNames);
 
             return ExprTree.New(
                 typeof(Runtime.MethodDef).GetConstructor(new[] {
@@ -1331,11 +1461,12 @@ public class CodeGenerator
         // 通常のメンバアクセス
         var targetExpr = GenerateExpression(expr.Target);
 
-        // Runtime.GetMember(target, name)
+        // Runtime.GetMember(ctx, target, name)
         return ExprTree.Call(
             typeof(RuntimeHelpers),
             "GetMember",
             null,
+            ExprTree.Convert(_ctxParam, typeof(ScriptContext)),
             targetExpr,
             ExprTree.Constant(expr.Name)
         );
@@ -1370,15 +1501,30 @@ public class CodeGenerator
     /// </summary>
     private ExprTree GenerateListExpr(ListExpr expr)
     {
-        var elemExprs = expr.Elements.Select(e => GenerateExpression(e)).ToArray();
-        var arrayExpr = ExprTree.NewArrayInit(typeof(object), elemExprs);
+        bool hasSpread = expr.Elements.Any(e => e is SpreadExpr);
+        if (hasSpread)
+        {
+            // スプレッド付き: 各要素をobject[]に入れ、SpreadExprはリストのままマーク
+            // RuntimeHelpers.CreateListWithSpread で処理
+            var elemExprs = expr.Elements.Select(e =>
+            {
+                if (e is SpreadExpr spread)
+                {
+                    // スプレッド要素はリスト自体を渡す（SpreadMarkerでラップ）
+                    return ExprTree.Call(
+                        typeof(RuntimeHelpers).GetMethod("MarkSpread")!,
+                        GenerateExpression(spread.Operand)
+                    );
+                }
+                return GenerateExpression(e);
+            }).ToArray();
+            var arrayExpr = ExprTree.NewArrayInit(typeof(object), elemExprs);
+            return ExprTree.Call(typeof(RuntimeHelpers), nameof(RuntimeHelpers.CreateListWithSpread), null, arrayExpr);
+        }
 
-        return ExprTree.Call(
-            typeof(RuntimeHelpers),
-            nameof(RuntimeHelpers.CreateList),
-            Type.EmptyTypes,
-            arrayExpr
-        );
+        var elems = expr.Elements.Select(e => GenerateExpression(e)).ToArray();
+        var arr = ExprTree.NewArrayInit(typeof(object), elems);
+        return ExprTree.Call(typeof(RuntimeHelpers), nameof(RuntimeHelpers.CreateList), Type.EmptyTypes, arr);
     }
 
     /// <summary>
@@ -1458,14 +1604,16 @@ public class CodeGenerator
         var objExpr = GenerateExpression(expr.Target);
         var nameExpr = ExprTree.Constant(expr.MemberName);
         var valExpr = GenerateExpression(expr.Value);
+        var ctxExpr = ExprTree.Convert(_ctxParam, typeof(ScriptContext));
 
         return ExprTree.Call(
             typeof(RuntimeHelpers),
             nameof(RuntimeHelpers.SetMember),
-            Type.EmptyTypes,
+            null,
             objExpr,
             nameExpr,
-            valExpr
+            valExpr,
+            ctxExpr
         );
     }
 
@@ -1859,6 +2007,44 @@ public class CodeGenerator
     /// 3. 親クラスのメソチE��を取征E
     /// 4. メソチE��を返す�E�呼び出し�ECallExprで行われる�E�E
     /// </summary>
+    private ExprTree GenerateMatchExpr(MatchExpr expr)
+    {
+        // match式をif-elseチェーンに展開
+        var subjectExpr = GenerateExpression(expr.Subject);
+        var tempVar = ExprTree.Variable(typeof(object), "__match_subject");
+
+        // 最後のアームから逆順にif-elseを構築
+        ExprTree result = ExprTree.Constant(null, typeof(object));
+
+        for (int i = expr.Arms.Count - 1; i >= 0; i--)
+        {
+            var (pattern, body) = expr.Arms[i];
+            var bodyExpr = GenerateExpression(body);
+
+            if (pattern == null)
+            {
+                // ワイルドカード（デフォルト）
+                result = bodyExpr;
+            }
+            else
+            {
+                var patternExpr = GenerateExpression(pattern);
+                var ctxForMatch = ExprTree.Convert(_ctxParam, typeof(ScriptContext));
+                var condition = ExprTree.Call(
+                    typeof(RuntimeHelpers), nameof(RuntimeHelpers.Eq), null, tempVar, patternExpr, ctxForMatch);
+                var conditionBool = ExprTree.Call(
+                    typeof(RuntimeHelpers), nameof(RuntimeHelpers.IsTruthy), null, condition);
+                result = ExprTree.Condition(conditionBool, bodyExpr, result);
+            }
+        }
+
+        return ExprTree.Block(
+            new[] { tempVar },
+            ExprTree.Assign(tempVar, subjectExpr),
+            result
+        );
+    }
+
     private ExprTree GenerateSuperExpr(SuperExpr expr)
     {
         // ctx.Globals["this"] からthisインスタンスを取征E
@@ -1895,6 +2081,117 @@ public class CodeGenerator
 
         // objectにキャストして返す
         return ExprTree.Convert(nullCheck, typeof(object));
+    }
+
+    #endregion
+
+    #region ローカル変数名の収集
+
+    /// <summary>
+    /// 関数本体のASTを走査して、let/var/for/foreachで宣言されるローカル変数名を収集する
+    /// </summary>
+    private static List<string> CollectLocalNames(AstExpr body, List<string> parameterNames)
+    {
+        var names = new HashSet<string>();
+        CollectLocalNamesRecursive(body, names);
+        // パラメータ名は除外（別途保存/復元される）
+        foreach (var p in parameterNames)
+            names.Remove(p);
+        return names.ToList();
+    }
+
+    private static void CollectLocalNamesRecursive(Ast.AstNode node, HashSet<string> names)
+    {
+        switch (node)
+        {
+            case BlockExpr block:
+                foreach (var stmt in block.Statements)
+                    CollectLocalNamesRecursive(stmt, names);
+                if (block.Expression != null)
+                    CollectLocalNamesRecursive(block.Expression, names);
+                break;
+
+            case LetStmt letStmt:
+                names.Add(letStmt.Name);
+                CollectLocalNamesRecursive(letStmt.Initializer, names);
+                break;
+
+            case VarStmt varStmt:
+                names.Add(varStmt.Name);
+                CollectLocalNamesRecursive(varStmt.Initializer, names);
+                break;
+
+            case DestructuringStmt destStmt:
+                foreach (var name in destStmt.Names)
+                    names.Add(name);
+                CollectLocalNamesRecursive(destStmt.Initializer, names);
+                break;
+
+            case ForStmt forStmt:
+                if (forStmt.Kind == ForStmtKind.Collection && forStmt.IteratorVariable != null)
+                    names.Add(forStmt.IteratorVariable);
+                if (forStmt.Collection != null)
+                    CollectLocalNamesRecursive(forStmt.Collection, names);
+                if (forStmt.Condition != null)
+                    CollectLocalNamesRecursive(forStmt.Condition, names);
+                CollectLocalNamesRecursive(forStmt.Body, names);
+                break;
+
+            case ForeachStmt foreachStmt:
+                names.Add(foreachStmt.Variable);
+                CollectLocalNamesRecursive(foreachStmt.Collection, names);
+                CollectLocalNamesRecursive(foreachStmt.Body, names);
+                break;
+
+            case IfExpr ifExpr:
+                CollectLocalNamesRecursive(ifExpr.Condition, names);
+                CollectLocalNamesRecursive(ifExpr.ThenBranch, names);
+                CollectLocalNamesRecursive(ifExpr.ElseBranch, names);
+                break;
+
+            case TryExpr tryExpr:
+                CollectLocalNamesRecursive(tryExpr.TryBody, names);
+                if (tryExpr.Catch != null)
+                {
+                    if (tryExpr.Catch.ExceptionVariable != null)
+                        names.Add(tryExpr.Catch.ExceptionVariable);
+                    CollectLocalNamesRecursive(tryExpr.Catch.Body, names);
+                }
+                if (tryExpr.Finally != null)
+                    CollectLocalNamesRecursive(tryExpr.Finally, names);
+                break;
+
+            case ExprStmt exprStmt:
+                CollectLocalNamesRecursive(exprStmt.Expression, names);
+                break;
+
+            case ReturnStmt returnStmt:
+                if (returnStmt.Value != null)
+                    CollectLocalNamesRecursive(returnStmt.Value, names);
+                break;
+
+            case TernaryExpr ternary:
+                CollectLocalNamesRecursive(ternary.Condition, names);
+                CollectLocalNamesRecursive(ternary.TrueValue, names);
+                CollectLocalNamesRecursive(ternary.FalseValue, names);
+                break;
+
+            case MatchExpr matchExpr:
+                CollectLocalNamesRecursive(matchExpr.Subject, names);
+                foreach (var (pattern, body) in matchExpr.Arms)
+                {
+                    if (pattern != null) CollectLocalNamesRecursive(pattern, names);
+                    CollectLocalNamesRecursive(body, names);
+                }
+                break;
+
+            // 注意: FunctionDef, LambdaExpr, ClassDef は新しいスコープを作るため、
+            // 内部の変数は外側のスコープに影響しない。再帰しない。
+
+            default:
+                // その他のノード（リテラル、識別子、二項演算等）は変数宣言を含まない
+                break;
+        }
     }
 
     #endregion

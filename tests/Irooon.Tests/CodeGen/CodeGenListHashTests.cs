@@ -110,8 +110,14 @@ public class CodeGenListHashTests
 
     #region ハッシュリテラルのテスト
 
-    // 注: 空のハッシュ {} はブロック式として解釈されるため、
-    // 最低1つの要素を持つハッシュからテストします
+    [Fact]
+    public void TestGenerateHash_Empty()
+    {
+        var result = ExecuteScript("{}");
+        Assert.IsType<Dictionary<string, object>>(result);
+        var hash = (Dictionary<string, object>)result!;
+        Assert.Empty(hash);
+    }
 
     [Fact]
     public void TestGenerateHash_SinglePair()

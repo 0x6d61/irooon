@@ -265,9 +265,43 @@ public class Parser
     /// </summary>
     private Expression Comparison()
     {
-        var expr = Range();
+        var expr = Bitwise();
 
         while (Match(TokenType.Less, TokenType.LessEqual, TokenType.Greater, TokenType.GreaterEqual))
+        {
+            var op = Previous();
+            var right = Bitwise();
+            expr = new BinaryExpr(expr, op.Type, right, op.Line, op.Column);
+        }
+
+        return expr;
+    }
+
+    /// <summary>
+    /// ビット演算（&, |, ^）をパースします。
+    /// </summary>
+    private Expression Bitwise()
+    {
+        var expr = Shift();
+
+        while (Match(TokenType.Ampersand, TokenType.Pipe, TokenType.Caret))
+        {
+            var op = Previous();
+            var right = Shift();
+            expr = new BinaryExpr(expr, op.Type, right, op.Line, op.Column);
+        }
+
+        return expr;
+    }
+
+    /// <summary>
+    /// シフト演算（<<, >>）をパースします。
+    /// </summary>
+    private Expression Shift()
+    {
+        var expr = Range();
+
+        while (Match(TokenType.LessLess, TokenType.GreaterGreater))
         {
             var op = Previous();
             var right = Range();
@@ -317,12 +351,12 @@ public class Parser
     /// </summary>
     private Expression Factor()
     {
-        var expr = Unary();
+        var expr = Exponentiation();
 
         while (Match(TokenType.Star, TokenType.Slash, TokenType.Percent))
         {
             var op = Previous();
-            var right = Unary();
+            var right = Exponentiation();
             expr = new BinaryExpr(expr, op.Type, right, op.Line, op.Column);
         }
 
@@ -330,7 +364,24 @@ public class Parser
     }
 
     /// <summary>
-    /// 単項演算子（-, not, ++, --）およびシェルコマンド（$`...`）をパースします。
+    /// 冪乗（**）をパースします。右結合。
+    /// </summary>
+    private Expression Exponentiation()
+    {
+        var expr = Unary();
+
+        if (Match(TokenType.StarStar))
+        {
+            var op = Previous();
+            var right = Exponentiation(); // 右結合
+            expr = new BinaryExpr(expr, op.Type, right, op.Line, op.Column);
+        }
+
+        return expr;
+    }
+
+    /// <summary>
+    /// 単項演算子（-, not, ~, ++, --）およびシェルコマンド（$`...`）をパースします。
     /// </summary>
     private Expression Unary()
     {
@@ -374,7 +425,7 @@ public class Parser
             return new IncrementExpr(operand, isPrefix: true, isIncrement, op.Line, op.Column);
         }
 
-        if (Match(TokenType.Minus, TokenType.Not))
+        if (Match(TokenType.Minus, TokenType.Not, TokenType.Tilde))
         {
             var op = Previous();
             var right = Unary();
@@ -456,7 +507,15 @@ public class Parser
         {
             do
             {
-                arguments.Add(Expression());
+                if (Match(TokenType.DotDotDot))
+                {
+                    var spreadToken = Previous();
+                    arguments.Add(new SpreadExpr(Expression(), spreadToken.Line, spreadToken.Column));
+                }
+                else
+                {
+                    arguments.Add(Expression());
+                }
             } while (Match(TokenType.Comma));
         }
 
@@ -495,6 +554,12 @@ public class Parser
         if (Match(TokenType.If))
         {
             return IfExpression();
+        }
+
+        // match式
+        if (Match(TokenType.Match))
+        {
+            return MatchExpression();
         }
 
         // try/catch/finally式
@@ -574,22 +639,103 @@ public class Parser
             return new SuperExpr(member.Lexeme, superToken.Line, superToken.Column);
         }
 
-        // 識別子
+        // 識別子（アロー関数 `x => expr` もチェック）
         if (Match(TokenType.Identifier))
         {
             var token = Previous();
+            if (Match(TokenType.Arrow))
+            {
+                // 単一パラメータのアロー関数: x => expr
+                var param = new Parameter(token.Lexeme, token.Line, token.Column);
+                var body = Check(TokenType.LeftBrace) ? (Advance(), BlockOrHashExpression()).Item2 : Expression();
+                return new LambdaExpr(new List<Parameter> { param }, body, token.Line, token.Column);
+            }
             return new IdentifierExpr(token.Lexeme, token.Line, token.Column);
         }
 
-        // 括弧式
+        // 括弧式（アロー関数 `(params) => expr` もチェック）
         if (Match(TokenType.LeftParen))
         {
+            // アロー関数かどうか先読みで判定
+            if (TryParseArrowFunction(out var arrowExpr))
+            {
+                return arrowExpr!;
+            }
             var expr = Expression();
             Consume(TokenType.RightParen, "Expect ')' after expression.");
             return expr;
         }
 
         throw Error(Peek(), "Expect expression.");
+    }
+
+    /// <summary>
+    /// 括弧の後にアロー関数パターンかどうかを判定します。
+    /// '(' は既に消費済みの状態で呼ばれます。
+    /// </summary>
+    private bool TryParseArrowFunction(out Expression? result)
+    {
+        result = null;
+        int savedPosition = _current;
+
+        // パラメータリストを試行パース
+        var parameters = new List<Parameter>();
+
+        if (!Check(TokenType.RightParen))
+        {
+            do
+            {
+                if (!Check(TokenType.Identifier) && !Check(TokenType.DotDotDot))
+                {
+                    _current = savedPosition;
+                    return false;
+                }
+
+                bool isRest = Match(TokenType.DotDotDot);
+                if (!Check(TokenType.Identifier))
+                {
+                    _current = savedPosition;
+                    return false;
+                }
+
+                var paramToken = Advance();
+                parameters.Add(new Parameter(paramToken.Lexeme, paramToken.Line, paramToken.Column, isRest: isRest));
+            } while (Match(TokenType.Comma));
+        }
+
+        if (!Check(TokenType.RightParen))
+        {
+            _current = savedPosition;
+            return false;
+        }
+
+        Advance(); // ')' を消費
+
+        if (!Check(TokenType.Arrow))
+        {
+            _current = savedPosition;
+            return false;
+        }
+
+        Advance(); // '=>' を消費
+
+        // アロー関数確定！本体をパース
+        var line = parameters.Count > 0 ? parameters[0].Line : Previous().Line;
+        var column = parameters.Count > 0 ? parameters[0].Column : Previous().Column;
+
+        Expression body;
+        if (Check(TokenType.LeftBrace))
+        {
+            Advance(); // '{' を消費
+            body = BlockOrHashExpression();
+        }
+        else
+        {
+            body = Expression();
+        }
+
+        result = new LambdaExpr(parameters, body, line, column);
+        return true;
     }
 
     /// <summary>
@@ -683,11 +829,74 @@ public class Parser
         // else は必須
         Consume(TokenType.Else, "Expect 'else' after if then branch.");
 
-        // else ブランチをパース（必ずブロック）
-        Consume(TokenType.LeftBrace, "Expect '{' after 'else'.");
-        var elseBranch = BlockExpression();
+        // else if のシンタックスシュガー
+        Expression elseBranch;
+        if (Match(TokenType.If))
+        {
+            elseBranch = IfExpression();
+        }
+        else
+        {
+            // else ブランチをパース（必ずブロック）
+            Consume(TokenType.LeftBrace, "Expect '{' after 'else'.");
+            elseBranch = BlockExpression();
+        }
 
         return new IfExpr(condition, thenBranch, elseBranch, ifToken.Line, ifToken.Column);
+    }
+
+    /// <summary>
+    /// match式をパースします。
+    /// match (subject) { pattern => result ... }
+    /// </summary>
+    private MatchExpr MatchExpression()
+    {
+        var matchToken = Previous();
+
+        Consume(TokenType.LeftParen, "Expect '(' after 'match'.");
+        var subject = Expression();
+        Consume(TokenType.RightParen, "Expect ')' after match subject.");
+
+        Consume(TokenType.LeftBrace, "Expect '{' after match subject.");
+
+        var arms = new List<(Expression? Pattern, Expression Body)>();
+        while (!Check(TokenType.RightBrace) && !IsAtEnd())
+        {
+            while (Match(TokenType.Newline)) { }
+            if (Check(TokenType.RightBrace)) break;
+
+            Expression? pattern;
+            // _ はワイルドカード（デフォルト）
+            if (Check(TokenType.Identifier) && Peek().Lexeme == "_")
+            {
+                Advance(); // '_' を消費
+                pattern = null;
+            }
+            else
+            {
+                pattern = Expression();
+            }
+
+            Consume(TokenType.Arrow, "Expect '=>' after match pattern.");
+
+            Expression body;
+            if (Check(TokenType.LeftBrace))
+            {
+                Advance();
+                body = BlockOrHashExpression();
+            }
+            else
+            {
+                body = Expression();
+            }
+
+            arms.Add((pattern, body));
+            while (Match(TokenType.Newline)) { }
+        }
+
+        Consume(TokenType.RightBrace, "Expect '}' after match arms.");
+
+        return new MatchExpr(subject, arms, matchToken.Line, matchToken.Column);
     }
 
     /// <summary>
@@ -766,7 +975,15 @@ public class Parser
                 // 改行をスキップ
                 while (Match(TokenType.Newline)) { }
 
-                elements.Add(Expression());
+                if (Match(TokenType.DotDotDot))
+                {
+                    var spreadToken = Previous();
+                    elements.Add(new SpreadExpr(Expression(), spreadToken.Line, spreadToken.Column));
+                }
+                else
+                {
+                    elements.Add(Expression());
+                }
 
                 // 改行をスキップ
                 while (Match(TokenType.Newline)) { }
@@ -795,11 +1012,11 @@ public class Parser
         // 改行をスキップ
         while (Match(TokenType.Newline)) { }
 
-        // 空の {} はブロック式
+        // 空の {} はハッシュリテラル
         if (Check(TokenType.RightBrace))
         {
             Advance();
-            return new BlockExpr(new List<Statement>(), null, leftBrace.Line, leftBrace.Column);
+            return new HashExpr(new List<HashExpr.KeyValuePair>(), leftBrace.Line, leftBrace.Column);
         }
 
         // 最初がidentifierで、その次が : ならハッシュリテラル
@@ -1066,6 +1283,13 @@ public class Parser
     private Statement LetStatement()
     {
         var keyword = Previous();
+
+        // 分割代入: let [a, b] = expr or let {x, y} = expr
+        if (Check(TokenType.LeftBracket) || Check(TokenType.LeftBrace))
+        {
+            return DestructuringStatement(true, keyword);
+        }
+
         var name = Consume(TokenType.Identifier, "Expect variable name.");
         Consume(TokenType.Equal, "Expect '=' after variable name.");
         var initializer = Expression();
@@ -1079,11 +1303,41 @@ public class Parser
     private Statement VarStatement()
     {
         var keyword = Previous();
+
+        // 分割代入: var [a, b] = expr or var {x, y} = expr
+        if (Check(TokenType.LeftBracket) || Check(TokenType.LeftBrace))
+        {
+            return DestructuringStatement(false, keyword);
+        }
+
         var name = Consume(TokenType.Identifier, "Expect variable name.");
         Consume(TokenType.Equal, "Expect '=' after variable name.");
         var initializer = Expression();
 
         return new VarStmt(name.Lexeme, initializer, keyword.Line, keyword.Column);
+    }
+
+    private Statement DestructuringStatement(bool isReadOnly, Token keyword)
+    {
+        bool isHash = Check(TokenType.LeftBrace);
+        Advance(); // '[' or '{' を消費
+
+        var names = new List<string>();
+        if (!Check(isHash ? TokenType.RightBrace : TokenType.RightBracket))
+        {
+            do
+            {
+                var nameToken = Consume(TokenType.Identifier, "Expect variable name in destructuring.");
+                names.Add(nameToken.Lexeme);
+            } while (Match(TokenType.Comma));
+        }
+
+        Consume(isHash ? TokenType.RightBrace : TokenType.RightBracket,
+            isHash ? "Expect '}' after destructuring." : "Expect ']' after destructuring.");
+        Consume(TokenType.Equal, "Expect '=' after destructuring pattern.");
+        var initializer = Expression();
+
+        return new DestructuringStmt(isReadOnly, names, isHash, initializer, keyword.Line, keyword.Column);
     }
 
     /// <summary>
@@ -1150,8 +1404,14 @@ public class Parser
         {
             do
             {
+                bool isRest = Match(TokenType.DotDotDot);
                 var paramToken = Consume(TokenType.Identifier, "Expect parameter name.");
-                parameters.Add(new Parameter(paramToken.Lexeme, paramToken.Line, paramToken.Column));
+                Expression? defaultValue = null;
+                if (!isRest && Match(TokenType.Equal))
+                {
+                    defaultValue = Expression();
+                }
+                parameters.Add(new Parameter(paramToken.Lexeme, paramToken.Line, paramToken.Column, defaultValue, isRest));
             } while (Match(TokenType.Comma));
         }
 
@@ -1403,10 +1663,11 @@ public class Parser
     /// <returns>パースされた式</returns>
     private Expression ParseStringLiteral(string value, int line, int column)
     {
+        // \$ エスケープのプレースホルダ(\uE000)を復元
         // ${...} が含まれていない場合は通常のリテラルとして返す
         if (!value.Contains("${"))
         {
-            return new LiteralExpr(value, line, column);
+            return new LiteralExpr(value.Replace('\uE000', '$'), line, column);
         }
 
         var parts = new List<object>();
@@ -1417,8 +1678,8 @@ public class Parser
             var start = value.IndexOf("${", current);
             if (start == -1)
             {
-                // 残りの文字列を追加
-                var remaining = value.Substring(current);
+                // 残りの文字列を追加（\$プレースホルダ復元）
+                var remaining = value.Substring(current).Replace('\uE000', '$');
                 if (remaining.Length > 0)
                 {
                     parts.Add(remaining);
@@ -1426,10 +1687,10 @@ public class Parser
                 break;
             }
 
-            // ${ の前の文字列を追加
+            // ${ の前の文字列を追加（\$プレースホルダ復元）
             if (start > current)
             {
-                parts.Add(value.Substring(current, start - current));
+                parts.Add(value.Substring(current, start - current).Replace('\uE000', '$'));
             }
 
             // ${ ... } 内の式をパース
