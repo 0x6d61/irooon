@@ -471,9 +471,10 @@ public class Parser
                 Consume(TokenType.RightBracket, "Expect ']' after index.");
                 expr = new IndexExpr(expr, index, bracket.Line, bracket.Column);
             }
-            else if (Match(TokenType.PlusPlus, TokenType.MinusMinus))
+            else if ((Check(TokenType.PlusPlus) || Check(TokenType.MinusMinus)) && Peek().Line == Previous().Line)
             {
-                // 後置インクリメント/デクリメント演算子
+                // 後置インクリメント/デクリメント演算子（同じ行のみ）
+                Advance();
                 var op = Previous();
                 bool isIncrement = op.Type == TokenType.PlusPlus;
 

@@ -1,0 +1,60 @@
+irooon 開発メモ - 2026-02-10
+
+================================
+重大な問題点（v0.9.0時点）→ v0.10.0 で全て解決済み
+================================
+
+1. `obj.field = value` が未実装 → ★ 調査の結果、既に実装済みだった（ドキュメントが古かっただけ）
+
+2. セーフナビゲーション演算子（`?.`）が壊れている → ★ v0.10.0 で修正
+   - テストの構文が古かった（`pub name` → `public var name = ""`、`pub init()` → `init()`）
+   - テスト3件修正・有効化済み
+
+3. 多段継承で super がスタックオーバーフロー → ★ v0.10.0 で修正
+   - 原因: `this.Class.Parent` が常に同じ親を参照する設計問題
+   - 修正: `RuntimeHelpers.CallSuperMethod` + `__callingClass__` 追跡方式
+   - テスト有効化済み（Animal → Mammal → Dog）
+
+4. `++`/`--` が変数のみ対応 → ★ v0.10.0 で修正
+   - CodeGen: `GenerateIncrementForIndexed` / `GenerateIncrementForMember` 追加
+   - Parser: 後置 `++`/`--` は同一行のみ（行をまたぐ場合は前置として扱う）
+   - テスト10件追加（arr[i]++, ++arr[i], obj.field++, ++obj.field 等）
+
+================================
+未実装機能
+================================
+
+- typeof / instanceof（型チェック手段なし）
+- 静的メソッド（`static fn`）- 仕様にあるがテストなし
+- スプレッド演算子（関数呼び出し時）- パース済みだが動作不透明
+- export の制限（`var` と分割代入は export 不可）
+
+================================
+開発Tips
+================================
+
+- ハッシュリテラルのキーは識別子形式（`{ a: 1 }` ○ / `{ "a": 1 }` ×）
+- dotnet test のフィルタは `|` で OR（`or` ではない）
+- Windows環境では `cd C:\path` が bash で動かない → フルパス指定で `dotnet test "C:\full\path"` を使う
+- セマンティックバージョニング: 0.9.0 → 0.10.0（0.10 であって 1.0 ではない）
+
+================================
+v0.9.0 で実装済み
+================================
+
+- import/export モジュールシステム
+- Hash メソッド: keys, values, has, delete, size, isEmpty
+- List メソッド: push, pop, indexOf, includes, find, join, concat, reverse, sort, slice
+- Math オブジェクト: abs, floor, ceil, round, sqrt, min, max, random, PI, E
+- input 関数（標準入力読み取り）
+- テスト: 1027件 全GREEN
+
+================================
+v0.10.0 で修正済み
+================================
+
+- セーフナビゲーション `?.` テスト修正（構文を正しいirooon形式に）
+- 多段継承 super のスタックオーバーフロー修正（CallSuperMethod方式）
+- `++`/`--` の IndexExpr・MemberExpr 対応
+- 後置 `++`/`--` の行またぎ問題修正（Parser）
+- テスト: 1040件 全GREEN

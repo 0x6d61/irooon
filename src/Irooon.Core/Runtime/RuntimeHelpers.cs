@@ -717,6 +717,43 @@ public static class RuntimeHelpers
     }
 
     /// <summary>
+    /// 多段継承対応のsuper メソッド呼び出し。
+    /// __callingClass__ を追跡して、正しい親クラスのメソッドを呼び出す。
+    /// </summary>
+    public static object CallSuperMethod(ScriptContext ctx, string methodName, object[] args)
+    {
+        if (!ctx.Globals.TryGetValue("this", out var thisObj) || thisObj is not IroInstance instance)
+            throw new RuntimeException("super can only be used inside a class method");
+
+        // 現在の呼び出しクラスを取得（未設定なら this.Class）
+        IroClass callingClass;
+        if (ctx.Globals.TryGetValue("__callingClass__", out var cc) && cc is IroClass c)
+            callingClass = c;
+        else
+            callingClass = instance.Class;
+
+        var parentClass = callingClass.Parent
+            ?? throw new RuntimeException("No parent class for super call");
+        var method = parentClass.GetMethod(methodName)
+            ?? throw new RuntimeException($"Method '{methodName}' not found in parent class");
+
+        // __callingClass__ を親に設定して呼び出し → 復元
+        var saved = ctx.Globals.ContainsKey("__callingClass__") ? ctx.Globals["__callingClass__"] : null;
+        ctx.Globals["__callingClass__"] = parentClass;
+        try
+        {
+            return Invoke(method, ctx, args, instance);
+        }
+        finally
+        {
+            if (saved != null)
+                ctx.Globals["__callingClass__"] = saved;
+            else
+                ctx.Globals.Remove("__callingClass__");
+        }
+    }
+
+    /// <summary>
     /// 安全なナビゲーション処理（null安全なメンバアクセス）
     /// </summary>
     public static object? SafeNavigation(object? obj, string memberName)
