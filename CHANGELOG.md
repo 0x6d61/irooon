@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-02-10
+
+### Changed
+- **async/await 完全実装** (#45)
+  - `async fn` が `Task.Run` ベースの真の並行実行に（旧: `Task.FromResult` でブロッキング）
+  - `await` が CLR の `Task<T>` を直接サポート（リフレクションで Result を取得）
+  - async 関数はクローンされた `ScriptContext` で実行（スコープ分離）
+  - `CodeGenerator.GenerateAsyncFunctionDef()` を削除し、同期/非同期で同一コード生成パスに統合
+  - `WrapInTask()` を削除
+
+### Added
+- **`delay(ms)` ビルトイン** — 指定ミリ秒後に完了する Task を返す
+- **`awaitAll([tasks])` ビルトイン** — 全 Task の完了を待ち、結果リストを返す
+- **`ScriptContext.Clone()`** — async 関数のスコープ分離用コンテキストクローン
+- **`Closure.IsAsync`** — 非同期関数フラグ
+
 ## [0.11.3] - 2026-02-10
 
 ### Added

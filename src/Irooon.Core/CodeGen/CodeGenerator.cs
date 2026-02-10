@@ -1043,14 +1043,16 @@ public class CodeGenerator
                 typeof(List<string>),
                 typeof(int),
                 typeof(int),
-                typeof(List<string>)
+                typeof(List<string>),
+                typeof(bool)
             })!,
             ExprTree.Constant("<lambda>"),
             ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>)),
             paramNamesListNew,
             ExprTree.Constant(expr.Line),
             ExprTree.Constant(expr.Column),
-            localNamesListNew
+            localNamesListNew,
+            ExprTree.Constant(false) // lambda は同期
         );
 
         return ExprTree.Convert(closureNew, typeof(object));
@@ -1063,12 +1065,6 @@ public class CodeGenerator
     /// </summary>
     private ExprTree GenerateFunctionDef(FunctionDef stmt)
     {
-        // Check if this is an async function
-        if (stmt.IsAsync)
-        {
-            return GenerateAsyncFunctionDef(stmt);
-        }
-
         // 関数本体を Func<ScriptContext, object[], object> にコンパイル
         var argsParam = ExprTree.Parameter(typeof(object[]), "args");
         var ctxParamForFunc = ExprTree.Parameter(typeof(ScriptContext), "ctx");
@@ -1155,7 +1151,7 @@ public class CodeGenerator
             ExprTree.NewArrayInit(typeof(string), localNames.Select(n => ExprTree.Constant(n)))
         );
 
-        // Closure オブジェクトを作成（位置情報 + ローカル変数名を含む）
+        // Closure オブジェクトを作成（位置情報 + ローカル変数名 + isAsync を含む）
         var closureNew = ExprTree.New(
             typeof(Closure).GetConstructor(new[] {
                 typeof(string),
@@ -1163,142 +1159,16 @@ public class CodeGenerator
                 typeof(List<string>),
                 typeof(int),
                 typeof(int),
-                typeof(List<string>)
-            })!,
-            ExprTree.Constant(stmt.Name),
-            ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>)),
-            paramNamesListNew,
-            ExprTree.Constant(stmt.Line),
-            ExprTree.Constant(stmt.Column),
-            localNamesListNew
-        );
-
-        // ctx.Globals[name] = closure
-        var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
-        var nameExpr = ExprTree.Constant(stmt.Name);
-        var itemProperty = ExprTree.Property(globalsExpr, "Item", nameExpr);
-
-        return ExprTree.Assign(itemProperty, ExprTree.Convert(closureNew, typeof(object)));
-    }
-
-    /// <summary>
-    /// 非同期関数定義の生成
-    /// Task<object>を返す関数を生成
-    /// </summary>
-    private ExprTree GenerateAsyncFunctionDef(FunctionDef stmt)
-    {
-        // �֐��{�̂� Func<ScriptContext, object[], object> �ɃR���p�C��
-        var argsParam = ExprTree.Parameter(typeof(object[]), "args");
-        var ctxParamForFunc = ExprTree.Parameter(typeof(ScriptContext), "ctx");
-
-        var bodyExprs = new List<ExprTree>();
-
-        // パラメータを args[0], args[1], ... にバインド
-        for (int i = 0; i < stmt.Parameters.Count; i++)
-        {
-            var param = stmt.Parameters[i];
-            var globalsForParam = ExprTree.Property(ctxParamForFunc, "Globals");
-            var paramName = ExprTree.Constant(param.Name);
-            var itemForParam = ExprTree.Property(globalsForParam, "Item", paramName);
-
-            if (param.IsRest)
-            {
-                var collectCall = ExprTree.Call(
-                    typeof(RuntimeHelpers).GetMethod("CollectRestArgs")!,
-                    argsParam,
-                    ExprTree.Constant(i)
-                );
-                bodyExprs.Add(ExprTree.Assign(itemForParam, collectCall));
-            }
-            else
-            {
-                var argAccess = ExprTree.ArrayIndex(argsParam, ExprTree.Constant(i));
-
-                if (param.DefaultValue != null)
-                {
-                    var savedCtx = _ctxParam;
-                    _ctxParam = ctxParamForFunc;
-                    var defaultExpr = GenerateExpression(param.DefaultValue);
-                    _ctxParam = savedCtx;
-
-                    var valueExpr = ExprTree.Condition(
-                        ExprTree.Equal(argAccess, ExprTree.Constant(null, typeof(object))),
-                        defaultExpr,
-                        argAccess
-                    );
-                    bodyExprs.Add(ExprTree.Assign(itemForParam, valueExpr));
-                }
-                else
-                {
-                    bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
-                }
-            }
-        }
-
-        // 本体を実行（一時的に _ctxParam を切り替える）
-        var savedCtxParam = _ctxParam;
-        _ctxParam = ctxParamForFunc;
-        var bodyExpr = GenerateExpression(stmt.Body);
-        _ctxParam = savedCtxParam;
-
-        bodyExprs.Add(bodyExpr);
-
-        var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
-
-        // Wrap the result in Task.FromResult to make it async
-        // RuntimeHelpers.WrapInTask(result)
-        var wrapInTaskMethod = typeof(RuntimeHelpers).GetMethod(
-            "WrapInTask",
-            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static
-        );
-
-        if (wrapInTaskMethod == null)
-        {
-            throw new InvalidOperationException("WrapInTask method not found in RuntimeHelpers");
-        }
-
-        var wrappedBody = ExprTree.Call(wrapInTaskMethod, bodyBlock);
-
-        // Lambda<Func<ScriptContext, object[], object>> ���쐬
-        // The async function returns Task<object>, but we wrap it to return object
-        var asyncLambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(
-            ExprTree.Convert(wrappedBody, typeof(object)),
-            ctxParamForFunc,
-            argsParam
-        );
-
-        var compiled = asyncLambda.Compile();
-
-        // パラメータ名のリストを作成
-        var paramNames = stmt.Parameters.Select(p => p.Name).ToList();
-        var paramNamesListNew = ExprTree.New(
-            typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
-            ExprTree.NewArrayInit(typeof(string), paramNames.Select(n => ExprTree.Constant(n)))
-        );
-
-        // ローカル変数名を収集
-        var localNames = CollectLocalNames(stmt.Body, paramNames);
-        var localNamesListNew = ExprTree.New(
-            typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
-            ExprTree.NewArrayInit(typeof(string), localNames.Select(n => ExprTree.Constant(n)))
-        );
-
-        // Closure オブジェクトを作成（位置情報 + ローカル変数名を含む）
-        var closureNew = ExprTree.New(
-            typeof(Closure).GetConstructor(new[] {
-                typeof(string),
-                typeof(Func<ScriptContext, object[], object>),
                 typeof(List<string>),
-                typeof(int),
-                typeof(int),
-                typeof(List<string>)
+                typeof(bool)
             })!,
             ExprTree.Constant(stmt.Name),
             ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>)),
             paramNamesListNew,
             ExprTree.Constant(stmt.Line),
             ExprTree.Constant(stmt.Column),
-            localNamesListNew
+            localNamesListNew,
+            ExprTree.Constant(stmt.IsAsync)
         );
 
         // ctx.Globals[name] = closure

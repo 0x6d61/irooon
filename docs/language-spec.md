@@ -787,6 +787,17 @@ typeof({a: 1})        // "Hash"
 typeof(fn (x) { x })  // "Function"
 ```
 
+### delay / awaitAll
+
+```iro
+// delay(ms) — 指定ミリ秒後に完了する Task を返す
+await delay(1000)
+
+// awaitAll([tasks]) — 全 Task の完了を待ち、結果リストを返す
+async fn compute(x) { x * 2 }
+let results = awaitAll([compute(1), compute(2), compute(3)])  // [2, 4, 6]
+```
+
 ---
 
 ## 16. CLR 相互運用
@@ -848,9 +859,23 @@ async fn fetchData() {
 }
 ```
 
-- `async fn` で非同期関数を定義
+- `async fn` で非同期関数を定義（`Task.Run` ベースの真の並行実行）
 - `await` で非同期結果を待機
-- 内部的にはブロッキング実行
+- async 関数はクローンされたスコープで実行される（呼び出し元に副作用なし）
+- CLR の `Task<T>` も直接 `await` 可能
+
+### ビルトイン非同期ユーティリティ
+
+```iro
+// delay(ms) — 指定ミリ秒後に完了する Task を返す
+let task = delay(1000)
+await task
+
+// awaitAll([tasks]) — 全 Task の完了を待ち、結果リストを返す
+async fn double(x) { x * 2 }
+let tasks = [double(1), double(2), double(3)]
+let results = awaitAll(tasks)  // [2, 4, 6]
+```
 
 ---
 

@@ -388,7 +388,7 @@ println("Abs:", abs, "Sqrt:", sqrt, "Now:", now)
 
 ## 開発状況
 
-現在のバージョン: **v0.11.3**
+現在のバージョン: **v0.12.0**
 
 変更履歴は [CHANGELOG.md](./CHANGELOG.md) を参照してください。
 

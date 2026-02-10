@@ -33,6 +33,11 @@ public class Closure : IroCallable
     public int Column { get; }
 
     /// <summary>
+    /// 非同期関数かどうか
+    /// </summary>
+    public bool IsAsync { get; }
+
+    /// <summary>
     /// 関数本体
     /// </summary>
     private readonly Func<ScriptContext, object[], object> _body;
@@ -45,7 +50,9 @@ public class Closure : IroCallable
     /// <param name="parameterNames">パラメータ名のリスト（省略可能）</param>
     /// <param name="line">関数定義の行番号</param>
     /// <param name="column">関数定義の列番号</param>
-    public Closure(string name, Func<ScriptContext, object[], object> body, List<string>? parameterNames = null, int line = 0, int column = 0, List<string>? localNames = null)
+    /// <param name="localNames">ローカル変数名のリスト（省略可能）</param>
+    /// <param name="isAsync">非同期関数かどうか</param>
+    public Closure(string name, Func<ScriptContext, object[], object> body, List<string>? parameterNames = null, int line = 0, int column = 0, List<string>? localNames = null, bool isAsync = false)
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));
         _body = body ?? throw new ArgumentNullException(nameof(body));
@@ -53,6 +60,7 @@ public class Closure : IroCallable
         Line = line;
         Column = column;
         LocalNames = localNames ?? new List<string>();
+        IsAsync = isAsync;
     }
 
     /// <summary>
