@@ -1,0 +1,582 @@
+// =============================================
+// Lisp Interpreter in irooon
+// =============================================
+// A minimal Lisp (Scheme-like) interpreter.
+// Supports: define, lambda, if, quote, cond, let, begin, and, or,
+//           +, -, *, /, =, <, >, cons, car, cdr, list, null?, not,
+//           map, filter, foldl, display, modulo, apply
+//
+// Usage:  irooon examples/lisp.iro
+// =============================================
+
+// --- Tokenizer ---
+
+fn tokenize(source) {
+    var tokens = []
+    var i = 0
+    var len = __stringLength(source)
+    for (i < len) {
+        var ch = __charAt(source, i)
+        if (ch == " " or ch == "\n" or ch == "\t" or ch == "\r") {
+            i++
+        } else if (ch == "(") {
+            __listPush(tokens, "(")
+            i++
+        } else if (ch == ")") {
+            __listPush(tokens, ")")
+            i++
+        } else if (ch == "'") {
+            __listPush(tokens, "'")
+            i++
+        } else if (ch == ";") {
+            for (i < len and __charAt(source, i) != "\n") { i++ }
+        } else {
+            var start = i
+            for (i < len) {
+                var c = __charAt(source, i)
+                if (c == " " or c == "\n" or c == "\t" or c == "\r" or c == "(" or c == ")") {
+                    break
+                } else {
+                    i++
+                }
+            }
+            __listPush(tokens, __substring(source, start, i - start))
+        }
+    }
+    tokens
+}
+
+// --- Parser (function-based, using hash as state) ---
+
+fn parseAtom(tok) {
+    if (tok == "#t") {
+        true
+    } else if (tok == "#f") {
+        false
+    } else {
+        var firstCh = __charAt(tok, 0)
+        var isDigit = firstCh >= "0" and firstCh <= "9"
+        var isNeg = firstCh == "-" and __stringLength(tok) > 1
+        if (isDigit or isNeg) {
+            __toNumber(tok)
+        } else {
+            tok
+        }
+    }
+}
+
+fn peek(s) {
+    if (s["pos"] < s["tokens"].length()) {
+        s["tokens"][s["pos"]]
+    } else {
+        null
+    }
+}
+
+fn advance(s) {
+    var tok = s["tokens"][s["pos"]]
+    s["pos"] = s["pos"] + 1
+    tok
+}
+
+var parseExpr = null
+
+fn parseList(s) {
+    advance(s)
+    var items = []
+    for (peek(s) != null and peek(s) != ")") {
+        __listPush(items, parseExpr(s))
+    }
+    if (peek(s) == ")") {
+        advance(s)
+    } else {
+        null
+    }
+    items
+}
+
+parseExpr = fn(s) {
+    var tok = peek(s)
+    if (tok == null) {
+        null
+    } else if (tok == "(") {
+        parseList(s)
+    } else if (tok == "'") {
+        advance(s)
+        var quoted = parseExpr(s)
+        var result = ["quote", quoted]
+        result
+    } else {
+        advance(s)
+        parseAtom(tok)
+    }
+}
+
+fn parse(source) {
+    var toks = tokenize(source)
+    var s = {tokens: toks, pos: 0}
+    var results = []
+    for (peek(s) != null) {
+        __listPush(results, parseExpr(s))
+    }
+    results
+}
+
+// --- Environment (hash-based) ---
+
+fn envNew(outer) {
+    {bindings: {}, outer: outer}
+}
+
+fn envGet(env, name) {
+    if (__hashHas(env["bindings"], name)) {
+        env["bindings"][name]
+    } else if (env["outer"] != null) {
+        envGet(env["outer"], name)
+    } else {
+        throw "Undefined variable: " + name
+    }
+}
+
+fn envSet(env, name, val) {
+    env["bindings"][name] = val
+}
+
+// --- Cons cells ---
+
+fn makeCons(a, d) { {t: "cons", car: a, cdr: d} }
+
+fn isCons(x) {
+    if (typeof(x) == "Hash") {
+        __hashHas(x, "t") and x["t"] == "cons"
+    } else {
+        false
+    }
+}
+
+fn isLambda(x) {
+    if (typeof(x) == "Hash") {
+        __hashHas(x, "t") and x["t"] == "lambda"
+    } else {
+        false
+    }
+}
+
+fn listToCons(lst) {
+    var result = null
+    var i = lst.length() - 1
+    for (i >= 0) {
+        result = makeCons(lst[i], result)
+        i--
+    }
+    result
+}
+
+fn consToList(c) {
+    var result = []
+    var cur = c
+    for (isCons(cur)) {
+        __listPush(result, cur["car"])
+        cur = cur["cdr"]
+    }
+    result
+}
+
+// --- Pretty Printer ---
+
+fn lispToString(val) {
+    if (val == null) {
+        "()"
+    } else if (typeof(val) == "Number") {
+        var s = __toString(val)
+        if (__stringLength(s) >= 2 and __substring(s, __stringLength(s) - 2, 2) == ".0") {
+            __substring(s, 0, __stringLength(s) - 2)
+        } else {
+            s
+        }
+    } else if (typeof(val) == "Boolean") {
+        if (val) { "#t" } else { "#f" }
+    } else if (typeof(val) == "String") {
+        val
+    } else if (isCons(val)) {
+        var items = []
+        var cur = val
+        for (isCons(cur)) {
+            __listPush(items, lispToString(cur["car"]))
+            cur = cur["cdr"]
+        }
+        if (cur == null) {
+            "(" + __listJoin(items, " ") + ")"
+        } else {
+            "(" + __listJoin(items, " ") + " . " + lispToString(cur) + ")"
+        }
+    } else if (isLambda(val)) {
+        "<lambda>"
+    } else if (typeof(val) == "Function") {
+        "<builtin>"
+    } else if (typeof(val) == "List") {
+        var parts = []
+        for (item in val) {
+            __listPush(parts, lispToString(item))
+        }
+        "(" + __listJoin(parts, " ") + ")"
+    } else {
+        __toString(val)
+    }
+}
+
+// --- Evaluator ---
+
+var lispApply = null
+var lispEval = null
+
+fn evalCond(expr, env) {
+    var i = 1
+    var result = null
+    var found = false
+    for (i < expr.length() and found == false) {
+        var clause = expr[i]
+        if (typeof(clause[0]) == "String" and clause[0] == "else") {
+            result = lispEval(clause[1], env)
+            found = true
+        } else {
+            var test = lispEval(clause[0], env)
+            if (test != false and test != null) {
+                result = lispEval(clause[1], env)
+                found = true
+            } else {
+                null
+            }
+        }
+        i++
+    }
+    result
+}
+
+fn evalLet(expr, env) {
+    var binds = expr[1]
+    var body = expr[2]
+    var letEnv = envNew(env)
+    for (b in binds) {
+        envSet(letEnv, b[0], lispEval(b[1], env))
+    }
+    lispEval(body, letEnv)
+}
+
+fn evalAnd(expr, env) {
+    var result = true
+    var i = 1
+    var done = false
+    for (i < expr.length() and done == false) {
+        result = lispEval(expr[i], env)
+        if (result == false or result == null) {
+            done = true
+        } else {
+            null
+        }
+        i++
+    }
+    if (done) { false } else { result }
+}
+
+fn evalOr(expr, env) {
+    var result = false
+    var i = 1
+    var found = false
+    for (i < expr.length() and found == false) {
+        result = lispEval(expr[i], env)
+        if (result != false and result != null) {
+            found = true
+        } else {
+            null
+        }
+        i++
+    }
+    result
+}
+
+fn evalList(expr, env) {
+    if (expr.length() == 0) {
+        null
+    } else {
+        var head = expr[0]
+        if (head == "quote") {
+            expr[1]
+        } else if (head == "if") {
+            var test = lispEval(expr[1], env)
+            if (test != false and test != null) {
+                lispEval(expr[2], env)
+            } else {
+                if (expr.length() > 3) {
+                    lispEval(expr[3], env)
+                } else {
+                    null
+                }
+            }
+        } else if (head == "define") {
+            var val = lispEval(expr[2], env)
+            envSet(env, expr[1], val)
+            val
+        } else if (head == "set!") {
+            var val = lispEval(expr[2], env)
+            envSet(env, expr[1], val)
+            val
+        } else if (head == "lambda") {
+            {t: "lambda", params: expr[1], body: expr[2], env: env}
+        } else if (head == "begin") {
+            var result = null
+            for (i in 1..expr.length()) {
+                result = lispEval(expr[i], env)
+            }
+            result
+        } else if (head == "cond") {
+            evalCond(expr, env)
+        } else if (head == "let") {
+            evalLet(expr, env)
+        } else if (head == "and") {
+            evalAnd(expr, env)
+        } else if (head == "or") {
+            evalOr(expr, env)
+        } else {
+            var func = lispEval(head, env)
+            var args = []
+            for (i in 1..expr.length()) {
+                __listPush(args, lispEval(expr[i], env))
+            }
+            lispApply(func, args)
+        }
+    }
+}
+
+lispEval = fn(expr, env) {
+    if (expr == null) {
+        null
+    } else if (typeof(expr) == "Number") {
+        expr
+    } else if (typeof(expr) == "Boolean") {
+        expr
+    } else if (typeof(expr) == "String") {
+        envGet(env, expr)
+    } else if (typeof(expr) == "Hash") {
+        expr
+    } else if (typeof(expr) == "List") {
+        evalList(expr, env)
+    } else {
+        expr
+    }
+}
+
+lispApply = fn(func, args) {
+    if (typeof(func) == "Function") {
+        func(args)
+    } else if (isLambda(func)) {
+        var callEnv = envNew(func["env"])
+        var params = func["params"]
+        for (i in 0..params.length()) {
+            envSet(callEnv, params[i], args[i])
+        }
+        lispEval(func["body"], callEnv)
+    } else {
+        throw "Not a function: " + __toString(func)
+    }
+}
+
+// --- Standard Environment ---
+
+fn makeGlobalEnv() {
+    var env = envNew(null)
+
+    envSet(env, "+", fn(args) {
+        var s = 0
+        for (a in args) { s = s + a }
+        s
+    })
+    envSet(env, "-", fn(args) {
+        if (args.length() == 1) { 0 - args[0] } else {
+            var r = args[0]
+            for (i in 1..args.length()) { r = r - args[i] }
+            r
+        }
+    })
+    envSet(env, "*", fn(args) {
+        var r = 1
+        for (a in args) { r = r * a }
+        r
+    })
+    envSet(env, "/", fn(args) {
+        var r = args[0]
+        for (i in 1..args.length()) { r = r / args[i] }
+        r
+    })
+    envSet(env, "modulo", fn(args) { args[0] % args[1] })
+
+    envSet(env, "=",  fn(args) { args[0] == args[1] })
+    envSet(env, "<",  fn(args) { args[0] < args[1] })
+    envSet(env, ">",  fn(args) { args[0] > args[1] })
+    envSet(env, "<=", fn(args) { args[0] <= args[1] })
+    envSet(env, ">=", fn(args) { args[0] >= args[1] })
+
+    envSet(env, "not", fn(args) {
+        if (args[0] == false or args[0] == null) { true } else { false }
+    })
+
+    envSet(env, "cons", fn(args) { makeCons(args[0], args[1]) })
+    envSet(env, "car",  fn(args) { args[0]["car"] })
+    envSet(env, "cdr",  fn(args) { args[0]["cdr"] })
+    envSet(env, "list", fn(args) { listToCons(args) })
+
+    envSet(env, "null?",    fn(args) { args[0] == null })
+    envSet(env, "pair?",    fn(args) { isCons(args[0]) })
+    envSet(env, "number?",  fn(args) { typeof(args[0]) == "Number" })
+    envSet(env, "zero?",    fn(args) { args[0] == 0 })
+
+    envSet(env, "length", fn(args) {
+        var c = args[0]
+        var n = 0
+        for (isCons(c)) { n++
+c = c["cdr"] }
+        n
+    })
+
+    envSet(env, "append", fn(args) {
+        if (args[0] == null) { args[1] } else {
+            listToCons(__listConcat(consToList(args[0]), consToList(args[1])))
+        }
+    })
+
+    envSet(env, "map", fn(args) {
+        var func = args[0]
+        var lst = consToList(args[1])
+        var result = []
+        for (item in lst) { __listPush(result, lispApply(func, [item])) }
+        listToCons(result)
+    })
+
+    envSet(env, "filter", fn(args) {
+        var func = args[0]
+        var lst = consToList(args[1])
+        var result = []
+        for (item in lst) {
+            var test = lispApply(func, [item])
+            if (test != false and test != null) {
+                __listPush(result, item)
+            } else {
+                null
+            }
+        }
+        listToCons(result)
+    })
+
+    envSet(env, "foldl", fn(args) {
+        var func = args[0]
+        var acc = args[1]
+        var lst = consToList(args[2])
+        for (item in lst) { acc = lispApply(func, [acc, item]) }
+        acc
+    })
+
+    envSet(env, "display", fn(args) { println(lispToString(args[0]))
+null })
+    envSet(env, "newline", fn(args) { println("")
+null })
+
+    envSet(env, "abs", fn(args) { __mathAbs(args[0]) })
+    envSet(env, "min", fn(args) { __mathMin(args[0], args[1]) })
+    envSet(env, "max", fn(args) { __mathMax(args[0], args[1]) })
+
+    envSet(env, "eq?",    fn(args) { args[0] == args[1] })
+    envSet(env, "equal?", fn(args) { args[0] == args[1] })
+
+    envSet(env, "apply", fn(args) { lispApply(args[0], consToList(args[1])) })
+
+    env
+}
+
+// --- Run ---
+
+fn runInEnv(source, env) {
+    var exprs = parse(source)
+    var result = null
+    for (expr in exprs) { result = lispEval(expr, env) }
+    result
+}
+
+// =============================================
+// Demo
+// =============================================
+
+println("=== Lisp Interpreter in irooon ===")
+println("")
+
+var g = makeGlobalEnv()
+
+println("--- Arithmetic ---")
+println("(+ 1 2 3)       => " + lispToString(runInEnv("(+ 1 2 3)", g)))
+println("(* 6 7)         => " + lispToString(runInEnv("(* 6 7)", g)))
+println("(- 10 3 2)      => " + lispToString(runInEnv("(- 10 3 2)", g)))
+println("(/ 100 4)       => " + lispToString(runInEnv("(/ 100 4)", g)))
+println("")
+
+println("--- Variables ---")
+runInEnv("(define x 42)", g)
+println("x               => " + lispToString(runInEnv("x", g)))
+println("")
+
+println("--- Lambda ---")
+runInEnv("(define square (lambda (n) (* n n)))", g)
+println("(square 8)      => " + lispToString(runInEnv("(square 8)", g)))
+println("")
+
+println("--- Factorial ---")
+runInEnv("(define fact (lambda (n) (if (= n 0) 1 (* n (fact (- n 1))))))", g)
+println("(fact 10)       => " + lispToString(runInEnv("(fact 10)", g)))
+println("")
+
+println("--- Fibonacci ---")
+runInEnv("(define fib (lambda (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))", g)
+println("(fib 10)        => " + lispToString(runInEnv("(fib 10)", g)))
+println("")
+
+println("--- Lists ---")
+runInEnv("(define mylist (list 1 2 3 4 5))", g)
+println("(car mylist)    => " + lispToString(runInEnv("(car mylist)", g)))
+println("(cdr mylist)    => " + lispToString(runInEnv("(cdr mylist)", g)))
+println("(length mylist) => " + lispToString(runInEnv("(length mylist)", g)))
+println("")
+
+println("--- Higher-order Functions ---")
+runInEnv("(define double (lambda (x) (* x 2)))", g)
+println("(map double mylist)                    => " + lispToString(runInEnv("(map double mylist)", g)))
+println("(filter (lambda (x) (> x 3)) mylist)   => " + lispToString(runInEnv("(filter (lambda (x) (> x 3)) mylist)", g)))
+println("(foldl + 0 mylist)                     => " + lispToString(runInEnv("(foldl + 0 mylist)", g)))
+println("")
+
+println("--- Closures ---")
+runInEnv("(define make-adder (lambda (n) (lambda (x) (+ n x))))", g)
+runInEnv("(define add5 (make-adder 5))", g)
+println("(add5 10)       => " + lispToString(runInEnv("(add5 10)", g)))
+println("(add5 100)      => " + lispToString(runInEnv("(add5 100)", g)))
+println("")
+
+println("--- Let ---")
+println("(let ((a 3) (b 4)) (+ (* a a) (* b b))) => " + lispToString(runInEnv("(let ((a 3) (b 4)) (+ (* a a) (* b b)))", g)))
+println("")
+
+println("--- Cond ---")
+runInEnv("(define classify (lambda (n) (cond ((< n 0) (quote negative)) ((= n 0) (quote zero)) (else (quote positive)))))", g)
+println("(classify -5)   => " + lispToString(runInEnv("(classify -5)", g)))
+println("(classify 0)    => " + lispToString(runInEnv("(classify 0)", g)))
+println("(classify 42)   => " + lispToString(runInEnv("(classify 42)", g)))
+println("")
+
+println("--- Quote ---")
+println("'(1 2 3)        => " + lispToString(runInEnv("'(1 2 3)", g)))
+println("'hello          => " + lispToString(runInEnv("'hello", g)))
+println("")
+
+println("--- FizzBuzz (1-20) ---")
+runInEnv("(define fizzbuzz (lambda (n max) (if (> n max) (quote done) (begin (display (cond ((= (modulo n 15) 0) (quote FizzBuzz)) ((= (modulo n 3) 0) (quote Fizz)) ((= (modulo n 5) 0) (quote Buzz)) (else n))) (fizzbuzz (+ n 1) max)))))", g)
+runInEnv("(fizzbuzz 1 20)", g)
+println("")
+
+println("=== Done ===")
