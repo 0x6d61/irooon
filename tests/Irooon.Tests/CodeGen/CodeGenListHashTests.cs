@@ -170,6 +170,36 @@ public class CodeGenListHashTests
         Assert.Equal(5.0, hash["count"]);
     }
 
+    [Fact]
+    public void TestGenerateHash_StringKey()
+    {
+        var result = ExecuteScript("let h = {\"key-with-dash\": 42}\nh[\"key-with-dash\"]");
+        Assert.Equal(42.0, result);
+    }
+
+    [Fact]
+    public void TestGenerateHash_StringKeyEquivalentToIdentifierKey()
+    {
+        var result1 = ExecuteScript("{\"name\": \"Alice\"}");
+        var result2 = ExecuteScript("{name: \"Alice\"}");
+        Assert.IsType<Dictionary<string, object>>(result1);
+        Assert.IsType<Dictionary<string, object>>(result2);
+        var hash1 = (Dictionary<string, object>)result1!;
+        var hash2 = (Dictionary<string, object>)result2!;
+        Assert.Equal(hash1["name"], hash2["name"]);
+    }
+
+    [Fact]
+    public void TestGenerateHash_MixedKeys()
+    {
+        var result = ExecuteScript("{name: \"Alice\", \"a-b\": 1}");
+        Assert.IsType<Dictionary<string, object>>(result);
+        var hash = (Dictionary<string, object>)result!;
+        Assert.Equal(2, hash.Count);
+        Assert.Equal("Alice", hash["name"]);
+        Assert.Equal(1.0, hash["a-b"]);
+    }
+
     #endregion
 
     #region インデックスアクセスのテスト

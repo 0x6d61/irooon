@@ -928,6 +928,52 @@ public class ParserExprTests
         Assert.Equal("name", nestedHash.Pairs[0].Key);
     }
 
+    [Fact]
+    public void TestParseHashLiteral_StringKey()
+    {
+        var tokens = new Core.Lexer.Lexer("{\"name\": \"Alice\"}").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<HashExpr>(ast.Expression);
+        var hash = (HashExpr)ast.Expression;
+        Assert.Single(hash.Pairs);
+        Assert.Equal("name", hash.Pairs[0].Key);
+        Assert.IsType<LiteralExpr>(hash.Pairs[0].Value);
+        var value = (LiteralExpr)hash.Pairs[0].Value;
+        Assert.Equal("Alice", value.Value);
+    }
+
+    [Fact]
+    public void TestParseHashLiteral_StringKeyWithDash()
+    {
+        var tokens = new Core.Lexer.Lexer("{\"a-b\": 1}").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<HashExpr>(ast.Expression);
+        var hash = (HashExpr)ast.Expression;
+        Assert.Single(hash.Pairs);
+        Assert.Equal("a-b", hash.Pairs[0].Key);
+    }
+
+    [Fact]
+    public void TestParseHashLiteral_MixedIdentifierAndStringKeys()
+    {
+        var tokens = new Core.Lexer.Lexer("{name: \"Alice\", \"a-b\": 1}").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast);
+        Assert.IsType<HashExpr>(ast.Expression);
+        var hash = (HashExpr)ast.Expression;
+        Assert.Equal(2, hash.Pairs.Count);
+        Assert.Equal("name", hash.Pairs[0].Key);
+        Assert.Equal("a-b", hash.Pairs[1].Key);
+    }
+
     #endregion
 
     #region インデックス代入のテスト
