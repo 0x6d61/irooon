@@ -833,6 +833,22 @@ public class CodeGenerator
             }
         }
 
+        // super.method() の呼び出しを特別処理（多段継承対応）
+        if (expr.Callee is SuperExpr superExpr)
+        {
+            var superArgExprs = expr.Arguments.Select(GenerateExpression).ToArray();
+            var superArgsArray = ExprTree.NewArrayInit(typeof(object), superArgExprs);
+
+            return ExprTree.Call(
+                typeof(RuntimeHelpers),
+                nameof(RuntimeHelpers.CallSuperMethod),
+                null,
+                _ctxParam,
+                ExprTree.Constant(superExpr.MemberName),
+                superArgsArray
+            );
+        }
+
         // 通常の関数呼び出し
         var calleeExprFinal = GenerateExpression(expr.Callee);
         bool hasSpread = expr.Arguments.Any(a => a is SpreadExpr);
@@ -1874,21 +1890,110 @@ public class CodeGenerator
     /// - 前置�E�E+x, --x�E�E var temp = Increment/Decrement(value); SetVariable(temp); return temp;
     /// - 後置�E�E++, x--�E�E var temp = value; SetVariable(Increment/Decrement(value)); return temp;
     /// </summary>
+    private ExprTree GenerateIncrementForIndexed(IncrementExpr expr, System.Reflection.MethodInfo method, IndexExpr indexExpr)
+    {
+        var runtimeType = typeof(RuntimeHelpers);
+        var targetExpr = GenerateExpression(indexExpr.Target);
+        var indexValExpr = GenerateExpression(indexExpr.Index);
+        var targetTemp = ExprTree.Variable(typeof(object), "incTarget");
+        var indexTemp = ExprTree.Variable(typeof(object), "incIndex");
+
+        var getCall = ExprTree.Call(runtimeType, "GetIndexed", Type.EmptyTypes, targetTemp, indexTemp);
+
+        if (expr.IsPrefix)
+        {
+            var tempVar = ExprTree.Variable(typeof(object), "temp");
+            return ExprTree.Block(
+                typeof(object),
+                new[] { targetTemp, indexTemp, tempVar },
+                ExprTree.Assign(targetTemp, targetExpr),
+                ExprTree.Assign(indexTemp, indexValExpr),
+                ExprTree.Assign(tempVar, ExprTree.Call(method, getCall)),
+                ExprTree.Call(runtimeType, "SetIndexed", Type.EmptyTypes, targetTemp, indexTemp, tempVar),
+                tempVar
+            );
+        }
+        else
+        {
+            var tempVar = ExprTree.Variable(typeof(object), "temp");
+            var newValueVar = ExprTree.Variable(typeof(object), "newValue");
+            return ExprTree.Block(
+                typeof(object),
+                new[] { targetTemp, indexTemp, tempVar, newValueVar },
+                ExprTree.Assign(targetTemp, targetExpr),
+                ExprTree.Assign(indexTemp, indexValExpr),
+                ExprTree.Assign(tempVar, getCall),
+                ExprTree.Assign(newValueVar, ExprTree.Call(method, tempVar)),
+                ExprTree.Call(runtimeType, "SetIndexed", Type.EmptyTypes, targetTemp, indexTemp, newValueVar),
+                tempVar
+            );
+        }
+    }
+
+    private ExprTree GenerateIncrementForMember(IncrementExpr expr, System.Reflection.MethodInfo method, MemberExpr memberExpr)
+    {
+        var runtimeType = typeof(RuntimeHelpers);
+        var targetExpr = GenerateExpression(memberExpr.Target);
+        var targetTemp = ExprTree.Variable(typeof(object), "incTarget");
+        var memberName = ExprTree.Constant(memberExpr.Name);
+
+        var getCall = ExprTree.Call(runtimeType, "GetMember", null, _ctxParam, targetTemp, memberName);
+
+        if (expr.IsPrefix)
+        {
+            var tempVar = ExprTree.Variable(typeof(object), "temp");
+            return ExprTree.Block(
+                typeof(object),
+                new[] { targetTemp, tempVar },
+                ExprTree.Assign(targetTemp, targetExpr),
+                ExprTree.Assign(tempVar, ExprTree.Call(method, getCall)),
+                ExprTree.Call(runtimeType, "SetMember", null, targetTemp, memberName, tempVar, ExprTree.Convert(_ctxParam, typeof(ScriptContext))),
+                tempVar
+            );
+        }
+        else
+        {
+            var tempVar = ExprTree.Variable(typeof(object), "temp");
+            var newValueVar = ExprTree.Variable(typeof(object), "newValue");
+            return ExprTree.Block(
+                typeof(object),
+                new[] { targetTemp, tempVar, newValueVar },
+                ExprTree.Assign(targetTemp, targetExpr),
+                ExprTree.Assign(tempVar, getCall),
+                ExprTree.Assign(newValueVar, ExprTree.Call(method, tempVar)),
+                ExprTree.Call(runtimeType, "SetMember", null, targetTemp, memberName, newValueVar, ExprTree.Convert(_ctxParam, typeof(ScriptContext))),
+                tempVar
+            );
+        }
+    }
+
     private ExprTree GenerateIncrementExpr(IncrementExpr expr)
     {
         // オペランドが変数の場合�Eみサポ�EチE
-        if (expr.Operand is not IdentifierExpr identExpr)
-        {
-            throw new NotImplementedException("Increment/Decrement only supports variables currently");
-        }
-
-        var variableName = identExpr.Name;
         var runtimeType = typeof(RuntimeHelpers);
-
-        // Increment/DecrementメソチE��を取征E
         var method = runtimeType.GetMethod(
             expr.IsIncrement ? nameof(RuntimeHelpers.Increment) : nameof(RuntimeHelpers.Decrement)
         )!;
+
+        // IndexExpr: arr[i]++ / ++arr[i]
+        if (expr.Operand is IndexExpr indexExpr)
+        {
+            return GenerateIncrementForIndexed(expr, method, indexExpr);
+        }
+
+        // MemberExpr: obj.field++ / ++obj.field
+        if (expr.Operand is MemberExpr memberExpr)
+        {
+            return GenerateIncrementForMember(expr, method, memberExpr);
+        }
+
+        // IdentifierExpr: x++ / ++x
+        if (expr.Operand is not IdentifierExpr identExpr)
+        {
+            throw new NotImplementedException($"Increment/Decrement does not support {expr.Operand.GetType().Name}");
+        }
+
+        var variableName = identExpr.Name;
 
         if (expr.IsPrefix)
         {

@@ -129,38 +129,37 @@ dog.speak()
         Assert.Equal("Woof!", result);
     }
 
-    // 多段継承でのsuperキーワードは現在未サポート（スタックオーバーフローの問題）
-    // [Fact]
-    // public void TestClassInheritance_MultipleInheritanceLevels()
-    // {
-    //     var code = @"
-    // class Animal {
-    //     public fn type() {
-    //         return ""Animal""
-    //     }
-    // }
-    //
-    // class Mammal extends Animal {
-    //     public fn type() {
-    //         return ""${super.type()} -> Mammal""
-    //     }
-    // }
-    //
-    // class Dog extends Mammal {
-    //     public fn type() {
-    //         return ""${super.type()} -> Dog""
-    //     }
-    // }
-    //
-    // let dog = Dog()
-    // dog.type()
-    // ";
-    //
-    //     var engine = new ScriptEngine();
-    //     var result = engine.Execute(code);
-    //
-    //     Assert.Equal("Animal -> Mammal -> Dog", result);
-    // }
+    [Fact]
+    public void TestClassInheritance_MultipleInheritanceLevels()
+    {
+        var code = @"
+class Animal {
+    public fn type() {
+        return ""Animal""
+    }
+}
+
+class Mammal extends Animal {
+    public fn type() {
+        return ""${super.type()} -> Mammal""
+    }
+}
+
+class Dog extends Mammal {
+    public fn type() {
+        return ""${super.type()} -> Dog""
+    }
+}
+
+let dog = Dog()
+dog.type()
+";
+
+        var engine = new ScriptEngine();
+        var result = engine.Execute(code);
+
+        Assert.Equal("Animal -> Mammal -> Dog", result);
+    }
 
     [Fact]
     public void TestClassInheritance_SuperWithArguments()

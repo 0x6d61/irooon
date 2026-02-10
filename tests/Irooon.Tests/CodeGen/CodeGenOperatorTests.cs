@@ -556,28 +556,23 @@ public class CodeGenOperatorTests
         Assert.Equal(4.0, result); // 変数は更新される
     }
 
-    // Note: SafeNavigation tests are temporarily commented out
-    // due to parser issues with class field initialization syntax.
-    // TODO: Re-enable these tests once the parser is updated.
-
-    /*
     [Fact]
     public void TestSafeNavigation_NonNull()
     {
         var source = @"
         class Person {
-            pub name
-            pub init() {
+            public var name = """"
+
+            init() {
                 name = ""Alice""
             }
         }
-        var p = new Person()
+        var p = Person()
         p?.name
         ";
         var result = CompileAndRun(source);
         Assert.Equal("Alice", result);
     }
-    */
 
     [Fact]
     public void TestSafeNavigation_Null()
@@ -590,30 +585,163 @@ public class CodeGenOperatorTests
         Assert.Null(result);
     }
 
-    /*
     [Fact]
     public void TestSafeNavigation_Chain()
     {
         var source = @"
         class Address {
-            pub city
-            pub init() {
+            public var city = """"
+
+            init() {
                 city = ""Tokyo""
             }
         }
         class Person {
-            pub address
-            pub init() {
-                address = new Address()
+            public var address = null
+
+            init() {
+                address = Address()
             }
         }
-        var p = new Person()
+        var p = Person()
         p?.address?.city
         ";
         var result = CompileAndRun(source);
         Assert.Equal("Tokyo", result);
     }
-    */
+
+    #endregion
+
+    #region v0.10.0: ++/-- の IndexExpr・MemberExpr 対応
+
+    [Fact]
+    public void TestPostfixIncrement_ArrayIndex()
+    {
+        var source = @"
+        var arr = [10, 20, 30]
+        arr[0]++
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(10.0, result); // postfix returns old value
+    }
+
+    [Fact]
+    public void TestPostfixIncrement_ArrayIndex_Updated()
+    {
+        var source = @"
+        var arr = [10, 20, 30]
+        arr[0]++
+        arr[0]
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(11.0, result); // array element is updated
+    }
+
+    [Fact]
+    public void TestPrefixIncrement_ArrayIndex()
+    {
+        var source = @"
+        var arr = [10, 20, 30]
+        ++arr[1]
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(21.0, result); // prefix returns new value
+    }
+
+    [Fact]
+    public void TestPostfixDecrement_ArrayIndex()
+    {
+        var source = @"
+        var arr = [10, 20, 30]
+        arr[2]--
+        arr[2]
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(29.0, result); // array element decremented
+    }
+
+    [Fact]
+    public void TestPrefixDecrement_ArrayIndex()
+    {
+        var source = @"
+        var arr = [10, 20, 30]
+        --arr[2]
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(29.0, result); // prefix returns new value
+    }
+
+    [Fact]
+    public void TestPostfixIncrement_MemberExpr()
+    {
+        var source = @"
+        class Counter {
+            public var count = 0
+        }
+        var c = Counter()
+        c.count++
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(0.0, result); // postfix returns old value
+    }
+
+    [Fact]
+    public void TestPostfixIncrement_MemberExpr_Updated()
+    {
+        var source = @"
+        class Counter {
+            public var count = 0
+        }
+        var c = Counter()
+        c.count++
+        c.count
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(1.0, result); // member is updated
+    }
+
+    [Fact]
+    public void TestPrefixIncrement_MemberExpr()
+    {
+        var source = @"
+        class Counter {
+            public var count = 5
+        }
+        var c = Counter()
+        ++c.count
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(6.0, result); // prefix returns new value
+    }
+
+    [Fact]
+    public void TestPostfixDecrement_MemberExpr()
+    {
+        var source = @"
+        class Counter {
+            public var count = 10
+        }
+        var c = Counter()
+        c.count--
+        c.count
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(9.0, result); // member decremented
+    }
+
+    [Fact]
+    public void TestPrefixDecrement_MemberExpr()
+    {
+        var source = @"
+        class Counter {
+            public var count = 10
+        }
+        var c = Counter()
+        --c.count
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(9.0, result); // prefix returns new value
+    }
 
     #endregion
 }
