@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.3] - 2026-02-10
+
+### Added
+- **ハッシュの文字列キーサポート** (#43)
+  - `{ "a-b": 1 }` のように文字列リテラルをハッシュキーに使用可能
+  - 識別子キーとの混在も可能: `{ name: "Alice", "content-type": "text/html" }`
+
+### Changed
+- **language-spec.md 更新** - v0.11.0〜v0.11.3の未ドキュメント機能を追加
+  - typeof ビルトイン関数、instanceof 演算子
+  - 静的メソッド（static fn）
+  - export var / export class
+  - #r ディレクティブ（アセンブリ参照）
+  - CLR相互運用の非Systemネームスペースサポート
+  - ハッシュ文字列キー
+  - if の else 省略可能（v0.11.1で修正済み）
+- **README.md 整理** - 古いバージョン履歴セクションを削除し、CHANGELOG.mdへ誘導
+
 ## [0.5.8] - 2026-02-09
 
 ### Added

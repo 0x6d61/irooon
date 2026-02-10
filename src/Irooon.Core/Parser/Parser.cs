@@ -1029,8 +1029,8 @@ public class Parser
             return new HashExpr(new List<HashExpr.KeyValuePair>(), leftBrace.Line, leftBrace.Column);
         }
 
-        // 最初がidentifierで、その次が : ならハッシュリテラル
-        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon)
+        // 最初がidentifierまたは文字列で、その次が : ならハッシュリテラル
+        if ((Check(TokenType.Identifier) || Check(TokenType.String)) && PeekNext().Type == TokenType.Colon)
         {
             return HashLiteral(leftBrace);
         }
@@ -1054,8 +1054,17 @@ public class Parser
                 // 改行をスキップ
                 while (Match(TokenType.Newline)) { }
 
-                // キーをパース（識別子のみ）
-                var key = Consume(TokenType.Identifier, "Expect identifier for hash key.");
+                // キーをパース（識別子または文字列リテラル）
+                string keyString;
+                if (Match(TokenType.String))
+                {
+                    keyString = (string)Previous().Value!;
+                }
+                else
+                {
+                    var key = Consume(TokenType.Identifier, "Expect identifier or string for hash key.");
+                    keyString = key.Lexeme;
+                }
 
                 // : を消費
                 Consume(TokenType.Colon, "Expect ':' after hash key.");
@@ -1063,7 +1072,7 @@ public class Parser
                 // 値をパース
                 var value = Expression();
 
-                pairs.Add(new HashExpr.KeyValuePair(key.Lexeme, value));
+                pairs.Add(new HashExpr.KeyValuePair(keyString, value));
 
                 // 改行をスキップ
                 while (Match(TokenType.Newline)) { }

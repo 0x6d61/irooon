@@ -142,10 +142,12 @@ let b = [0, ...a, 3]  // [0, 1, 2, 3]
 ```iro
 {key1: value1, key2: value2}
 {name: "Alice", age: 30}
+{"a-b": 1, "content-type": "text/html"}  // 文字列キー
+{name: "Alice", "a-b": 1}                // 識別子と文字列キーの混在
 {}  // 空ハッシュ
 ```
 
-キーは文字列として扱われる。値の型は制限されない。
+キーには識別子または文字列リテラルを使用できる。キーは文字列として扱われる。値の型は制限されない。
 
 ### 範囲（Range）
 
@@ -283,6 +285,26 @@ let result = condition ? "yes" : "no"
 | 13 | `-`(単項) `not` `~` `++` `--`(前置) `await` | 右 |
 | 14 | `()` `.` `?.` `[]` `++` `--`(後置) | 左 |
 
+### 型チェック演算子
+
+| 演算子 | 説明 | 例 |
+|--------|------|-----|
+| `typeof(expr)` | 値の型名を文字列で返す | `typeof(42)` → `"Number"` |
+| `instanceof` | クラスのインスタンスか判定 | `obj instanceof MyClass` → `true` |
+
+```iro
+typeof(42)          // "Number"
+typeof("hello")     // "String"
+typeof(true)        // "Boolean"
+typeof(null)        // "Null"
+typeof([1,2,3])     // "List"
+typeof({a: 1})      // "Hash"
+
+let d = Dog()
+d instanceof Dog     // true
+d instanceof Animal  // true（親クラスも判定可能）
+```
+
 ---
 
 ## 8. 制御構造
@@ -299,7 +321,7 @@ if (condition) {
 }
 ```
 
-- `else` は必須（if は式であり値を返す）
+- `else` は省略可能（省略時は `null` を返す）
 - `else if` で複数条件を連鎖可能
 
 ### for ループ
@@ -482,6 +504,25 @@ class Calc {
 }
 ```
 
+### 静的メソッド
+
+`static` キーワードでクラスメソッドを定義できる。インスタンスなしでクラス名から直接呼び出し可能。
+
+```iro
+class Calculator {
+    static fn add(a, b) {
+        a + b
+    }
+
+    static fn multiply(a, b) {
+        a * b
+    }
+}
+
+Calculator.add(3, 4)       // 7
+Calculator.multiply(5, 6)  // 30
+```
+
 ### コンストラクタ（init）
 
 ```iro
@@ -659,7 +700,10 @@ throw {code: 404, message: "Not found"}
 export fn helper() { ... }
 export class MyClass { ... }
 export let VERSION = "1.0"
+export var counter = 0
 ```
+
+`export` は `fn`, `class`, `let`, `var` の前に付けることができる。
 
 ### import
 
@@ -729,11 +773,25 @@ println("Hello, World!")    // 改行あり
 println(1, 2, 3)            // スペース区切りで出力
 ```
 
+### typeof
+
+値の型名を文字列として返す。
+
+```iro
+typeof(42)            // "Number"
+typeof("hello")       // "String"
+typeof(true)          // "Boolean"
+typeof(null)          // "Null"
+typeof([1,2,3])       // "List"
+typeof({a: 1})        // "Hash"
+typeof(fn (x) { x })  // "Function"
+```
+
 ---
 
 ## 16. CLR 相互運用
 
-.NET 標準ライブラリの型とメソッドを直接呼び出すことができる。
+.NET のクラスライブラリを直接呼び出すことができる。
 
 ```iro
 // 静的メソッド
@@ -744,12 +802,27 @@ let pow = System.Math.Pow(2, 8)
 // 静的プロパティ
 let now = System.DateTime.Now
 let pi = System.Math.PI
+
+// インスタンス生成・メソッド呼び出し
+let sb = System.Text.StringBuilder()
+sb.Append("Hello")
+sb.Append(" World")
+sb.ToString()  // "Hello World"
+```
+
+### アセンブリ参照（#r ディレクティブ）
+
+外部アセンブリを読み込んで使用できる。
+
+```iro
+#r "path/to/MyLibrary.dll"
+
+let result = MyNamespace.MyClass.MyMethod()
 ```
 
 ### 制限事項
 
-- `System` で始まる型名のみサポート
-- 静的メソッド・静的プロパティのアクセスのみ
+- 静的メソッド・静的プロパティのアクセスが主な用途
 
 ---
 
