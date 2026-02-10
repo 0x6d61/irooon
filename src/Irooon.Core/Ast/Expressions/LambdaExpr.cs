@@ -16,16 +16,23 @@ public class LambdaExpr : Expression
     public Expression Body { get; }
 
     /// <summary>
+    /// 非同期ラムダかどうか
+    /// </summary>
+    public bool IsAsync { get; }
+
+    /// <summary>
     /// LambdaExprの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="parameters">パラメータのリスト</param>
     /// <param name="body">関数本体</param>
     /// <param name="line">行番号</param>
     /// <param name="column">列番号</param>
-    public LambdaExpr(List<Parameter> parameters, Expression body, int line, int column)
+    /// <param name="isAsync">非同期ラムダかどうか</param>
+    public LambdaExpr(List<Parameter> parameters, Expression body, int line, int column, bool isAsync = false)
         : base(line, column)
     {
         Parameters = parameters;
         Body = body;
+        IsAsync = isAsync;
     }
 }

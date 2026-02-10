@@ -1641,4 +1641,55 @@ public class ParserExprTests
     }
 
     #endregion
+
+    #region async lambda パーステスト
+
+    [Fact]
+    public void TestParseAsyncLambda_Parenthesized()
+    {
+        // async (x) => x
+        var tokens = new Core.Lexer.Lexer("async (x) => x").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast.Expression);
+        Assert.IsType<LambdaExpr>(ast.Expression);
+        var lambda = (LambdaExpr)ast.Expression;
+        Assert.True(lambda.IsAsync);
+        Assert.Single(lambda.Parameters);
+        Assert.Equal("x", lambda.Parameters[0].Name);
+    }
+
+    [Fact]
+    public void TestParseAsyncLambda_SingleParam()
+    {
+        // async x => x
+        var tokens = new Core.Lexer.Lexer("async x => x").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast.Expression);
+        Assert.IsType<LambdaExpr>(ast.Expression);
+        var lambda = (LambdaExpr)ast.Expression;
+        Assert.True(lambda.IsAsync);
+        Assert.Single(lambda.Parameters);
+        Assert.Equal("x", lambda.Parameters[0].Name);
+    }
+
+    [Fact]
+    public void TestParseAsyncLambda_NoParams()
+    {
+        // async () => 42
+        var tokens = new Core.Lexer.Lexer("async () => 42").ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        Assert.NotNull(ast.Expression);
+        Assert.IsType<LambdaExpr>(ast.Expression);
+        var lambda = (LambdaExpr)ast.Expression;
+        Assert.True(lambda.IsAsync);
+        Assert.Empty(lambda.Parameters);
+    }
+
+    #endregion
 }

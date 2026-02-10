@@ -1052,7 +1052,7 @@ public class CodeGenerator
             ExprTree.Constant(expr.Line),
             ExprTree.Constant(expr.Column),
             localNamesListNew,
-            ExprTree.Constant(false) // lambda は同期
+            ExprTree.Constant(expr.IsAsync)
         );
 
         return ExprTree.Convert(closureNew, typeof(object));

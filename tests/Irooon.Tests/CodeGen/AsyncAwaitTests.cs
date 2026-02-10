@@ -205,4 +205,99 @@ public class AsyncAwaitTests
     }
 
     #endregion
+
+    #region async lambda テスト
+
+    [Fact]
+    public void TestAsyncLambda_ReturnsTask()
+    {
+        // async (x) => expr が Task を返す
+        var result = ExecuteScript(@"
+            let f = async (x) => x * 2
+            f(5)
+        ");
+        Assert.IsAssignableFrom<Task>(result);
+    }
+
+    [Fact]
+    public void TestAsyncLambda_AwaitResult()
+    {
+        // await で async lambda の結果を取得
+        var result = ExecuteScript(@"
+            let f = async (x) => x * 2
+            await f(5)
+        ");
+        Assert.Equal(10.0, result);
+    }
+
+    [Fact]
+    public void TestAsyncLambda_WithBlock()
+    {
+        // async (x) => { ... } ブロック形式
+        var result = ExecuteScript(@"
+            let f = async (x) => {
+                let y = x + 1
+                y * 2
+            }
+            await f(10)
+        ");
+        Assert.Equal(22.0, result);
+    }
+
+    [Fact]
+    public void TestAsyncLambda_SingleParam()
+    {
+        // async x => expr 単一パラメータ
+        var result = ExecuteScript(@"
+            let f = async x => x + 1
+            await f(41)
+        ");
+        Assert.Equal(42.0, result);
+    }
+
+    [Fact]
+    public void TestAsyncLambda_NoParams()
+    {
+        // async () => expr パラメータなし
+        var result = ExecuteScript(@"
+            let f = async () => 42
+            await f()
+        ");
+        Assert.Equal(42.0, result);
+    }
+
+    [Fact]
+    public void TestAsyncLambda_IsolatedScope()
+    {
+        // async lambda のスコープ分離
+        var result = ExecuteScript(@"
+            var x = 10
+            let f = async () => {
+                x = 999
+                x
+            }
+            let inner = await f()
+            x
+        ");
+        Assert.Equal(10.0, result);
+    }
+
+    [Fact]
+    public void TestAsyncLambda_WithAwaitAll()
+    {
+        // awaitAll と async lambda の組み合わせ
+        var result = ExecuteScript(@"
+            let double = async (x) => x * 2
+            let tasks = [double(1), double(2), double(3)]
+            awaitAll(tasks)
+        ");
+        Assert.IsType<List<object>>(result);
+        var list = (List<object>)result!;
+        Assert.Equal(3, list.Count);
+        Assert.Equal(2.0, list[0]);
+        Assert.Equal(4.0, list[1]);
+        Assert.Equal(6.0, list[2]);
+    }
+
+    #endregion
 }

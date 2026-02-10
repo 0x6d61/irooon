@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-02-10
+
+### Added
+- **async lambda** (#47)
+  - `async (x) => x * 2` — アロー形式
+  - `async (x) => { ... }` — ブロック形式
+  - `async x => x + 1` — 単一パラメータ
+  - `async () => 42` — パラメータなし
+- `LambdaExpr.IsAsync` プロパティ追加
+
 ## [0.12.0] - 2026-02-10
 
 ### Changed
