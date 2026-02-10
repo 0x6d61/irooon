@@ -31,6 +31,11 @@ public class MethodDef : AstNode
     public Expression Body { get; }
 
     /// <summary>
+    /// 戻り値の型注釈（オプション）。例: "Number", "String"
+    /// </summary>
+    public string? ReturnType { get; }
+
+    /// <summary>
     /// MethodDefの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="name">メソッド名</param>
@@ -40,7 +45,8 @@ public class MethodDef : AstNode
     /// <param name="body">メソッド本体</param>
     /// <param name="line">行番号</param>
     /// <param name="column">列番号</param>
-    public MethodDef(string name, bool isPublic, bool isStatic, List<Parameter> parameters, Expression body, int line, int column)
+    /// <param name="returnType">戻り値の型注釈（オプション）</param>
+    public MethodDef(string name, bool isPublic, bool isStatic, List<Parameter> parameters, Expression body, int line, int column, string? returnType = null)
         : base(line, column)
     {
         Name = name;
@@ -48,5 +54,6 @@ public class MethodDef : AstNode
         IsStatic = isStatic;
         Parameters = parameters;
         Body = body;
+        ReturnType = returnType;
     }
 }

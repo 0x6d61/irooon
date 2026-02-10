@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-02-10
+
+### Added
+- **型アノテーション** (#49)
+  - パラメータ型: `fn add(a: Number, b: Number) { a + b }`
+  - 戻り値型: `fn add(a, b): Number { a + b }`
+  - fn ラムダ: `fn (x: Number): String { "${x}" }`
+  - アロー関数パラメータ型: `(x: Number) => x * 2`
+  - クラスメソッド型: `public fn add(a: Number, b: Number): Number { a + b }`
+  - ユーザー定義クラスを型として使用: `fn getAge(p: Person): Number { ... }`
+  - 型不一致時に `RuntimeException` をスロー
+  - サポート型: Number, String, Boolean, Null, List, Hash, Function + クラス名
+- `RuntimeHelpers.GetTypeName()` 共通ヘルパー
+- `RuntimeHelpers.CheckType()` パラメータ型チェック
+- `RuntimeHelpers.CheckReturnType()` 戻り値型チェック
+
 ## [0.12.1] - 2026-02-10
 
 ### Added

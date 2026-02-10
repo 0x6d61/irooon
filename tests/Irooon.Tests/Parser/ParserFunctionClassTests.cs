@@ -789,4 +789,125 @@ class Puppy extends Dog {
     }
 
     #endregion
+
+    #region 型アノテーションのテスト（v0.12.2）
+
+    [Fact]
+    public void TestParseFunctionDef_WithParamType()
+    {
+        var source = "fn add(a: Number, b: Number) { a + b }";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        var funcDef = (FunctionDef)ast.Statements[0];
+        Assert.Equal("add", funcDef.Name);
+        Assert.Equal(2, funcDef.Parameters.Count);
+        Assert.Equal("Number", funcDef.Parameters[0].TypeAnnotation);
+        Assert.Equal("Number", funcDef.Parameters[1].TypeAnnotation);
+        Assert.Null(funcDef.ReturnType);
+    }
+
+    [Fact]
+    public void TestParseFunctionDef_WithReturnType()
+    {
+        var source = "fn add(a, b): Number { a + b }";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        var funcDef = (FunctionDef)ast.Statements[0];
+        Assert.Null(funcDef.Parameters[0].TypeAnnotation);
+        Assert.Null(funcDef.Parameters[1].TypeAnnotation);
+        Assert.Equal("Number", funcDef.ReturnType);
+    }
+
+    [Fact]
+    public void TestParseFunctionDef_WithBothTypes()
+    {
+        var source = "fn add(a: Number, b: Number): Number { a + b }";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        var funcDef = (FunctionDef)ast.Statements[0];
+        Assert.Equal("Number", funcDef.Parameters[0].TypeAnnotation);
+        Assert.Equal("Number", funcDef.Parameters[1].TypeAnnotation);
+        Assert.Equal("Number", funcDef.ReturnType);
+    }
+
+    [Fact]
+    public void TestParseFunctionDef_PartialAnnotation()
+    {
+        var source = "fn f(data, limit: Number) { data }";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        var funcDef = (FunctionDef)ast.Statements[0];
+        Assert.Null(funcDef.Parameters[0].TypeAnnotation);
+        Assert.Equal("Number", funcDef.Parameters[1].TypeAnnotation);
+    }
+
+    [Fact]
+    public void TestParseFunctionDef_TypeAndDefault()
+    {
+        var source = @"fn greet(name: String = ""World"") { name }";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        var funcDef = (FunctionDef)ast.Statements[0];
+        Assert.Equal("String", funcDef.Parameters[0].TypeAnnotation);
+        Assert.NotNull(funcDef.Parameters[0].DefaultValue);
+    }
+
+    [Fact]
+    public void TestParseLambda_WithTypes()
+    {
+        var source = @"fn (x: Number): String { ""${x}"" }";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        var lambda = (LambdaExpr)ast.Expression!;
+        Assert.Equal("Number", lambda.Parameters[0].TypeAnnotation);
+        Assert.Equal("String", lambda.ReturnType);
+    }
+
+    [Fact]
+    public void TestParseArrow_WithParamType()
+    {
+        var source = "let g = (x: Number) => x * 2";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        var letStmt = (LetStmt)ast.Statements[0];
+        var lambda = (LambdaExpr)letStmt.Initializer;
+        Assert.Equal("Number", lambda.Parameters[0].TypeAnnotation);
+        Assert.Null(lambda.ReturnType); // アロー関数は戻り値型なし
+    }
+
+    [Fact]
+    public void TestParseMethod_WithTypes()
+    {
+        var source = @"
+class Calculator {
+    public fn add(a: Number, b: Number): Number {
+        a + b
+    }
+}";
+        var tokens = new Core.Lexer.Lexer(source).ScanTokens();
+        var parser = new Core.Parser.Parser(tokens);
+        var ast = parser.Parse();
+
+        var classDef = (ClassDef)ast.Statements[0];
+        var method = classDef.Methods[0];
+        Assert.Equal("Number", method.Parameters[0].TypeAnnotation);
+        Assert.Equal("Number", method.Parameters[1].TypeAnnotation);
+        Assert.Equal("Number", method.ReturnType);
+    }
+
+    #endregion
 }

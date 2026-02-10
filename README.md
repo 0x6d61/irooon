@@ -182,6 +182,10 @@ fn add(a, b) {
 }
 
 let multiply = fn (x, y) { x * y }
+
+// 型アノテーション
+fn add(a: Number, b: Number): Number { a + b }
+let greet = (name: String) => "Hello, " + name
 ```
 
 ### クラス
@@ -388,7 +392,7 @@ println("Abs:", abs, "Sqrt:", sqrt, "Now:", now)
 
 ## 開発状況
 
-現在のバージョン: **v0.12.1**
+現在のバージョン: **v0.12.2**
 
 変更履歴は [CHANGELOG.md](./CHANGELOG.md) を参照してください。
 

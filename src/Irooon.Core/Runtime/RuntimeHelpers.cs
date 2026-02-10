@@ -1982,11 +1982,13 @@ public static class RuntimeHelpers
         return false;
     }
 
-    public static object __typeOf(params object[] args)
+    /// <summary>
+    /// オブジェクトの型名を文字列で返します。
+    /// __typeOf と CheckType/CheckReturnType で共有されるロジック。
+    /// </summary>
+    public static string GetTypeName(object? value)
     {
-        if (args.Length != 1)
-            throw new RuntimeException("typeof requires one argument");
-        return args[0] switch
+        return value switch
         {
             null => "Null",
             string => "String",
@@ -1997,8 +1999,49 @@ public static class RuntimeHelpers
             IroInstance inst => inst.Class.Name,
             IroClass => "Class",
             IroCallable => "Function",
-            _ => args[0].GetType().Name
+            _ => value.GetType().Name
         };
+    }
+
+    public static object __typeOf(params object[] args)
+    {
+        if (args.Length != 1)
+            throw new RuntimeException("typeof requires one argument");
+        return GetTypeName(args[0]);
+    }
+
+    /// <summary>
+    /// 引数の型を実行時にチェックします。型が一致すれば値をそのまま返し、
+    /// 一致しなければ RuntimeException をスローします。
+    /// </summary>
+    public static object CheckType(object value, string expectedType,
+        string paramName, string funcName, int line, int column)
+    {
+        var actualType = GetTypeName(value);
+        if (actualType != expectedType)
+        {
+            throw new RuntimeException(
+                $"Type error: parameter '{paramName}' in function '{funcName}' expected {expectedType}, got {actualType}",
+                line, column);
+        }
+        return value;
+    }
+
+    /// <summary>
+    /// 戻り値の型を実行時にチェックします。型が一致すれば値をそのまま返し、
+    /// 一致しなければ RuntimeException をスローします。
+    /// </summary>
+    public static object CheckReturnType(object value, string expectedType,
+        string funcName, int line, int column)
+    {
+        var actualType = GetTypeName(value);
+        if (actualType != expectedType)
+        {
+            throw new RuntimeException(
+                $"Type error: function '{funcName}' expected to return {expectedType}, but returned {actualType}",
+                line, column);
+        }
+        return value;
     }
 
     /// <summary>
