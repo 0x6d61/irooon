@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.3] - 2026-02-11
+
+### Added
+- **パフォーマンスプロファイリング基盤** (#51)
+  - BenchmarkDotNet ベースのベンチマークプロジェクト (`benchmarks/Irooon.Benchmarks/`)
+  - マイクロベンチマーク: 算術演算、Invoke、Closure、Dictionary vs Array、Boxing
+  - マクロベンチマーク: tarai(10,5,0)、fibonacci(30)、ループ、算術スクリプト
+  - `[MemoryDiagnoser]` でアロケーション追跡
+
+### Performance Baseline (v0.12.3)
+
+| ベンチマーク | C# ネイティブ | irooon | 倍率 | アロケーション |
+|---|---|---|---|---|
+| tarai(10,5,0) | 364 μs | 121 ms | **334x** | 155 MB |
+| fibonacci(30) | 3.5 ms | 775 ms | **224x** | 1.37 GB |
+| loop(10K) | 9.1 μs | 153 ms | **16,950x** | 8.3 MB |
+| arithmetic(1K) | 5.9 μs | 143 ms | **24,428x** | 5.9 MB |
+
 ## [0.12.2] - 2026-02-10
 
 ### Added

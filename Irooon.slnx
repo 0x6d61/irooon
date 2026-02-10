@@ -8,4 +8,7 @@
     <Project Path="tests/Irooon.Repl.Tests/Irooon.Repl.Tests.csproj" />
     <Project Path="tests/Irooon.Tests/Irooon.Tests.csproj" />
   </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Irooon.Benchmarks/Irooon.Benchmarks.csproj" />
+  </Folder>
 </Solution>
