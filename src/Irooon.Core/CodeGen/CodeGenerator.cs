@@ -17,6 +17,7 @@ public class CodeGenerator
 {
     private ParameterExpression _ctxParam; // ScriptContext ctx
     private int _labelCounter = 0; // ラベルの一意性確保用
+    private LabelTarget? _returnLabel; // return文のジャンプ先ラベル
 
     // ループ�Ebreak/continueラベルを管琁E��るスタチE��
     private Stack<(LabelTarget breakLabel, LabelTarget? continueLabel)> _loopLabels = new();
@@ -439,7 +440,9 @@ public class CodeGenerator
     {
         var condExpr = GenerateExpression(expr.Condition);
         var thenExpr = GenerateExpression(expr.ThenBranch);
-        var elseExpr = GenerateExpression(expr.ElseBranch);
+        var elseExpr = expr.ElseBranch != null
+            ? GenerateExpression(expr.ElseBranch)
+            : ExprTree.Constant(null, typeof(object));
 
         // IsTruthy で真偽値判宁E
         var truthyCall = ExprTree.Call(
@@ -700,14 +703,19 @@ public class CodeGenerator
     /// </summary>
     private ExprTree GenerateReturnStmt(ReturnStmt stmt)
     {
-        if (stmt.Value != null)
+        var value = stmt.Value != null
+            ? GenerateExpression(stmt.Value)
+            : ExprTree.Constant(null, typeof(object));
+
+        if (_returnLabel != null)
         {
-            return GenerateExpression(stmt.Value);
+            // Return は void 型なので、Block でラップして object 型に合わせる
+            return ExprTree.Block(typeof(object),
+                ExprTree.Return(_returnLabel, ExprTree.Convert(value, typeof(object))),
+                ExprTree.Default(typeof(object))
+            );
         }
-        else
-        {
-            return ExprTree.Constant(null, typeof(object));
-        }
+        return value;
     }
 
     #endregion
@@ -987,17 +995,22 @@ public class CodeGenerator
             }
         }
 
-        // 本体を実行（一時的に _ctxParam を切り替える）
+        // 本体を実行（一時的に _ctxParam と _returnLabel を切り替える）
         var savedCtxParam = _ctxParam;
+        var savedReturnLabel = _returnLabel;
         _ctxParam = ctxParamForFunc;
+        _returnLabel = ExprTree.Label(typeof(object), "return_lambda");
         var bodyExpr = GenerateExpression(expr.Body);
         _ctxParam = savedCtxParam;
 
-        bodyExprs.Add(bodyExpr);
+        // 本体の最後の式を return ラベルに到達させる
+        bodyExprs.Add(ExprTree.Return(_returnLabel, ExprTree.Convert(bodyExpr, typeof(object))));
+        bodyExprs.Add(ExprTree.Label(_returnLabel, ExprTree.Default(typeof(object))));
+        _returnLabel = savedReturnLabel;
 
         var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
 
-        // Lambda<Func<ScriptContext, object[], object>> を作�E
+        // Lambda<Func<ScriptContext, object[], object>> を作成
         var lambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(
             bodyBlock,
             ctxParamForFunc,
@@ -1102,13 +1115,18 @@ public class CodeGenerator
             }
         }
 
-        // 本体を実行（一時的に _ctxParam を切り替える）
+        // 本体を実行（一時的に _ctxParam と _returnLabel を切り替える）
         var savedCtxParam = _ctxParam;
+        var savedReturnLabel = _returnLabel;
         _ctxParam = ctxParamForFunc;
+        _returnLabel = ExprTree.Label(typeof(object), "return_func");
         var bodyExpr = GenerateExpression(stmt.Body);
         _ctxParam = savedCtxParam;
 
-        bodyExprs.Add(bodyExpr);
+        // 本体の最後の式を return ラベルに到達させる
+        bodyExprs.Add(ExprTree.Return(_returnLabel, ExprTree.Convert(bodyExpr, typeof(object))));
+        bodyExprs.Add(ExprTree.Label(_returnLabel, ExprTree.Default(typeof(object))));
+        _returnLabel = savedReturnLabel;
 
         var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
 
@@ -1334,13 +1352,15 @@ public class CodeGenerator
             var argsParam = ExprTree.Parameter(typeof(object[]), "args");
             var ctxParamForFunc = ExprTree.Parameter(typeof(ScriptContext), "ctx");
 
-            // 一時的にctxParamを�Eり替える
+            // 一時的にctxParamと_returnLabelを切り替える
             var savedCtxParam = _ctxParam;
+            var savedReturnLabel = _returnLabel;
             _ctxParam = ctxParamForFunc;
+            _returnLabel = ExprTree.Label(typeof(object), "return_method");
 
             var bodyExprs = new List<ExprTree>();
 
-            // 引数めEctx.Globals に格紁E
+            // 引数をctx.Globalsに格納
             for (int i = 0; i < m.Parameters.Count; i++)
             {
                 var param = m.Parameters[i];
@@ -1351,11 +1371,16 @@ public class CodeGenerator
                 bodyExprs.Add(ExprTree.Assign(itemProperty, argAccess));
             }
 
-            // メソチE��本体を追加
-            bodyExprs.Add(GenerateExpression(m.Body));
+            // メソッド本体を追加
+            var methodBodyExpr = GenerateExpression(m.Body);
 
-            // ctxParamを�Eに戻ぁE
+            // 本体の最後の式を return ラベルに到達させる
+            bodyExprs.Add(ExprTree.Return(_returnLabel, ExprTree.Convert(methodBodyExpr, typeof(object))));
+            bodyExprs.Add(ExprTree.Label(_returnLabel, ExprTree.Default(typeof(object))));
+
+            // ctxParamと_returnLabelを元に戻す
             _ctxParam = savedCtxParam;
+            _returnLabel = savedReturnLabel;
 
             var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
             var lambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(

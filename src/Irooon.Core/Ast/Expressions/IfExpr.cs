@@ -17,19 +17,19 @@ public class IfExpr : Expression
     public Expression ThenBranch { get; }
 
     /// <summary>
-    /// 条件が偽の場合に評価される式
+    /// 条件が偽の場合に評価される式（省略可能、省略時はnull）
     /// </summary>
-    public Expression ElseBranch { get; }
+    public Expression? ElseBranch { get; }
 
     /// <summary>
     /// IfExprの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="condition">条件式</param>
     /// <param name="thenBranch">then節の式</param>
-    /// <param name="elseBranch">else節の式</param>
+    /// <param name="elseBranch">else節の式（省略可能）</param>
     /// <param name="line">行番号</param>
     /// <param name="column">列番号</param>
-    public IfExpr(Expression condition, Expression thenBranch, Expression elseBranch, int line, int column)
+    public IfExpr(Expression condition, Expression thenBranch, Expression? elseBranch, int line, int column)
         : base(line, column)
     {
         Condition = condition;

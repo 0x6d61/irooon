@@ -232,25 +232,18 @@ var lispEval = null
 
 fn evalCond(expr, env) {
     var i = 1
-    var result = null
-    var found = false
-    for (i < expr.length() and found == false) {
+    for (i < expr.length()) {
         var clause = expr[i]
-        if (typeof(clause[0]) == "String" and clause[0] == "else") {
-            result = lispEval(clause[1], env)
-            found = true
-        } else {
-            var test = lispEval(clause[0], env)
-            if (test != false and test != null) {
-                result = lispEval(clause[1], env)
-                found = true
-            } else {
-                null
-            }
+        if (clause[0] == "else") {
+            return lispEval(clause[1], env)
+        }
+        var test = lispEval(clause[0], env)
+        if (test != false and test != null) {
+            return lispEval(clause[1], env)
         }
         i++
     }
-    result
+    null
 }
 
 fn evalLet(expr, env) {
@@ -266,33 +259,27 @@ fn evalLet(expr, env) {
 fn evalAnd(expr, env) {
     var result = true
     var i = 1
-    var done = false
-    for (i < expr.length() and done == false) {
+    for (i < expr.length()) {
         result = lispEval(expr[i], env)
         if (result == false or result == null) {
-            done = true
-        } else {
-            null
+            return false
         }
         i++
     }
-    if (done) { false } else { result }
+    result
 }
 
 fn evalOr(expr, env) {
     var result = false
     var i = 1
-    var found = false
-    for (i < expr.length() and found == false) {
+    for (i < expr.length()) {
         result = lispEval(expr[i], env)
         if (result != false and result != null) {
-            found = true
-        } else {
-            null
+            return result
         }
         i++
     }
-    result
+    false
 }
 
 fn evalList(expr, env) {
