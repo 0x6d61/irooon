@@ -11,6 +11,11 @@ public class AssignExpr : Expression
     public string Name { get; }
 
     /// <summary>
+    /// 配列スロットインデックス（-1 = Dictionary使用）
+    /// </summary>
+    public int ResolvedSlot { get; set; } = -1;
+
+    /// <summary>
     /// 代入する値
     /// </summary>
     public Expression Value { get; }

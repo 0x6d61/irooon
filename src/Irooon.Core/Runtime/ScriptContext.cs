@@ -28,6 +28,12 @@ public class ScriptContext
     public Dictionary<string, Dictionary<string, object>> Prototypes { get; }
 
     /// <summary>
+    /// 関数スコープのローカル変数配列（パラメータ + let/var）
+    /// null = トップレベル（グローバルスコープ）
+    /// </summary>
+    public object?[]? Locals { get; set; }
+
+    /// <summary>
     /// モジュールローダー（import文で使用）
     /// </summary>
     public ModuleLoader? ModuleLoader { get; set; }
@@ -63,6 +69,8 @@ public class ScriptContext
             clone.Classes[kv.Key] = kv.Value;
         foreach (var kv in Prototypes)
             clone.Prototypes[kv.Key] = kv.Value;
+        if (Locals != null)
+            clone.Locals = (object?[])Locals.Clone();
         return clone;
     }
 

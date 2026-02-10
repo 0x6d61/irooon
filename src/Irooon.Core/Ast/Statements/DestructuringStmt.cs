@@ -27,6 +27,11 @@ public class DestructuringStmt : Statement
     /// </summary>
     public Expression Initializer { get; }
 
+    /// <summary>
+    /// 各変数の配列スロットインデックス（-1 = Dictionary使用）
+    /// </summary>
+    public List<int> ResolvedSlots { get; set; } = new();
+
     public DestructuringStmt(bool isReadOnly, List<string> names, bool isHash, Expression initializer, int line, int column)
         : base(line, column)
     {

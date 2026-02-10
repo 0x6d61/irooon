@@ -34,6 +34,11 @@ public class ForStmt : Statement
     public Expression Body { get; }
 
     /// <summary>
+    /// イテレータ変数の配列スロットインデックス（-1 = Dictionary使用）
+    /// </summary>
+    public int IteratorResolvedSlot { get; set; } = -1;
+
+    /// <summary>
     /// ForStmtの新しいインスタンスを初期化します（コレクション反復）。
     /// </summary>
     public ForStmt(string iteratorVariable, Expression collection, Expression body, int line, int column)

@@ -11,6 +11,11 @@ public class IdentifierExpr : Expression
     public string Name { get; }
 
     /// <summary>
+    /// 配列スロットインデックス（-1 = Dictionary使用）
+    /// </summary>
+    public int ResolvedSlot { get; set; } = -1;
+
+    /// <summary>
     /// IdentifierExprの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="name">識別子名</param>

@@ -21,6 +21,11 @@ public class ForeachStmt : Statement
     public Statement Body { get; }
 
     /// <summary>
+    /// イテレータ変数の配列スロットインデックス（-1 = Dictionary使用）
+    /// </summary>
+    public int IteratorResolvedSlot { get; set; } = -1;
+
+    /// <summary>
     /// ForeachStmtの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="variable">ループ変数名</param>
