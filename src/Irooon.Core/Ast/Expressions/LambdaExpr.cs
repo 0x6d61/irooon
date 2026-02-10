@@ -21,6 +21,11 @@ public class LambdaExpr : Expression
     public bool IsAsync { get; }
 
     /// <summary>
+    /// 戻り値の型注釈（オプション）。例: "Number", "String"
+    /// </summary>
+    public string? ReturnType { get; }
+
+    /// <summary>
     /// LambdaExprの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="parameters">パラメータのリスト</param>
@@ -28,11 +33,13 @@ public class LambdaExpr : Expression
     /// <param name="line">行番号</param>
     /// <param name="column">列番号</param>
     /// <param name="isAsync">非同期ラムダかどうか</param>
-    public LambdaExpr(List<Parameter> parameters, Expression body, int line, int column, bool isAsync = false)
+    /// <param name="returnType">戻り値の型注釈（オプション）</param>
+    public LambdaExpr(List<Parameter> parameters, Expression body, int line, int column, bool isAsync = false, string? returnType = null)
         : base(line, column)
     {
         Parameters = parameters;
         Body = body;
         IsAsync = isAsync;
+        ReturnType = returnType;
     }
 }

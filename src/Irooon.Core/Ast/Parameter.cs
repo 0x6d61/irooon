@@ -21,6 +21,11 @@ public class Parameter : AstNode
     public bool IsRest { get; }
 
     /// <summary>
+    /// 型注釈（オプション）。例: "Number", "String", "Person"
+    /// </summary>
+    public string? TypeAnnotation { get; }
+
+    /// <summary>
     /// Parameterの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="name">パラメータ名</param>
@@ -28,10 +33,12 @@ public class Parameter : AstNode
     /// <param name="column">列番号</param>
     /// <param name="defaultValue">デフォルト値（オプション）</param>
     /// <param name="isRest">レストパラメータかどうか</param>
-    public Parameter(string name, int line, int column, Expression? defaultValue = null, bool isRest = false) : base(line, column)
+    /// <param name="typeAnnotation">型注釈（オプション）</param>
+    public Parameter(string name, int line, int column, Expression? defaultValue = null, bool isRest = false, string? typeAnnotation = null) : base(line, column)
     {
         Name = name;
         DefaultValue = defaultValue;
         IsRest = isRest;
+        TypeAnnotation = typeAnnotation;
     }
 }

@@ -715,7 +715,18 @@ public class Parser
                 }
 
                 var paramToken = Advance();
-                parameters.Add(new Parameter(paramToken.Lexeme, paramToken.Line, paramToken.Column, isRest: isRest));
+                string? typeAnnotation = null;
+                if (Check(TokenType.Colon))
+                {
+                    Advance(); // ':' を消費
+                    if (!Check(TokenType.Identifier))
+                    {
+                        _current = savedPosition;
+                        return false;
+                    }
+                    typeAnnotation = Advance().Lexeme;
+                }
+                parameters.Add(new Parameter(paramToken.Lexeme, paramToken.Line, paramToken.Column, isRest: isRest, typeAnnotation: typeAnnotation));
             } while (Match(TokenType.Comma));
         }
 
@@ -1397,11 +1408,18 @@ public class Parser
         // パラメータリストをパース
         var parameters = Parameters();
 
+        // 戻り値型アノテーション（オプション）
+        string? returnType = null;
+        if (Match(TokenType.Colon))
+        {
+            returnType = Consume(TokenType.Identifier, "Expect return type name after ':'.").Lexeme;
+        }
+
         // body をパース（必ずブロック）
         Consume(TokenType.LeftBrace, "Expect '{' before function body.");
         var body = BlockExpression();
 
-        return new FunctionDef(name.Lexeme, parameters, body, fnToken.Line, fnToken.Column, isAsync);
+        return new FunctionDef(name.Lexeme, parameters, body, fnToken.Line, fnToken.Column, isAsync, returnType);
     }
 
     /// <summary>
@@ -1415,11 +1433,18 @@ public class Parser
         // パラメータリストをパース
         var parameters = Parameters();
 
+        // 戻り値型アノテーション（オプション）
+        string? returnType = null;
+        if (Match(TokenType.Colon))
+        {
+            returnType = Consume(TokenType.Identifier, "Expect return type name after ':'.").Lexeme;
+        }
+
         // body をパース（必ずブロック）
         Consume(TokenType.LeftBrace, "Expect '{' before lambda body.");
         var body = BlockExpression();
 
-        return new LambdaExpr(parameters, body, fnToken.Line, fnToken.Column);
+        return new LambdaExpr(parameters, body, fnToken.Line, fnToken.Column, returnType: returnType);
     }
 
     /// <summary>
@@ -1482,12 +1507,17 @@ public class Parser
             {
                 bool isRest = Match(TokenType.DotDotDot);
                 var paramToken = Consume(TokenType.Identifier, "Expect parameter name.");
+                string? typeAnnotation = null;
+                if (Match(TokenType.Colon))
+                {
+                    typeAnnotation = Consume(TokenType.Identifier, "Expect type name after ':'.").Lexeme;
+                }
                 Expression? defaultValue = null;
                 if (!isRest && Match(TokenType.Equal))
                 {
                     defaultValue = Expression();
                 }
-                parameters.Add(new Parameter(paramToken.Lexeme, paramToken.Line, paramToken.Column, defaultValue, isRest));
+                parameters.Add(new Parameter(paramToken.Lexeme, paramToken.Line, paramToken.Column, defaultValue, isRest, typeAnnotation));
             } while (Match(TokenType.Comma));
         }
 
@@ -1621,11 +1651,18 @@ public class Parser
         // パラメータリストをパース
         var parameters = Parameters();
 
+        // 戻り値型アノテーション（オプション）
+        string? returnType = null;
+        if (Match(TokenType.Colon))
+        {
+            returnType = Consume(TokenType.Identifier, "Expect return type name after ':'.").Lexeme;
+        }
+
         // body をパース（必ずブロック）
         Consume(TokenType.LeftBrace, "Expect '{' before method body.");
         var body = BlockExpression();
 
-        return new MethodDef(methodName, isPublic, isStatic, parameters, body, methodToken.Line, methodToken.Column);
+        return new MethodDef(methodName, isPublic, isStatic, parameters, body, methodToken.Line, methodToken.Column, returnType);
     }
 
     #endregion

@@ -434,6 +434,56 @@ fn add(a, b, c) { a + b + c }
 add(...args)  // 6
 ```
 
+### 型アノテーション
+
+パラメータと戻り値に型注釈を付けることができます。型が一致しない場合、実行時エラーになります。
+
+```iro
+// パラメータ型 + 戻り値型
+fn add(a: Number, b: Number): Number {
+    a + b
+}
+
+// 部分的なアノテーション（一部だけ型指定も可）
+fn process(data, limit: Number) {
+    data
+}
+
+// デフォルト値との組み合わせ
+fn greet(name: String = "World"): String {
+    "Hello, " + name
+}
+
+// fn ラムダ式
+let f = fn (x: Number): String { "${x}" }
+
+// アロー関数（パラメータ型のみ、戻り値型は不可）
+let g = (x: Number) => x * 2
+
+// クラスメソッド
+class Calculator {
+    public fn add(a: Number, b: Number): Number { a + b }
+}
+
+// ユーザー定義クラスを型として使用
+fn getAge(person: Person): Number { person.age }
+```
+
+**サポートされる型名:**
+- `Number` — 数値（double）
+- `String` — 文字列
+- `Boolean` — 真偽値
+- `Null` — null
+- `List` — リスト
+- `Hash` — ハッシュ
+- `Function` — 関数/クロージャ
+- ユーザー定義クラス名（例: `Person`, `Animal`）
+
+**制限事項:**
+- ジェネリクスは非サポート（`List<Number>` 等は不可）
+- アロー関数に戻り値型アノテーションは不可
+- 括弧なし単一パラメータ `x => expr` には型アノテーション不可
+
 ### クロージャ
 
 ```iro

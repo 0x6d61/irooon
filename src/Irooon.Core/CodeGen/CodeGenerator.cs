@@ -19,6 +19,12 @@ public class CodeGenerator
     private int _labelCounter = 0; // ラベルの一意性確保用
     private LabelTarget? _returnLabel; // return文のジャンプ先ラベル
 
+    // 型アノテーション: 現在の関数の戻り値型情報
+    private string? _currentReturnType = null;
+    private string _currentFuncName = "<top>";
+    private int _currentFuncLine = 0;
+    private int _currentFuncColumn = 0;
+
     // ループ�Ebreak/continueラベルを管琁E��るスタチE��
     private Stack<(LabelTarget breakLabel, LabelTarget? continueLabel)> _loopLabels = new();
 
@@ -708,6 +714,13 @@ public class CodeGenerator
             ? GenerateExpression(stmt.Value)
             : ExprTree.Constant(null, typeof(object));
 
+        // 戻り値型チェック（型アノテーションがある場合）
+        if (_currentReturnType != null)
+        {
+            value = EmitReturnTypeCheck(value, _currentReturnType,
+                _currentFuncName, _currentFuncLine, _currentFuncColumn);
+        }
+
         if (_returnLabel != null)
         {
             // Return は void 型なので、Block でラップして object 型に合わせる
@@ -717,6 +730,37 @@ public class CodeGenerator
             );
         }
         return value;
+    }
+
+    /// <summary>
+    /// パラメータの型チェック式を生成します。
+    /// </summary>
+    private ExprTree EmitTypeCheck(ExprTree valueExpr, string expectedType,
+        string paramName, string funcName, int line, int column)
+    {
+        return ExprTree.Call(
+            typeof(RuntimeHelpers).GetMethod("CheckType")!,
+            ExprTree.Convert(valueExpr, typeof(object)),
+            ExprTree.Constant(expectedType),
+            ExprTree.Constant(paramName),
+            ExprTree.Constant(funcName),
+            ExprTree.Constant(line),
+            ExprTree.Constant(column));
+    }
+
+    /// <summary>
+    /// 戻り値の型チェック式を生成します。
+    /// </summary>
+    private ExprTree EmitReturnTypeCheck(ExprTree valueExpr, string expectedType,
+        string funcName, int line, int column)
+    {
+        return ExprTree.Call(
+            typeof(RuntimeHelpers).GetMethod("CheckReturnType")!,
+            ExprTree.Convert(valueExpr, typeof(object)),
+            ExprTree.Constant(expectedType),
+            ExprTree.Constant(funcName),
+            ExprTree.Constant(line),
+            ExprTree.Constant(column));
     }
 
     #endregion
@@ -994,21 +1038,48 @@ public class CodeGenerator
                 {
                     bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
                 }
+
+                // パラメータ型チェック（型アノテーションがある場合）
+                if (param.TypeAnnotation != null)
+                {
+                    bodyExprs.Add(EmitTypeCheck(itemForParam, param.TypeAnnotation,
+                        param.Name, "<lambda>", param.Line, param.Column));
+                }
             }
         }
 
         // 本体を実行（一時的に _ctxParam と _returnLabel を切り替える）
         var savedCtxParam = _ctxParam;
         var savedReturnLabel = _returnLabel;
+        var savedReturnType = _currentReturnType;
+        var savedFuncName = _currentFuncName;
+        var savedFuncLine = _currentFuncLine;
+        var savedFuncColumn = _currentFuncColumn;
         _ctxParam = ctxParamForFunc;
         _returnLabel = ExprTree.Label(typeof(object), "return_lambda");
+        _currentReturnType = expr.ReturnType;
+        _currentFuncName = "<lambda>";
+        _currentFuncLine = expr.Line;
+        _currentFuncColumn = expr.Column;
         var bodyExpr = GenerateExpression(expr.Body);
+
+        // 暗黙的 return の戻り値型チェック
+        if (expr.ReturnType != null)
+        {
+            bodyExpr = EmitReturnTypeCheck(bodyExpr, expr.ReturnType,
+                "<lambda>", expr.Line, expr.Column);
+        }
+
         _ctxParam = savedCtxParam;
 
         // 本体の最後の式を return ラベルに到達させる
         bodyExprs.Add(ExprTree.Return(_returnLabel, ExprTree.Convert(bodyExpr, typeof(object))));
         bodyExprs.Add(ExprTree.Label(_returnLabel, ExprTree.Default(typeof(object))));
         _returnLabel = savedReturnLabel;
+        _currentReturnType = savedReturnType;
+        _currentFuncName = savedFuncName;
+        _currentFuncLine = savedFuncLine;
+        _currentFuncColumn = savedFuncColumn;
 
         var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
 
@@ -1110,21 +1181,48 @@ public class CodeGenerator
                 {
                     bodyExprs.Add(ExprTree.Assign(itemForParam, argAccess));
                 }
+
+                // パラメータ型チェック（型アノテーションがある場合）
+                if (param.TypeAnnotation != null)
+                {
+                    bodyExprs.Add(EmitTypeCheck(itemForParam, param.TypeAnnotation,
+                        param.Name, stmt.Name, param.Line, param.Column));
+                }
             }
         }
 
         // 本体を実行（一時的に _ctxParam と _returnLabel を切り替える）
         var savedCtxParam = _ctxParam;
         var savedReturnLabel = _returnLabel;
+        var savedReturnType = _currentReturnType;
+        var savedFuncName = _currentFuncName;
+        var savedFuncLine = _currentFuncLine;
+        var savedFuncColumn = _currentFuncColumn;
         _ctxParam = ctxParamForFunc;
         _returnLabel = ExprTree.Label(typeof(object), "return_func");
+        _currentReturnType = stmt.ReturnType;
+        _currentFuncName = stmt.Name;
+        _currentFuncLine = stmt.Line;
+        _currentFuncColumn = stmt.Column;
         var bodyExpr = GenerateExpression(stmt.Body);
+
+        // 暗黙的 return の戻り値型チェック
+        if (stmt.ReturnType != null)
+        {
+            bodyExpr = EmitReturnTypeCheck(bodyExpr, stmt.ReturnType,
+                stmt.Name, stmt.Line, stmt.Column);
+        }
+
         _ctxParam = savedCtxParam;
 
         // 本体の最後の式を return ラベルに到達させる
         bodyExprs.Add(ExprTree.Return(_returnLabel, ExprTree.Convert(bodyExpr, typeof(object))));
         bodyExprs.Add(ExprTree.Label(_returnLabel, ExprTree.Default(typeof(object))));
         _returnLabel = savedReturnLabel;
+        _currentReturnType = savedReturnType;
+        _currentFuncName = savedFuncName;
+        _currentFuncLine = savedFuncLine;
+        _currentFuncColumn = savedFuncColumn;
 
         var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
 
@@ -1227,8 +1325,16 @@ public class CodeGenerator
             // 一時的にctxParamと_returnLabelを切り替える
             var savedCtxParam = _ctxParam;
             var savedReturnLabel = _returnLabel;
+            var savedReturnType = _currentReturnType;
+            var savedFuncName = _currentFuncName;
+            var savedFuncLine = _currentFuncLine;
+            var savedFuncColumn = _currentFuncColumn;
             _ctxParam = ctxParamForFunc;
             _returnLabel = ExprTree.Label(typeof(object), "return_method");
+            _currentReturnType = m.ReturnType;
+            _currentFuncName = m.Name;
+            _currentFuncLine = m.Line;
+            _currentFuncColumn = m.Column;
 
             var bodyExprs = new List<ExprTree>();
 
@@ -1241,10 +1347,24 @@ public class CodeGenerator
                 var paramName = ExprTree.Constant(param.Name);
                 var itemProperty = ExprTree.Property(globalsExpr, "Item", paramName);
                 bodyExprs.Add(ExprTree.Assign(itemProperty, argAccess));
+
+                // パラメータ型チェック（型アノテーションがある場合）
+                if (param.TypeAnnotation != null)
+                {
+                    bodyExprs.Add(EmitTypeCheck(itemProperty, param.TypeAnnotation,
+                        param.Name, m.Name, param.Line, param.Column));
+                }
             }
 
             // メソッド本体を追加
             var methodBodyExpr = GenerateExpression(m.Body);
+
+            // 暗黙的 return の戻り値型チェック
+            if (m.ReturnType != null)
+            {
+                methodBodyExpr = EmitReturnTypeCheck(methodBodyExpr, m.ReturnType,
+                    m.Name, m.Line, m.Column);
+            }
 
             // 本体の最後の式を return ラベルに到達させる
             bodyExprs.Add(ExprTree.Return(_returnLabel, ExprTree.Convert(methodBodyExpr, typeof(object))));
@@ -1253,6 +1373,10 @@ public class CodeGenerator
             // ctxParamと_returnLabelを元に戻す
             _ctxParam = savedCtxParam;
             _returnLabel = savedReturnLabel;
+            _currentReturnType = savedReturnType;
+            _currentFuncName = savedFuncName;
+            _currentFuncLine = savedFuncLine;
+            _currentFuncColumn = savedFuncColumn;
 
             var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
             var lambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(
