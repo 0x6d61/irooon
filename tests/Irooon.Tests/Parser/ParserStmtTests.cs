@@ -129,7 +129,7 @@ if (x > 0) {
     }
 
     [Fact]
-    public void TestParseIfExprWithoutElse_ShouldThrowError()
+    public void TestParseIfExprWithoutElse_ShouldParse()
     {
         var source = @"
 if (x > 0) {
@@ -138,8 +138,9 @@ if (x > 0) {
         var tokens = new Core.Lexer.Lexer(source).ScanTokens();
         var parser = new Core.Parser.Parser(tokens);
 
-        // else が必須なので、ParseException が投げられるはず
-        Assert.Throws<ParseException>(() => parser.Parse());
+        // v0.11.1: else は省略可能
+        var ast = parser.Parse();
+        Assert.NotNull(ast);
     }
 
     [Fact]

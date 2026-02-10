@@ -269,18 +269,22 @@ public static class RuntimeHelpers
         if (a is bool ba && b is bool bb)
             return ba == bb;
 
-        // 数値比較
-        try
+        // 数値比較（IConvertible実装型のみ）
+        if (a is IConvertible && b is IConvertible)
         {
-            double da = Convert.ToDouble(a);
-            double db = Convert.ToDouble(b);
-            return da == db;
+            try
+            {
+                double da = Convert.ToDouble(a);
+                double db = Convert.ToDouble(b);
+                return da == db;
+            }
+            catch (FormatException)
+            {
+                return a.Equals(b);
+            }
         }
-        catch (FormatException)
-        {
-            // 数値変換できない場合はobject.Equalsで比較
-            return a.Equals(b);
-        }
+
+        return a.Equals(b);
     }
 
     /// <summary>
@@ -307,6 +311,9 @@ public static class RuntimeHelpers
         if (a is string sa && b is string sb)
             return string.Compare(sa, sb, StringComparison.Ordinal) < 0;
 
+        if (a is not IConvertible || b is not IConvertible)
+            throw new RuntimeException($"Cannot compare {a.GetType().Name} and {b.GetType().Name}");
+
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
         return da < db;
@@ -325,6 +332,9 @@ public static class RuntimeHelpers
 
         if (a is string sa && b is string sb)
             return string.Compare(sa, sb, StringComparison.Ordinal) <= 0;
+
+        if (a is not IConvertible || b is not IConvertible)
+            throw new RuntimeException($"Cannot compare {a.GetType().Name} and {b.GetType().Name}");
 
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
@@ -345,6 +355,9 @@ public static class RuntimeHelpers
         if (a is string sa && b is string sb)
             return string.Compare(sa, sb, StringComparison.Ordinal) > 0;
 
+        if (a is not IConvertible || b is not IConvertible)
+            throw new RuntimeException($"Cannot compare {a.GetType().Name} and {b.GetType().Name}");
+
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
         return da > db;
@@ -363,6 +376,9 @@ public static class RuntimeHelpers
 
         if (a is string sa && b is string sb)
             return string.Compare(sa, sb, StringComparison.Ordinal) >= 0;
+
+        if (a is not IConvertible || b is not IConvertible)
+            throw new RuntimeException($"Cannot compare {a.GetType().Name} and {b.GetType().Name}");
 
         double da = Convert.ToDouble(a);
         double db = Convert.ToDouble(b);
@@ -435,20 +451,35 @@ public static class RuntimeHelpers
 
             // thisArgがIroInstanceの場合、フィールドと"this"をGlobalsに展開
             Dictionary<string, object>? savedFields = null;
+            Dictionary<string, object>? initialFieldValues = null;
             object? savedThis = null;
             bool hadThis = false;
             IroInstance? instance = thisArg as IroInstance;
 
             if (instance != null)
             {
-                // 既存のフィールド名と衝突する場合に備えて保存
+                // 同一インスタンスの再帰呼び出しかチェック
+                bool isSameInstanceRecursion = ctx.Globals.TryGetValue("this", out var currentThis)
+                    && ReferenceEquals(currentThis, instance);
+
+                // A-1: フィールドの初期値スナップショットを保存
                 savedFields = new Dictionary<string, object>();
+                initialFieldValues = new Dictionary<string, object>();
+
                 foreach (var field in instance.Fields)
                 {
                     if (ctx.Globals.TryGetValue(field.Key, out var savedValue))
                     {
                         savedFields[field.Key] = savedValue;
+
+                        if (isSameInstanceRecursion)
+                        {
+                            // 同一インスタンス再帰: Globals の方が最新なので保持
+                            initialFieldValues[field.Key] = savedValue;
+                            continue;
+                        }
                     }
+                    initialFieldValues[field.Key] = field.Value;
                     ctx.Globals[field.Key] = field.Value;
                 }
 
@@ -464,15 +495,21 @@ public static class RuntimeHelpers
             {
                 var result = callable.Invoke(ctx, args);
 
-                // インスタンスのフィールドをGlobalsから逆反映
-                if (instance != null)
+                // A-2: スマート sync-back
+                // Globals が body で直接変更されたフィールドのみ反映し、
+                // 内部メソッド呼び出しによる Fields の変更を上書きしない
+                if (instance != null && initialFieldValues != null)
                 {
                     foreach (var fieldName in instance.Fields.Keys.ToList())
                     {
-                        if (ctx.Globals.TryGetValue(fieldName, out var newValue))
+                        if (ctx.Globals.TryGetValue(fieldName, out var globalValue)
+                            && initialFieldValues.TryGetValue(fieldName, out var initialValue)
+                            && !Object.Equals(globalValue, initialValue))
                         {
-                            instance.Fields[fieldName] = newValue;
+                            // Globals が変更された → body が直接変更 → Globals を信頼
+                            instance.Fields[fieldName] = globalValue;
                         }
+                        // else: Globals 未変更 → Fields の現在値を維持（内部呼び出しが更新済み）
                     }
                 }
 
@@ -531,6 +568,24 @@ public static class RuntimeHelpers
                     if (hadThis)
                     {
                         ctx.Globals["this"] = savedThis!;
+
+                        // A-3: 同一インスタンスの場合、内部呼び出しで変更されたフィールドを Globals に再ロード
+                        if (savedThis is IroInstance outerInstance
+                            && ReferenceEquals(outerInstance, instance)
+                            && initialFieldValues != null)
+                        {
+                            foreach (var fieldName in instance.Fields.Keys)
+                            {
+                                if (initialFieldValues.TryGetValue(fieldName, out var initialValue))
+                                {
+                                    var currentFieldValue = instance.Fields[fieldName];
+                                    if (!Object.Equals(currentFieldValue, initialValue))
+                                    {
+                                        ctx.Globals[fieldName] = currentFieldValue;
+                                    }
+                                }
+                            }
+                        }
                     }
                     else
                     {
@@ -1789,7 +1844,14 @@ public static class RuntimeHelpers
     {
         if (args.Length != 1)
             throw new RuntimeException("__toNumber requires one argument");
-        return Convert.ToDouble(args[0]);
+        try
+        {
+            return Convert.ToDouble(args[0]);
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidCastException)
+        {
+            return null!;
+        }
     }
 
     /// <summary>

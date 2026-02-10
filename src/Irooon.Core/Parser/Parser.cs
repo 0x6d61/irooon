@@ -835,20 +835,21 @@ public class Parser
         // 改行をスキップ
         while (Match(TokenType.Newline)) { }
 
-        // else は必須
-        Consume(TokenType.Else, "Expect 'else' after if then branch.");
-
-        // else if のシンタックスシュガー
-        Expression elseBranch;
-        if (Match(TokenType.If))
+        // else はオプショナル
+        Expression? elseBranch = null;
+        if (Match(TokenType.Else))
         {
-            elseBranch = IfExpression();
-        }
-        else
-        {
-            // else ブランチをパース（必ずブロック）
-            Consume(TokenType.LeftBrace, "Expect '{' after 'else'.");
-            elseBranch = BlockExpression();
+            // else if のシンタックスシュガー
+            if (Match(TokenType.If))
+            {
+                elseBranch = IfExpression();
+            }
+            else
+            {
+                // else ブランチをパース（必ずブロック）
+                Consume(TokenType.LeftBrace, "Expect '{' after 'else'.");
+                elseBranch = BlockExpression();
+            }
         }
 
         return new IfExpr(condition, thenBranch, elseBranch, ifToken.Line, ifToken.Column);
