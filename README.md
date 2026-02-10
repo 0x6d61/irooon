@@ -390,9 +390,22 @@ println("Abs:", abs, "Sqrt:", sqrt, "Now:", now)
 - [言語仕様](./docs/language-spec.md)
 - [ExpressionTree変換仕様](./docs/expression-tree-mapping.md)
 
+## ベンチマーク
+
+BenchmarkDotNet ベースのベンチマークスイートが含まれています。
+
+```bash
+# 全ベンチマーク実行
+dotnet run -c Release --project benchmarks/Irooon.Benchmarks
+
+# 特定カテゴリのみ
+dotnet run -c Release --project benchmarks/Irooon.Benchmarks -- --filter "*Tarai*"
+dotnet run -c Release --project benchmarks/Irooon.Benchmarks -- --filter "*Invoke*"
+```
+
 ## 開発状況
 
-現在のバージョン: **v0.12.2**
+現在のバージョン: **v0.12.3**
 
 変更履歴は [CHANGELOG.md](./CHANGELOG.md) を参照してください。
 

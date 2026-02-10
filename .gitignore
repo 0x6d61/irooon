@@ -89,3 +89,6 @@ publish/
 
 # Release builds
 /Release/
+
+# BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
