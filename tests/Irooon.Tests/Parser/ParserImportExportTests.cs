@@ -69,6 +69,56 @@ public class ParserImportExportTests
         Assert.Equal(2, funcDef.Parameters.Count);
     }
 
+    [Fact]
+    public void TestExportVar()
+    {
+        // export var x = 10
+        var tokens = new List<Token>
+        {
+            new(TokenType.Export, "export", null, 1, 1),
+            new(TokenType.Var, "var", null, 1, 8),
+            new(TokenType.Identifier, "x", null, 1, 12),
+            new(TokenType.Equal, "=", null, 1, 14),
+            new(TokenType.Number, "10", 10.0, 1, 16),
+            new(TokenType.Eof, "", null, 1, 18)
+        };
+
+        var parser = new Core.Parser.Parser(tokens);
+        var program = parser.Parse();
+
+        Assert.Single(program.Statements);
+        var exportStmt = Assert.IsType<ExportStmt>(program.Statements[0]);
+        var varStmt = Assert.IsType<VarStmt>(exportStmt.Declaration);
+        Assert.Equal("x", varStmt.Name);
+    }
+
+    [Fact]
+    public void TestExportClass()
+    {
+        // export class Point { var x = 0 }
+        var tokens = new List<Token>
+        {
+            new(TokenType.Export, "export", null, 1, 1),
+            new(TokenType.Class, "class", null, 1, 8),
+            new(TokenType.Identifier, "Point", null, 1, 14),
+            new(TokenType.LeftBrace, "{", null, 1, 20),
+            new(TokenType.Var, "var", null, 1, 22),
+            new(TokenType.Identifier, "x", null, 1, 26),
+            new(TokenType.Equal, "=", null, 1, 28),
+            new(TokenType.Number, "0", 0.0, 1, 30),
+            new(TokenType.RightBrace, "}", null, 1, 32),
+            new(TokenType.Eof, "", null, 1, 33)
+        };
+
+        var parser = new Core.Parser.Parser(tokens);
+        var program = parser.Parse();
+
+        Assert.Single(program.Statements);
+        var exportStmt = Assert.IsType<ExportStmt>(program.Statements[0]);
+        var classDef = Assert.IsType<ClassDef>(exportStmt.Declaration);
+        Assert.Equal("Point", classDef.Name);
+    }
+
     #endregion
 
     #region Import Tests
@@ -179,6 +229,49 @@ public class ParserImportExportTests
 
         var parser = new Core.Parser.Parser(tokens);
         Assert.Throws<ParseException>(() => parser.Parse());
+    }
+
+    #endregion
+
+    #region アセンブリ参照 (#r) パーステスト
+
+    [Fact]
+    public void TestParseAssemblyRef()
+    {
+        var tokens = new List<Token>
+        {
+            new(TokenType.AssemblyRef, "#r \"test.dll\"", "test.dll", 1, 1),
+            new(TokenType.Eof, "", null, 1, 20)
+        };
+
+        var parser = new Core.Parser.Parser(tokens);
+        var block = parser.Parse();
+
+        Assert.Single(block.Statements);
+        var stmt = Assert.IsType<AssemblyRefStmt>(block.Statements[0]);
+        Assert.Equal("test.dll", stmt.AssemblyPath);
+    }
+
+    [Fact]
+    public void TestParseAssemblyRef_WithOtherStatements()
+    {
+        var tokens = new List<Token>
+        {
+            new(TokenType.AssemblyRef, "#r \"lib.dll\"", "lib.dll", 1, 1),
+            new(TokenType.Newline, "\n", null, 1, 18),
+            new(TokenType.Let, "let", null, 2, 1),
+            new(TokenType.Identifier, "x", null, 2, 5),
+            new(TokenType.Equal, "=", null, 2, 7),
+            new(TokenType.Number, "42", 42.0, 2, 9),
+            new(TokenType.Eof, "", null, 2, 11)
+        };
+
+        var parser = new Core.Parser.Parser(tokens);
+        var block = parser.Parse();
+
+        Assert.Equal(2, block.Statements.Count);
+        Assert.IsType<AssemblyRefStmt>(block.Statements[0]);
+        Assert.IsType<LetStmt>(block.Statements[1]);
     }
 
     #endregion

@@ -6,6 +6,9 @@ namespace Irooon.Core.Runtime;
 /// </summary>
 public static class RuntimeHelpers
 {
+    // CLR型解決のキャッシュ
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Type?> _typeCache = new();
+
     #region Truthy Evaluation
 
     /// <summary>
@@ -1015,6 +1018,11 @@ public static class RuntimeHelpers
     /// <returns>解決された型（見つからない場合はnull）</returns>
     public static Type? ResolveCLRType(string typeName)
     {
+        return _typeCache.GetOrAdd(typeName, ResolveCLRTypeInternal);
+    }
+
+    private static Type? ResolveCLRTypeInternal(string typeName)
+    {
         // Generic型の特別処理（例: System.Collections.Generic.List → System.Collections.Generic.List`1[System.Object]）
         if (typeName == "System.Collections.Generic.List")
         {
@@ -1049,6 +1057,28 @@ public static class RuntimeHelpers
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 型キャッシュをクリアします（アセンブリ読み込み後に使用）。
+    /// </summary>
+    public static void ClearTypeCache()
+    {
+        _typeCache.Clear();
+    }
+
+    /// <summary>
+    /// 外部アセンブリをロードします。
+    /// #r "path/to/assembly.dll" ディレクティブから呼び出されます。
+    /// </summary>
+    public static object LoadAssembly(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        if (!File.Exists(fullPath))
+            throw new RuntimeException($"Assembly not found: {fullPath}");
+        System.Reflection.Assembly.LoadFrom(fullPath);
+        _typeCache.Clear(); // キャッシュを無効化して新しいアセンブリの型を解決可能にする
+        return null!;
     }
 
     /// <summary>
@@ -1699,6 +1729,12 @@ public static class RuntimeHelpers
             if (exports.TryGetValue(name, out var value))
             {
                 ctx.Globals[name] = value!;
+
+                // クラスの場合は ctx.Classes にも登録
+                if (value is IroClass iroClass)
+                {
+                    ctx.Classes[name] = iroClass;
+                }
             }
             else
             {

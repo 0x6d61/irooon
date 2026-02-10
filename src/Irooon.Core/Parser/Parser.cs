@@ -52,7 +52,7 @@ public class Parser
             bool isAsyncFunctionDef = Check(TokenType.Async);
 
             // 文をパース（async fn, 関数定義、クラス定義、変数宣言、モジュール）
-            if (isAsyncFunctionDef || isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.For) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Export) || Check(TokenType.Import))
+            if (isAsyncFunctionDef || isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.For) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Export) || Check(TokenType.Import) || Check(TokenType.AssemblyRef))
             {
                 statements.Add(Statement());
                 // 文の後の改行をスキップ
@@ -1094,6 +1094,12 @@ public class Parser
             return ImportStatement();
         }
 
+        if (Match(TokenType.AssemblyRef))
+        {
+            var token = Previous();
+            return new AssemblyRefStmt((string)token.Value!, token.Line, token.Column);
+        }
+
         // async fn の処理
         if (Match(TokenType.Async))
         {
@@ -1762,7 +1768,19 @@ public class Parser
             return new ExportStmt(funcDef, exportToken.Line, exportToken.Column);
         }
 
-        throw new ParseException(exportToken, "Expected 'let' or 'fn' after 'export'.");
+        if (Match(TokenType.Var))
+        {
+            var varStmt = VarStatement();
+            return new ExportStmt(varStmt, exportToken.Line, exportToken.Column);
+        }
+
+        if (Match(TokenType.Class))
+        {
+            var classDef = ClassDefinition();
+            return new ExportStmt(classDef, exportToken.Line, exportToken.Column);
+        }
+
+        throw new ParseException(exportToken, "Expected 'let', 'var', 'fn', or 'class' after 'export'.");
     }
 
     /// <summary>

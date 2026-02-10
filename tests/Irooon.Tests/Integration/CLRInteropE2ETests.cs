@@ -256,4 +256,50 @@ public class CLRInteropE2ETests
         // Assert
         Assert.Equal("First and Second", result);
     }
+
+    [Fact]
+    public void TestCLRInterop_SystemTypesStillWork_AfterCacheChange()
+    {
+        // System.* 型が引き続き動作することを確認（回帰テスト）
+        var source = @"
+            let a = System.Math.Abs(-10)
+            let sb = System.Text.StringBuilder()
+            sb.Append(""test"")
+            a + sb.Length
+        ";
+
+        var engine = new ScriptEngine();
+        var result = engine.Execute(source);
+
+        Assert.Equal(14.0, result);
+    }
+
+    [Fact]
+    public void TestLoadAssembly_InvalidPath_ThrowsRuntimeException()
+    {
+        var source = @"
+            #r ""nonexistent_assembly.dll""
+        ";
+
+        var engine = new ScriptEngine();
+        var ex = Assert.ThrowsAny<Exception>(() => engine.Execute(source));
+        Assert.Contains("Assembly not found", ex.Message);
+    }
+
+    [Fact]
+    public void TestAssemblyRef_LexerParserCodeGen_Integration()
+    {
+        // #r ディレクティブがパイプライン全体を通過することを確認
+        // （存在しないパスなので実行時エラーになるが、パース・コード生成は成功する）
+        var source = @"
+            #r ""test.dll""
+            let x = 42
+            x
+        ";
+
+        var engine = new ScriptEngine();
+        // 実行時に test.dll が見つからないのでエラー
+        var ex = Assert.ThrowsAny<Exception>(() => engine.Execute(source));
+        Assert.Contains("Assembly not found", ex.Message);
+    }
 }
