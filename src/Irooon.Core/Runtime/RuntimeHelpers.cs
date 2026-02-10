@@ -424,37 +424,50 @@ public static class RuntimeHelpers
                 return task;
             }
 
-            // Closureの場合、パラメータ名とローカル変数名を保存/復元する
-            // これにより、再帰呼び出しでパラメータやローカル変数が上書きされるのを防ぐ
+            // Closureの場合、変数の保存/復元を行う
+            // SlotCount > 0: 配列スコープ → ctx.Locals の参照を保存/復元するだけ
+            // SlotCount == 0: Dictionary スコープ → パラメータ/ローカルの Dictionary 保存/復元
             Dictionary<string, object>? savedParams = null;
             List<string>? paramNames = null;
             Dictionary<string, object>? savedLocals = null;
             List<string>? localNames = null;
+            object?[]? savedLocalsArray = null;
+            bool useArrayScope = false;
 
             if (callable is Closure closure)
             {
-                if (closure.ParameterNames.Count > 0)
+                if (closure.SlotCount > 0)
                 {
-                    paramNames = closure.ParameterNames;
-                    savedParams = new Dictionary<string, object>();
-                    foreach (var paramName in paramNames)
+                    // 配列スコープ: ctx.Locals の参照を保存するだけ（アロケーション不要）
+                    useArrayScope = true;
+                    savedLocalsArray = ctx.Locals;
+                }
+                else
+                {
+                    // Dictionary スコープ: 従来の保存/復元
+                    if (closure.ParameterNames.Count > 0)
                     {
-                        if (ctx.Globals.TryGetValue(paramName, out var value))
+                        paramNames = closure.ParameterNames;
+                        savedParams = new Dictionary<string, object>();
+                        foreach (var paramName in paramNames)
                         {
-                            savedParams[paramName] = value;
+                            if (ctx.Globals.TryGetValue(paramName, out var value))
+                            {
+                                savedParams[paramName] = value;
+                            }
                         }
                     }
-                }
 
-                if (closure.LocalNames.Count > 0)
-                {
-                    localNames = closure.LocalNames;
-                    savedLocals = new Dictionary<string, object>();
-                    foreach (var name in localNames)
+                    if (closure.LocalNames.Count > 0)
                     {
-                        if (ctx.Globals.TryGetValue(name, out var value))
+                        localNames = closure.LocalNames;
+                        savedLocals = new Dictionary<string, object>();
+                        foreach (var name in localNames)
                         {
-                            savedLocals[name] = value;
+                            if (ctx.Globals.TryGetValue(name, out var value))
+                            {
+                                savedLocals[name] = value;
+                            }
                         }
                     }
                 }
@@ -528,34 +541,42 @@ public static class RuntimeHelpers
             }
             finally
             {
-                // パラメータを元の値に復元（または削除）
-                if (savedParams != null && paramNames != null)
+                // 配列スコープの場合: ctx.Locals の参照を復元するだけ
+                if (useArrayScope)
                 {
-                    foreach (var paramName in paramNames)
+                    ctx.Locals = savedLocalsArray;
+                }
+                else
+                {
+                    // パラメータを元の値に復元（または削除）
+                    if (savedParams != null && paramNames != null)
                     {
-                        if (savedParams.TryGetValue(paramName, out var savedValue))
+                        foreach (var paramName in paramNames)
                         {
-                            ctx.Globals[paramName] = savedValue;
-                        }
-                        else
-                        {
-                            ctx.Globals.Remove(paramName);
+                            if (savedParams.TryGetValue(paramName, out var savedValue))
+                            {
+                                ctx.Globals[paramName] = savedValue;
+                            }
+                            else
+                            {
+                                ctx.Globals.Remove(paramName);
+                            }
                         }
                     }
-                }
 
-                // ローカル変数を元の値に復元（または削除）
-                if (savedLocals != null && localNames != null)
-                {
-                    foreach (var name in localNames)
+                    // ローカル変数を元の値に復元（または削除）
+                    if (savedLocals != null && localNames != null)
                     {
-                        if (savedLocals.TryGetValue(name, out var savedValue))
+                        foreach (var name in localNames)
                         {
-                            ctx.Globals[name] = savedValue;
-                        }
-                        else
-                        {
-                            ctx.Globals.Remove(name);
+                            if (savedLocals.TryGetValue(name, out var savedValue))
+                            {
+                                ctx.Globals[name] = savedValue;
+                            }
+                            else
+                            {
+                                ctx.Globals.Remove(name);
+                            }
                         }
                     }
                 }

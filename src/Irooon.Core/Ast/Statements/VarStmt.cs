@@ -11,6 +11,11 @@ public class VarStmt : Statement
     public string Name { get; }
 
     /// <summary>
+    /// 配列スロットインデックス（-1 = Dictionary使用）
+    /// </summary>
+    public int ResolvedSlot { get; set; } = -1;
+
+    /// <summary>
     /// 初期化式
     /// </summary>
     public Expression Initializer { get; }

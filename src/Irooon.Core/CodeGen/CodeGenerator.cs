@@ -25,6 +25,9 @@ public class CodeGenerator
     private int _currentFuncLine = 0;
     private int _currentFuncColumn = 0;
 
+    // Array-based scope optimization: 変数名 → ctx.Locals のスロットインデックス
+    private Dictionary<string, int>? _currentSlotMap;
+
     // ループ�Ebreak/continueラベルを管琁E��るスタチE��
     private Stack<(LabelTarget breakLabel, LabelTarget? continueLabel)> _loopLabels = new();
 
@@ -150,10 +153,7 @@ public class CodeGenerator
     /// </summary>
     private ExprTree GenerateIdentifierExpr(IdentifierExpr expr)
     {
-        // ctx.Globals["name"]
-        var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
-        var nameExpr = ExprTree.Constant(expr.Name);
-        return ExprTree.Property(globalsExpr, "Item", nameExpr);
+        return EmitVarAccess(expr.Name);
     }
 
     /// <summary>
@@ -162,13 +162,8 @@ public class CodeGenerator
     /// </summary>
     private ExprTree GenerateAssignExpr(AssignExpr expr)
     {
-        // ctx.Globals["name"] = value
         var valueExpr = GenerateExpression(expr.Value);
-        var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
-        var nameExpr = ExprTree.Constant(expr.Name);
-        var itemProperty = ExprTree.Property(globalsExpr, "Item", nameExpr);
-
-        return ExprTree.Assign(itemProperty, valueExpr);
+        return ExprTree.Assign(EmitVarAccess(expr.Name), valueExpr);
     }
 
     /// <summary>
@@ -206,9 +201,7 @@ public class CodeGenerator
         // 各変数への代入
         for (int i = 0; i < stmt.Names.Count; i++)
         {
-            var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
-            var nameExpr = ExprTree.Constant(stmt.Names[i]);
-            var itemProperty = ExprTree.Property(globalsExpr, "Item", nameExpr);
+            var itemProperty = EmitVarAccess(stmt.Names[i]);
 
             ExprTree valueExpr;
             if (stmt.IsHash)
@@ -485,23 +478,18 @@ public class CodeGenerator
         var enumeratorVar = ExprTree.Variable(typeof(System.Collections.IEnumerator), "enumerator");
         var currentVar = ExprTree.Variable(typeof(object), "current");
 
-        // ループ変数をctx.Globalsに登録
-        var setLoopVar = ExprTree.Call(
-            ExprTree.Property(_ctxParam, nameof(ScriptContext.Globals)),
-            typeof(Dictionary<string, object?>).GetMethod("set_Item")!,
-            ExprTree.Constant(stmt.Variable),
-            currentVar
-        );
+        // ループ変数をセット（Locals or Globals）
+        var setLoopVar = ExprTree.Assign(EmitVarAccess(stmt.Variable), currentVar);
 
-        // ループラベルをスタチE��にプッシュ
+        // ループラベルをスタックにプッシュ
         _loopLabels.Push((breakLabel, continueLabel));
 
         var bodyExpr = GenerateStatement(stmt.Body);
 
-        // ループラベルを�EチE�E
+        // ループラベルをポップ
         _loopLabels.Pop();
 
-        // ループ本佁E
+        // ループ本体
         var loopBody = ExprTree.Block(
             typeof(void),
             // if (!enumerator.MoveNext()) break;
@@ -511,13 +499,13 @@ public class CodeGenerator
             ),
             // current = enumerator.Current
             ExprTree.Assign(currentVar, ExprTree.Property(enumeratorVar, nameof(System.Collections.IEnumerator.Current))),
-            // ctx.Globals[variable] = current
+            // variable = current
             setLoopVar,
             // body
             bodyExpr
         );
 
-        // foreach全佁E
+        // foreach全体
         return ExprTree.Block(
             typeof(object),
             new[] { enumerableVar, enumeratorVar, currentVar },
@@ -570,23 +558,18 @@ public class CodeGenerator
         var enumeratorVar = ExprTree.Variable(typeof(System.Collections.IEnumerator), "enumerator");
         var currentVar = ExprTree.Variable(typeof(object), "current");
 
-        // ループ変数をctx.Globalsに登録
-        var setLoopVar = ExprTree.Call(
-            ExprTree.Property(_ctxParam, nameof(ScriptContext.Globals)),
-            typeof(Dictionary<string, object?>).GetMethod("set_Item")!,
-            ExprTree.Constant(stmt.IteratorVariable),
-            currentVar
-        );
+        // ループ変数をセット（Locals or Globals）
+        var setLoopVar = ExprTree.Assign(EmitVarAccess(stmt.IteratorVariable!), currentVar);
 
-        // ループラベルをスタチE��にプッシュ
+        // ループラベルをスタックにプッシュ
         _loopLabels.Push((breakLabel, continueLabel));
 
         var bodyExpr = GenerateExpression(stmt.Body);
 
-        // ループラベルを�EチE�E
+        // ループラベルをポップ
         _loopLabels.Pop();
 
-        // ループ本佁E
+        // ループ本体
         var loopBody = ExprTree.Block(
             typeof(void),
             // if (!enumerator.MoveNext()) break;
@@ -596,13 +579,13 @@ public class CodeGenerator
             ),
             // current = enumerator.Current
             ExprTree.Assign(currentVar, ExprTree.Property(enumeratorVar, nameof(System.Collections.IEnumerator.Current))),
-            // ctx.Globals[variable] = current
+            // variable = current
             setLoopVar,
             // body
             bodyExpr
         );
 
-        // for全佁E
+        // for全体
         return ExprTree.Block(
             typeof(object),
             new[] { enumerableVar, enumeratorVar, currentVar },
@@ -995,15 +978,46 @@ public class CodeGenerator
         var argsParam = ExprTree.Parameter(typeof(object[]), "args");
         var ctxParamForFunc = ExprTree.Parameter(typeof(ScriptContext), "ctx");
 
+        // Array-based scope optimization: 内部関数がなければスロットマップを構築
+        var paramNames = expr.Parameters.Select(p => p.Name).ToList();
+        bool useSlots = !ContainsInnerFunction(expr.Body);
+        Dictionary<string, int>? slotMap = null;
+        int slotCount = 0;
+        if (useSlots)
+        {
+            (slotMap, slotCount) = BuildSlotMap(expr.Parameters, expr.Body);
+        }
+
         var bodyExprs = new List<ExprTree>();
+
+        // スロット最適化時: ctx.Locals = new object[slotCount]
+        if (useSlots && slotCount > 0)
+        {
+            bodyExprs.Add(ExprTree.Assign(
+                ExprTree.Property(ctxParamForFunc, "Locals"),
+                ExprTree.NewArrayBounds(typeof(object), ExprTree.Constant(slotCount))
+            ));
+        }
 
         // パラメータを args[0], args[1], ... にバインド
         for (int i = 0; i < expr.Parameters.Count; i++)
         {
             var param = expr.Parameters[i];
-            var globalsForParam = ExprTree.Property(ctxParamForFunc, "Globals");
-            var paramName = ExprTree.Constant(param.Name);
-            var itemForParam = ExprTree.Property(globalsForParam, "Item", paramName);
+
+            // バインド先: Locals[slot] or Globals["name"]
+            ExprTree itemForParam;
+            if (useSlots && slotMap!.TryGetValue(param.Name, out var paramSlot))
+            {
+                itemForParam = ExprTree.ArrayAccess(
+                    ExprTree.Property(ctxParamForFunc, "Locals"),
+                    ExprTree.Constant(paramSlot)
+                );
+            }
+            else
+            {
+                var globalsForParam = ExprTree.Property(ctxParamForFunc, "Globals");
+                itemForParam = ExprTree.Property(globalsForParam, "Item", ExprTree.Constant(param.Name));
+            }
 
             if (param.IsRest)
             {
@@ -1048,19 +1062,21 @@ public class CodeGenerator
             }
         }
 
-        // 本体を実行（一時的に _ctxParam と _returnLabel を切り替える）
+        // 本体を実行（一時的に _ctxParam, _returnLabel, _currentSlotMap を切り替える）
         var savedCtxParam = _ctxParam;
         var savedReturnLabel = _returnLabel;
         var savedReturnType = _currentReturnType;
         var savedFuncName = _currentFuncName;
         var savedFuncLine = _currentFuncLine;
         var savedFuncColumn = _currentFuncColumn;
+        var savedSlotMap = _currentSlotMap;
         _ctxParam = ctxParamForFunc;
         _returnLabel = ExprTree.Label(typeof(object), "return_lambda");
         _currentReturnType = expr.ReturnType;
         _currentFuncName = "<lambda>";
         _currentFuncLine = expr.Line;
         _currentFuncColumn = expr.Column;
+        _currentSlotMap = useSlots ? slotMap : null;
         var bodyExpr = GenerateExpression(expr.Body);
 
         // 暗黙的 return の戻り値型チェック
@@ -1080,6 +1096,7 @@ public class CodeGenerator
         _currentFuncName = savedFuncName;
         _currentFuncLine = savedFuncLine;
         _currentFuncColumn = savedFuncColumn;
+        _currentSlotMap = savedSlotMap;
 
         var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
 
@@ -1092,21 +1109,33 @@ public class CodeGenerator
 
         var compiled = lambda.Compile();
 
-        // パラメータ名のリストを作成
-        var paramNames = expr.Parameters.Select(p => p.Name).ToList();
+        // Closure構築
+        // ParameterNamesは常に保持（Closure.Invokeのargsパディングに必要）
+        // スロット最適化時はLocalNamesのみ空にする
         var paramNamesListNew = ExprTree.New(
             typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
             ExprTree.NewArrayInit(typeof(string), paramNames.Select(n => ExprTree.Constant(n)))
         );
 
-        // ローカル変数名を収集
-        var localNames = CollectLocalNames(expr.Body, paramNames);
-        var localNamesListNew = ExprTree.New(
-            typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
-            ExprTree.NewArrayInit(typeof(string), localNames.Select(n => ExprTree.Constant(n)))
-        );
+        ExprTree localNamesListNew;
+        int closureSlotCount;
 
-        // Closure オブジェクトを作成（位置情報 + ローカル変数名を含む）
+        if (useSlots && slotCount > 0)
+        {
+            localNamesListNew = ExprTree.New(typeof(List<string>).GetConstructor(Type.EmptyTypes)!);
+            closureSlotCount = slotCount;
+        }
+        else
+        {
+            var localNames = CollectLocalNames(expr.Body, paramNames);
+            localNamesListNew = ExprTree.New(
+                typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
+                ExprTree.NewArrayInit(typeof(string), localNames.Select(n => ExprTree.Constant(n)))
+            );
+            closureSlotCount = 0;
+        }
+
+        // Closure オブジェクトを作成
         var closureNew = ExprTree.New(
             typeof(Closure).GetConstructor(new[] {
                 typeof(string),
@@ -1115,7 +1144,8 @@ public class CodeGenerator
                 typeof(int),
                 typeof(int),
                 typeof(List<string>),
-                typeof(bool)
+                typeof(bool),
+                typeof(int)
             })!,
             ExprTree.Constant("<lambda>"),
             ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>)),
@@ -1123,7 +1153,8 @@ public class CodeGenerator
             ExprTree.Constant(expr.Line),
             ExprTree.Constant(expr.Column),
             localNamesListNew,
-            ExprTree.Constant(expr.IsAsync)
+            ExprTree.Constant(expr.IsAsync),
+            ExprTree.Constant(closureSlotCount)
         );
 
         return ExprTree.Convert(closureNew, typeof(object));
@@ -1131,8 +1162,7 @@ public class CodeGenerator
 
     /// <summary>
     /// 関数定義の変換
-    /// 仕様！Expression-tree-mapping.md セクション9�E�E
-    /// Closureオブジェクトを生�Eし、ctx.Globals[name] に登録
+    /// Closureオブジェクトを生成し、ctx.Globals[name] に登録
     /// </summary>
     private ExprTree GenerateFunctionDef(FunctionDef stmt)
     {
@@ -1140,15 +1170,46 @@ public class CodeGenerator
         var argsParam = ExprTree.Parameter(typeof(object[]), "args");
         var ctxParamForFunc = ExprTree.Parameter(typeof(ScriptContext), "ctx");
 
+        // Array-based scope optimization: 内部関数がなければスロットマップを構築
+        var paramNames = stmt.Parameters.Select(p => p.Name).ToList();
+        bool useSlots = !ContainsInnerFunction(stmt.Body);
+        Dictionary<string, int>? slotMap = null;
+        int slotCount = 0;
+        if (useSlots)
+        {
+            (slotMap, slotCount) = BuildSlotMap(stmt.Parameters, stmt.Body);
+        }
+
         var bodyExprs = new List<ExprTree>();
+
+        // スロット最適化時: ctx.Locals = new object[slotCount]
+        if (useSlots && slotCount > 0)
+        {
+            bodyExprs.Add(ExprTree.Assign(
+                ExprTree.Property(ctxParamForFunc, "Locals"),
+                ExprTree.NewArrayBounds(typeof(object), ExprTree.Constant(slotCount))
+            ));
+        }
 
         // パラメータを args[0], args[1], ... にバインド
         for (int i = 0; i < stmt.Parameters.Count; i++)
         {
             var param = stmt.Parameters[i];
-            var globalsForParam = ExprTree.Property(ctxParamForFunc, "Globals");
-            var paramName = ExprTree.Constant(param.Name);
-            var itemForParam = ExprTree.Property(globalsForParam, "Item", paramName);
+
+            // バインド先: Locals[slot] or Globals["name"]
+            ExprTree itemForParam;
+            if (useSlots && slotMap!.TryGetValue(param.Name, out var paramSlot))
+            {
+                itemForParam = ExprTree.ArrayAccess(
+                    ExprTree.Property(ctxParamForFunc, "Locals"),
+                    ExprTree.Constant(paramSlot)
+                );
+            }
+            else
+            {
+                var globalsForParam = ExprTree.Property(ctxParamForFunc, "Globals");
+                itemForParam = ExprTree.Property(globalsForParam, "Item", ExprTree.Constant(param.Name));
+            }
 
             if (param.IsRest)
             {
@@ -1191,19 +1252,21 @@ public class CodeGenerator
             }
         }
 
-        // 本体を実行（一時的に _ctxParam と _returnLabel を切り替える）
+        // 本体を実行（一時的に _ctxParam, _returnLabel, _currentSlotMap を切り替える）
         var savedCtxParam = _ctxParam;
         var savedReturnLabel = _returnLabel;
         var savedReturnType = _currentReturnType;
         var savedFuncName = _currentFuncName;
         var savedFuncLine = _currentFuncLine;
         var savedFuncColumn = _currentFuncColumn;
+        var savedSlotMap = _currentSlotMap;
         _ctxParam = ctxParamForFunc;
         _returnLabel = ExprTree.Label(typeof(object), "return_func");
         _currentReturnType = stmt.ReturnType;
         _currentFuncName = stmt.Name;
         _currentFuncLine = stmt.Line;
         _currentFuncColumn = stmt.Column;
+        _currentSlotMap = useSlots ? slotMap : null;
         var bodyExpr = GenerateExpression(stmt.Body);
 
         // 暗黙的 return の戻り値型チェック
@@ -1223,6 +1286,7 @@ public class CodeGenerator
         _currentFuncName = savedFuncName;
         _currentFuncLine = savedFuncLine;
         _currentFuncColumn = savedFuncColumn;
+        _currentSlotMap = savedSlotMap;
 
         var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
 
@@ -1235,21 +1299,33 @@ public class CodeGenerator
 
         var compiled = lambda.Compile();
 
-        // パラメータ名のリストを作成
-        var paramNames = stmt.Parameters.Select(p => p.Name).ToList();
+        // Closure構築
+        // ParameterNamesは常に保持（Closure.Invokeのargsパディングに必要）
+        // スロット最適化時はLocalNamesのみ空にする
         var paramNamesListNew = ExprTree.New(
             typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
             ExprTree.NewArrayInit(typeof(string), paramNames.Select(n => ExprTree.Constant(n)))
         );
 
-        // ローカル変数名を収集
-        var localNames = CollectLocalNames(stmt.Body, paramNames);
-        var localNamesListNew = ExprTree.New(
-            typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
-            ExprTree.NewArrayInit(typeof(string), localNames.Select(n => ExprTree.Constant(n)))
-        );
+        ExprTree localNamesListNew;
+        int closureSlotCount;
 
-        // Closure オブジェクトを作成（位置情報 + ローカル変数名 + isAsync を含む）
+        if (useSlots && slotCount > 0)
+        {
+            localNamesListNew = ExprTree.New(typeof(List<string>).GetConstructor(Type.EmptyTypes)!);
+            closureSlotCount = slotCount;
+        }
+        else
+        {
+            var localNames = CollectLocalNames(stmt.Body, paramNames);
+            localNamesListNew = ExprTree.New(
+                typeof(List<string>).GetConstructor(new[] { typeof(IEnumerable<string>) })!,
+                ExprTree.NewArrayInit(typeof(string), localNames.Select(n => ExprTree.Constant(n)))
+            );
+            closureSlotCount = 0;
+        }
+
+        // Closure オブジェクトを作成
         var closureNew = ExprTree.New(
             typeof(Closure).GetConstructor(new[] {
                 typeof(string),
@@ -1258,7 +1334,8 @@ public class CodeGenerator
                 typeof(int),
                 typeof(int),
                 typeof(List<string>),
-                typeof(bool)
+                typeof(bool),
+                typeof(int)
             })!,
             ExprTree.Constant(stmt.Name),
             ExprTree.Constant(compiled, typeof(Func<ScriptContext, object[], object>)),
@@ -1266,7 +1343,8 @@ public class CodeGenerator
             ExprTree.Constant(stmt.Line),
             ExprTree.Constant(stmt.Column),
             localNamesListNew,
-            ExprTree.Constant(stmt.IsAsync)
+            ExprTree.Constant(stmt.IsAsync),
+            ExprTree.Constant(closureSlotCount)
         );
 
         // ctx.Globals[name] = closure
@@ -1315,37 +1393,56 @@ public class CodeGenerator
 
         var fieldsArray = ExprTree.NewArrayInit(typeof(Runtime.FieldDef), fieldDefs);
 
-        // メソチE��定義を変換
+        // メソッド定義を変換
         var methodDefs = stmt.Methods.Select(m =>
         {
-            // メソチE��本体をClosureにコンパイル
+            // メソッド本体をClosureにコンパイル
             var argsParam = ExprTree.Parameter(typeof(object[]), "args");
             var ctxParamForFunc = ExprTree.Parameter(typeof(ScriptContext), "ctx");
 
-            // 一時的にctxParamと_returnLabelを切り替える
+            // Array-based scope optimization: 内部関数がなければスロットマップを構築
+            var paramNames = m.Parameters.Select(p => p.Name).ToList();
+            bool useSlots = !ContainsInnerFunction(m.Body);
+            Dictionary<string, int>? slotMap = null;
+            int slotCount = 0;
+            if (useSlots)
+            {
+                (slotMap, slotCount) = BuildSlotMap(m.Parameters, m.Body);
+            }
+
+            // 一時的にctxParam, _returnLabel, _currentSlotMapを切り替える
             var savedCtxParam = _ctxParam;
             var savedReturnLabel = _returnLabel;
             var savedReturnType = _currentReturnType;
             var savedFuncName = _currentFuncName;
             var savedFuncLine = _currentFuncLine;
             var savedFuncColumn = _currentFuncColumn;
+            var savedSlotMap = _currentSlotMap;
             _ctxParam = ctxParamForFunc;
             _returnLabel = ExprTree.Label(typeof(object), "return_method");
             _currentReturnType = m.ReturnType;
             _currentFuncName = m.Name;
             _currentFuncLine = m.Line;
             _currentFuncColumn = m.Column;
+            _currentSlotMap = useSlots ? slotMap : null;
 
             var bodyExprs = new List<ExprTree>();
 
-            // 引数をctx.Globalsに格納
+            // スロット最適化時: ctx.Locals = new object[slotCount]
+            if (useSlots && slotCount > 0)
+            {
+                bodyExprs.Add(ExprTree.Assign(
+                    ExprTree.Property(ctxParamForFunc, "Locals"),
+                    ExprTree.NewArrayBounds(typeof(object), ExprTree.Constant(slotCount))
+                ));
+            }
+
+            // 引数をバインド（Locals[slot] or Globals["name"]）
             for (int i = 0; i < m.Parameters.Count; i++)
             {
                 var param = m.Parameters[i];
                 var argAccess = ExprTree.ArrayIndex(argsParam, ExprTree.Constant(i));
-                var globalsExpr = ExprTree.Property(ctxParamForFunc, "Globals");
-                var paramName = ExprTree.Constant(param.Name);
-                var itemProperty = ExprTree.Property(globalsExpr, "Item", paramName);
+                var itemProperty = EmitVarAccess(param.Name);
                 bodyExprs.Add(ExprTree.Assign(itemProperty, argAccess));
 
                 // パラメータ型チェック（型アノテーションがある場合）
@@ -1370,13 +1467,14 @@ public class CodeGenerator
             bodyExprs.Add(ExprTree.Return(_returnLabel, ExprTree.Convert(methodBodyExpr, typeof(object))));
             bodyExprs.Add(ExprTree.Label(_returnLabel, ExprTree.Default(typeof(object))));
 
-            // ctxParamと_returnLabelを元に戻す
+            // 状態を元に戻す
             _ctxParam = savedCtxParam;
             _returnLabel = savedReturnLabel;
             _currentReturnType = savedReturnType;
             _currentFuncName = savedFuncName;
             _currentFuncLine = savedFuncLine;
             _currentFuncColumn = savedFuncColumn;
+            _currentSlotMap = savedSlotMap;
 
             var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
             var lambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(
@@ -1387,10 +1485,19 @@ public class CodeGenerator
 
             var compiled = lambda.Compile();
 
-            // パラメータ名のリストを作成
-            var paramNames = m.Parameters.Select(p => p.Name).ToList();
-            var localNames = CollectLocalNames(m.Body, paramNames);
-            var closure = new Closure(m.Name, compiled, paramNames, m.Line, m.Column, localNames);
+            // Closure構築
+            // ParameterNamesは常に保持（Closure.Invokeのargsパディングに必要）
+            // スロット最適化時はLocalNamesのみ空にする
+            Closure closure;
+            if (useSlots && slotCount > 0)
+            {
+                closure = new Closure(m.Name, compiled, paramNames, m.Line, m.Column, new List<string>(), false, slotCount);
+            }
+            else
+            {
+                var localNames = CollectLocalNames(m.Body, paramNames);
+                closure = new Closure(m.Name, compiled, paramNames, m.Line, m.Column, localNames);
+            }
 
             return ExprTree.New(
                 typeof(Runtime.MethodDef).GetConstructor(new[] {
@@ -1724,11 +1831,11 @@ public class CodeGenerator
                 // ex.Value を取征E
                 var exceptionValueExpr = ExprTree.Property(exceptionParam, nameof(IroException.Value));
 
-                // ctx.Globals["e"] = ex.Value
-                var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
-                var nameExpr = ExprTree.Constant(tryExpr.Catch.ExceptionVariable);
-                var itemProperty = ExprTree.Property(globalsExpr, "Item", nameExpr);
-                var assignExpr = ExprTree.Assign(itemProperty, exceptionValueExpr);
+                // exceptionVariable = ex.Value (Locals or Globals)
+                var assignExpr = ExprTree.Assign(
+                    EmitVarAccess(tryExpr.Catch.ExceptionVariable),
+                    exceptionValueExpr
+                );
 
                 // catch ブロチE��本体を生�E
                 var catchBodyExpr = GenerateExpression(tryExpr.Catch.Body);
@@ -2051,66 +2158,33 @@ public class CodeGenerator
 
         if (expr.IsPrefix)
         {
-            // 前置: var newValue = Increment/Decrement(currentValue); ctx.Globals["name"] = newValue; return newValue;
+            // 前置: var newValue = Increment/Decrement(currentValue); variable = newValue; return newValue;
             var tempVar = ExprTree.Variable(typeof(object), "temp");
-
-            // 現在の変数値を取征E
-            var getCurrentValue = ExprTree.Property(
-                ExprTree.Property(_ctxParam, "Globals"),
-                "Item",
-                ExprTree.Constant(variableName)
-            );
-
+            var getCurrentValue = EmitVarAccess(variableName);
             var incrementedExpr = ExprTree.Call(method, getCurrentValue);
             var assignExpr = ExprTree.Assign(tempVar, incrementedExpr);
-
-            // 変数を更新
-            var setGlobalExpr = ExprTree.Assign(
-                ExprTree.Property(
-                    ExprTree.Property(_ctxParam, "Globals"),
-                    "Item",
-                    ExprTree.Constant(variableName)
-                ),
-                tempVar
-            );
+            var setVarExpr = ExprTree.Assign(EmitVarAccess(variableName), tempVar);
 
             return ExprTree.Block(
                 typeof(object),
                 new[] { tempVar },
                 new ExprTree[] {
                     assignExpr,
-                    setGlobalExpr,
+                    setVarExpr,
                     tempVar
                 }
             );
         }
         else
         {
-            // 後置: var oldValue = currentValue; ctx.Globals["name"] = Increment/Decrement(oldValue); return oldValue;
+            // 後置: var oldValue = currentValue; variable = Increment/Decrement(oldValue); return oldValue;
             var tempVar = ExprTree.Variable(typeof(object), "temp");
             var newValueVar = ExprTree.Variable(typeof(object), "newValue");
-
-            // 現在の変数値を取得して保孁E
-            var getCurrentValue = ExprTree.Property(
-                ExprTree.Property(_ctxParam, "Globals"),
-                "Item",
-                ExprTree.Constant(variableName)
-            );
+            var getCurrentValue = EmitVarAccess(variableName);
             var assignOldExpr = ExprTree.Assign(tempVar, getCurrentValue);
-
-            // インクリメンチEチE��リメントして新しい値を保孁E
             var incrementedExpr = ExprTree.Call(method, tempVar);
             var assignNewExpr = ExprTree.Assign(newValueVar, incrementedExpr);
-
-            // 変数を更新
-            var setGlobalExpr = ExprTree.Assign(
-                ExprTree.Property(
-                    ExprTree.Property(_ctxParam, "Globals"),
-                    "Item",
-                    ExprTree.Constant(variableName)
-                ),
-                newValueVar
-            );
+            var setVarExpr = ExprTree.Assign(EmitVarAccess(variableName), newValueVar);
 
             return ExprTree.Block(
                 typeof(object),
@@ -2118,7 +2192,7 @@ public class CodeGenerator
                 new ExprTree[] {
                     assignOldExpr,
                     assignNewExpr,
-                    setGlobalExpr,
+                    setVarExpr,
                     tempVar
                 }
             );
@@ -2371,6 +2445,177 @@ public class CodeGenerator
                 // その他のノード（リテラル、識別子、二項演算等）は変数宣言を含まない
                 break;
         }
+    }
+
+    #endregion
+
+    #region Array-based scope optimization helpers
+
+    /// <summary>
+    /// 変数アクセスの ExprTree を生成（配列スコープ最適化対応）
+    /// スロットマップにある変数は ctx.Locals[slot]、それ以外は ctx.Globals["name"]
+    /// 返値は読み書き両用（lvalue）
+    /// </summary>
+    private ExprTree EmitVarAccess(string name)
+    {
+        if (_currentSlotMap != null && _currentSlotMap.TryGetValue(name, out var slot))
+        {
+            return ExprTree.ArrayAccess(
+                ExprTree.Property(_ctxParam, "Locals"),
+                ExprTree.Constant(slot)
+            );
+        }
+        var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
+        return ExprTree.Property(globalsExpr, "Item", ExprTree.Constant(name));
+    }
+
+    /// <summary>
+    /// 関数本体に内部関数/ラムダ/クラス定義が含まれるかチェック
+    /// 含まれる場合はスロット最適化を無効にする（変数捕捉の安全策）
+    /// </summary>
+    private static bool ContainsInnerFunction(Ast.AstNode node)
+    {
+        if (node == null) return false;
+
+        switch (node)
+        {
+            // これらは内部関数定義 → 最適化を無効にする
+            case FunctionDef:
+            case LambdaExpr:
+            case ClassDef:
+                return true;
+
+            // ブロック・制御構造を再帰的にチェック
+            case BlockExpr block:
+                foreach (var stmt in block.Statements)
+                    if (ContainsInnerFunction(stmt)) return true;
+                return block.Expression != null && ContainsInnerFunction(block.Expression);
+
+            case LetStmt letStmt:
+                return ContainsInnerFunction(letStmt.Initializer);
+            case VarStmt varStmt:
+                return ContainsInnerFunction(varStmt.Initializer);
+            case DestructuringStmt destStmt:
+                return ContainsInnerFunction(destStmt.Initializer);
+            case ExprStmt exprStmt:
+                return ContainsInnerFunction(exprStmt.Expression);
+            case ReturnStmt returnStmt:
+                return returnStmt.Value != null && ContainsInnerFunction(returnStmt.Value);
+            case ThrowStmt throwStmt:
+                return ContainsInnerFunction(throwStmt.Value);
+            case ExportStmt exportStmt:
+                return ContainsInnerFunction(exportStmt.Declaration);
+
+            case ForStmt forStmt:
+                return (forStmt.Collection != null && ContainsInnerFunction(forStmt.Collection)) ||
+                       (forStmt.Condition != null && ContainsInnerFunction(forStmt.Condition)) ||
+                       ContainsInnerFunction(forStmt.Body);
+            case ForeachStmt foreachStmt:
+                return ContainsInnerFunction(foreachStmt.Collection) || ContainsInnerFunction(foreachStmt.Body);
+
+            case IfExpr ifExpr:
+                return ContainsInnerFunction(ifExpr.Condition) ||
+                       ContainsInnerFunction(ifExpr.ThenBranch) ||
+                       (ifExpr.ElseBranch != null && ContainsInnerFunction(ifExpr.ElseBranch));
+            case TryExpr tryExpr:
+                if (ContainsInnerFunction(tryExpr.TryBody)) return true;
+                if (tryExpr.Catch != null && ContainsInnerFunction(tryExpr.Catch.Body)) return true;
+                return tryExpr.Finally != null && ContainsInnerFunction(tryExpr.Finally);
+            case TernaryExpr ternary:
+                return ContainsInnerFunction(ternary.Condition) ||
+                       ContainsInnerFunction(ternary.TrueValue) ||
+                       ContainsInnerFunction(ternary.FalseValue);
+            case NullCoalescingExpr nce:
+                return ContainsInnerFunction(nce.Value) || ContainsInnerFunction(nce.DefaultValue);
+            case MatchExpr matchExpr:
+                if (ContainsInnerFunction(matchExpr.Subject)) return true;
+                foreach (var (pattern, body) in matchExpr.Arms)
+                {
+                    if (pattern != null && ContainsInnerFunction(pattern)) return true;
+                    if (ContainsInnerFunction(body)) return true;
+                }
+                return false;
+
+            // 式を再帰的にチェック（ラムダが引数に渡される場合など）
+            case CallExpr callExpr:
+                if (ContainsInnerFunction(callExpr.Callee)) return true;
+                foreach (var arg in callExpr.Arguments)
+                    if (ContainsInnerFunction(arg)) return true;
+                return false;
+            case BinaryExpr binaryExpr:
+                return ContainsInnerFunction(binaryExpr.Left) || ContainsInnerFunction(binaryExpr.Right);
+            case UnaryExpr unaryExpr:
+                return ContainsInnerFunction(unaryExpr.Operand);
+            case AssignExpr assignExpr:
+                return ContainsInnerFunction(assignExpr.Value);
+            case MemberExpr memberExpr:
+                return ContainsInnerFunction(memberExpr.Target);
+            case IndexExpr indexExpr:
+                return ContainsInnerFunction(indexExpr.Target) || ContainsInnerFunction(indexExpr.Index);
+            case IndexAssignExpr iaExpr:
+                return ContainsInnerFunction(iaExpr.Target) || ContainsInnerFunction(iaExpr.Index) || ContainsInnerFunction(iaExpr.Value);
+            case MemberAssignExpr maExpr:
+                return ContainsInnerFunction(maExpr.Target) || ContainsInnerFunction(maExpr.Value);
+            case IncrementExpr incExpr:
+                return ContainsInnerFunction(incExpr.Operand);
+            case AwaitExpr awaitExpr:
+                return ContainsInnerFunction(awaitExpr.Expression);
+            case SafeNavigationExpr snExpr:
+                return ContainsInnerFunction(snExpr.Object);
+            case InstanceOfExpr ioExpr:
+                return ContainsInnerFunction(ioExpr.Object);
+            case SpreadExpr spreadExpr:
+                return ContainsInnerFunction(spreadExpr.Operand);
+            case RangeExpr rangeExpr:
+                return ContainsInnerFunction(rangeExpr.Start) || ContainsInnerFunction(rangeExpr.End);
+            case ListExpr listExpr:
+                foreach (var elem in listExpr.Elements)
+                    if (ContainsInnerFunction(elem)) return true;
+                return false;
+            case HashExpr hashExpr:
+                foreach (var pair in hashExpr.Pairs)
+                    if (ContainsInnerFunction(pair.Value)) return true;
+                return false;
+            case StringInterpolationExpr strExpr:
+                foreach (var part in strExpr.Parts)
+                    if (part is Ast.AstNode astPart && ContainsInnerFunction(astPart)) return true;
+                return false;
+            case NewExpr newExpr:
+                foreach (var arg in newExpr.Arguments)
+                    if (ContainsInnerFunction(arg)) return true;
+                return false;
+
+            default:
+                // リテラル、識別子、super、break/continue 等のリーフノード
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// パラメータとローカル変数からスロットマップを構築
+    /// パラメータ → slot 0..N-1、ローカル → slot N..M-1
+    /// </summary>
+    private static (Dictionary<string, int> slotMap, int slotCount) BuildSlotMap(
+        List<Ast.Parameter> parameters, AstExpr body)
+    {
+        var slotMap = new Dictionary<string, int>();
+        int slot = 0;
+
+        // パラメータにスロットを割り当て
+        foreach (var param in parameters)
+        {
+            slotMap[param.Name] = slot++;
+        }
+
+        // ローカル変数にスロットを割り当て
+        var paramNames = parameters.Select(p => p.Name).ToList();
+        var localNames = CollectLocalNames(body, paramNames);
+        foreach (var name in localNames)
+        {
+            slotMap[name] = slot++;
+        }
+
+        return (slotMap, slot);
     }
 
     #endregion

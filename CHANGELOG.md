@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.4] - 2026-02-11
+
+### Changed
+- **パフォーマンス最適化 #1: Dictionary→Array ベーススコープ** (#53)
+  - 関数スコープの変数を `Dictionary<string, object>` から `object[]` 配列アクセスに移行
+  - `ScriptContext.Locals` プロパティ追加（関数スコープ用の配列スロット）
+  - `Closure.SlotCount` プロパティ追加（関数ごとのスロット数管理）
+  - CodeGenerator: `EmitVarAccess()` で配列/Dictionary を自動切替
+  - CodeGenerator: `ContainsInnerFunction()` による保守的最適化判定（内部関数を含む場合はDictionaryにフォールバック）
+  - CodeGenerator: `BuildSlotMap()` でパラメータ＋ローカル変数にスロット割り当て
+  - RuntimeHelpers.Invoke: `SlotCount > 0` の場合、`ctx.Locals` 参照の保存/復元のみ（Dictionary アロケーション削除）
+  - Resolver: `VariableInfo` / `Scope` にスロット関連プロパティ追加（将来の拡張用）
+  - AST ノード: 11種に `ResolvedSlot` / `ResolvedSlotCount` プロパティ追加
+
+### Performance (v0.12.4 vs v0.12.3)
+
+| ベンチマーク | v0.12.3 | v0.12.4 | 改善 | メモリ削減 |
+|---|---|---|---|---|
+| tarai(10,5,0) PreCompiled | 121 ms (334x) | 48 ms (68.6x) | **4.9x 高速化** | 155 MB → 97 MB |
+| fibonacci(30) | 775 ms (224x) | 645 ms (100x) | **2.2x 高速化** | 1.37 GB → 878 MB |
+| loop(10K) | 153 ms (16,950x) | 158 ms (16,070x) | ~同等 | — |
+
+- tarai: Dictionary アロケーション削除で再帰関数が大幅改善
+- fibonacci: メモリ使用量 36% 削減
+- loop: トップレベルスコープは最適化対象外のため変化なし
+
 ## [0.12.3] - 2026-02-11
 
 ### Added

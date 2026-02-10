@@ -26,6 +26,11 @@ public class LambdaExpr : Expression
     public string? ReturnType { get; }
 
     /// <summary>
+    /// 関数スコープ内のスロット総数（パラメータ＋ローカル変数）
+    /// </summary>
+    public int ResolvedSlotCount { get; set; }
+
+    /// <summary>
     /// LambdaExprの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="parameters">パラメータのリスト</param>

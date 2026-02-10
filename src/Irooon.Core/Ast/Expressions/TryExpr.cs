@@ -53,6 +53,11 @@ public class CatchClause
     public Expression Body { get; }
 
     /// <summary>
+    /// 例外変数の配列スロットインデックス（-1 = Dictionary使用）
+    /// </summary>
+    public int ExceptionVariableSlot { get; set; } = -1;
+
+    /// <summary>
     /// CatchClauseの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="exceptionVariable">例外変数名</param>

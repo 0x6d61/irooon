@@ -18,13 +18,25 @@ public class Scope
     public int Depth { get; }
 
     /// <summary>
+    /// 関数/ラムダ/メソッドスコープかどうか
+    /// </summary>
+    public bool IsFunctionScope { get; }
+
+    /// <summary>
+    /// 関数スコープのスロットカウンター（パラメータ＋ローカル変数のインデックス割り当て用）
+    /// </summary>
+    public int FunctionSlotCounter { get; set; }
+
+    /// <summary>
     /// Scopeの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="parent">親スコープ</param>
-    public Scope(Scope? parent)
+    /// <param name="isFunctionScope">関数スコープかどうか</param>
+    public Scope(Scope? parent, bool isFunctionScope = false)
     {
         Parent = parent;
         Depth = parent?.Depth + 1 ?? 0;
+        IsFunctionScope = isFunctionScope;
     }
 
     /// <summary>
@@ -60,5 +72,16 @@ public class Scope
     public bool IsDefined(string name)
     {
         return _variables.ContainsKey(name);
+    }
+
+    /// <summary>
+    /// 親チェーンを辿って最も近い関数スコープを返します。
+    /// 自分自身が関数スコープの場合は自分を返します。
+    /// </summary>
+    /// <returns>関数スコープ（見つからない場合はnull）</returns>
+    public Scope? GetEnclosingFunctionScope()
+    {
+        if (IsFunctionScope) return this;
+        return Parent?.GetEnclosingFunctionScope();
     }
 }

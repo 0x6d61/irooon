@@ -36,6 +36,11 @@ public class MethodDef : AstNode
     public string? ReturnType { get; }
 
     /// <summary>
+    /// メソッドスコープ内のスロット総数（パラメータ＋ローカル変数）
+    /// </summary>
+    public int ResolvedSlotCount { get; set; }
+
+    /// <summary>
     /// MethodDefの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="name">メソッド名</param>
