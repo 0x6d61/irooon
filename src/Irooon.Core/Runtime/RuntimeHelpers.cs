@@ -465,23 +465,21 @@ public static class RuntimeHelpers
                 return task;
             }
 
-            // Closureの場合、変数の保存/復元を行う
-            // SlotCount > 0: 配列スコープ → ctx.Locals の参照を保存/復元するだけ
-            // SlotCount == 0: Dictionary スコープ → パラメータ/ローカルの Dictionary 保存/復元
+            // 呼び出し先が ctx.Locals を上書きする可能性があるため、常に保存する
+            // (BoundMethod 経由の Closure 呼び出しでも ctx.Locals が破壊される)
             Dictionary<string, object>? savedParams = null;
             List<string>? paramNames = null;
             Dictionary<string, object>? savedLocals = null;
             List<string>? localNames = null;
-            object?[]? savedLocalsArray = null;
+            object?[]? savedLocalsArray = ctx.Locals;
             bool useArrayScope = false;
 
             if (callable is Closure closure)
             {
                 if (closure.SlotCount > 0)
                 {
-                    // 配列スコープ: ctx.Locals の参照を保存するだけ（アロケーション不要）
+                    // 配列スコープ: ctx.Locals は上で既に保存済み
                     useArrayScope = true;
-                    savedLocalsArray = ctx.Locals;
                 }
                 else
                 {
@@ -582,12 +580,10 @@ public static class RuntimeHelpers
             }
             finally
             {
-                // 配列スコープの場合: ctx.Locals の参照を復元するだけ
-                if (useArrayScope)
-                {
-                    ctx.Locals = savedLocalsArray;
-                }
-                else
+                // ctx.Locals を常に復元（BoundMethod 経由の呼び出しでも保護される）
+                ctx.Locals = savedLocalsArray;
+
+                if (!useArrayScope)
                 {
                     // パラメータを元の値に復元（または削除）
                     if (savedParams != null && paramNames != null)

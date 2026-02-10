@@ -38,18 +38,42 @@ public class CodeGenerator
 
     /// <summary>
     /// トップレベルのコンパイル
-    /// ASTをFunc&lt;ScriptContext, object&gt;にコンパイルしまぁE
+    /// ASTをFunc&lt;ScriptContext, object&gt;にコンパイルします。
     /// </summary>
     /// <param name="program">プログラム全体を表すBlockExpr</param>
-    /// <returns>実行可能なチE��ゲーチE/returns>
-    public Func<ScriptContext, object?> Compile(BlockExpr program)
+    /// <param name="optimizeTopLevel">トップレベル変数を配列スコープで最適化するか（REPL以外で使用）</param>
+    /// <returns>実行可能なデリゲート</returns>
+    public Func<ScriptContext, object?> Compile(BlockExpr program, bool optimizeTopLevel = false)
     {
-        var bodyExpr = GenerateBlockExpr(program);
-        var lambda = ExprTree.Lambda<Func<ScriptContext, object?>>(
-            bodyExpr,
+        if (optimizeTopLevel && !ContainsInnerFunction(program))
+        {
+            var (slotMap, slotCount) = BuildSlotMap(new List<Ast.Parameter>(), program);
+            if (slotCount > 0)
+            {
+                _currentSlotMap = slotMap;
+
+                var bodyExpr = GenerateBlockExpr(program);
+
+                _currentSlotMap = null;
+
+                // ctx.Locals = new object[slotCount] をブロック先頭に挿入
+                var initLocals = ExprTree.Assign(
+                    ExprTree.Property(_ctxParam, "Locals"),
+                    ExprTree.NewArrayBounds(typeof(object), ExprTree.Constant(slotCount))
+                );
+
+                var fullBody = ExprTree.Block(typeof(object), initLocals, bodyExpr);
+                var lambda = ExprTree.Lambda<Func<ScriptContext, object?>>(fullBody, _ctxParam);
+                return lambda.Compile();
+            }
+        }
+
+        var defaultBody = GenerateBlockExpr(program);
+        var defaultLambda = ExprTree.Lambda<Func<ScriptContext, object?>>(
+            defaultBody,
             _ctxParam
         );
-        return lambda.Compile();
+        return defaultLambda.Compile();
     }
 
     #region 式�E生�E�E�ディスパッチE��E
