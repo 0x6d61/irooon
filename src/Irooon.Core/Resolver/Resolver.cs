@@ -542,6 +542,9 @@ public class Resolver
             case ImportStmt importStmt:
                 ResolveImportStmt(importStmt);
                 break;
+            case AssemblyRefStmt:
+                // アセンブリ参照はスコープ解析不要
+                break;
             default:
                 _errors.Add(new ResolveException(
                     $"Unknown statement type: {stmt.GetType().Name}",

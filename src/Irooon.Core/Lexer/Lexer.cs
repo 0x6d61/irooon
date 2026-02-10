@@ -278,6 +278,11 @@ public class Lexer
                 AddToken(TokenType.Dollar);
                 break;
 
+            // #r ディレクティブ（アセンブリ参照）
+            case '#':
+                ScanDirective();
+                break;
+
             default:
                 if (IsDigit(c))
                 {
@@ -358,6 +363,48 @@ public class Lexer
     private bool IsHexDigit(char c)
     {
         return IsDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    }
+
+    /// <summary>
+    /// #r ディレクティブをスキャンします。
+    /// #r "path/to/assembly.dll"
+    /// </summary>
+    private void ScanDirective()
+    {
+        // # の後に 'r' が続くかチェック
+        if (!IsAtEnd() && Peek() == 'r')
+        {
+            Advance(); // 'r' を消費
+
+            // 空白をスキップ
+            while (!IsAtEnd() && (Peek() == ' ' || Peek() == '\t'))
+            {
+                Advance();
+            }
+
+            // 文字列パスを読み取る
+            if (!IsAtEnd() && Peek() == '"')
+            {
+                Advance(); // '"' を消費
+                var path = new System.Text.StringBuilder();
+                while (!IsAtEnd() && Peek() != '"')
+                {
+                    path.Append(Advance());
+                }
+
+                if (IsAtEnd())
+                {
+                    AddError("Unterminated assembly reference path");
+                    return;
+                }
+
+                Advance(); // closing '"' を消費
+                AddToken(TokenType.AssemblyRef, path.ToString());
+                return;
+            }
+        }
+
+        AddError("Expected 'r' after '#' for assembly reference directive (#r \"path\")");
     }
 
     /// <summary>

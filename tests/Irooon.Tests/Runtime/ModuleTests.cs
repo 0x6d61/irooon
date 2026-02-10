@@ -109,4 +109,41 @@ public class ModuleTests
         var result = ExecuteWithModule(module, "cached.iro", main);
         Assert.Equal(42.0, result);
     }
+
+    [Fact]
+    public void Import_ExportedVar()
+    {
+        var module = @"
+            export var counter = 99
+        ";
+
+        var main = @"
+            import { counter } from ""./state.iro""
+            counter
+        ";
+
+        var result = ExecuteWithModule(module, "state.iro", main);
+        Assert.Equal(99.0, result);
+    }
+
+    [Fact]
+    public void Import_ExportedClass()
+    {
+        var module = @"
+            export class Calculator {
+                fn add(a, b) {
+                    a + b
+                }
+            }
+        ";
+
+        var main = @"
+            import { Calculator } from ""./calc.iro""
+            var c = Calculator()
+            c.add(3, 4)
+        ";
+
+        var result = ExecuteWithModule(module, "calc.iro", main);
+        Assert.Equal(7.0, result);
+    }
 }

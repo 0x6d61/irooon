@@ -1055,4 +1055,50 @@ git push
     }
 
     #endregion
+
+    #region アセンブリ参照ディレクティブ (#r)
+
+    [Fact]
+    public void TestAssemblyRef_Basic()
+    {
+        var lexer = new Core.Lexer.Lexer("#r \"path/to/assembly.dll\"");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count); // AssemblyRef + Eof
+        Assert.Equal(TokenType.AssemblyRef, tokens[0].Type);
+        Assert.Equal("path/to/assembly.dll", tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestAssemblyRef_WithSpaces()
+    {
+        var lexer = new Core.Lexer.Lexer("#r   \"my assembly.dll\"");
+        var tokens = lexer.ScanTokens();
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(TokenType.AssemblyRef, tokens[0].Type);
+        Assert.Equal("my assembly.dll", tokens[0].Value);
+    }
+
+    [Fact]
+    public void TestAssemblyRef_Unterminated()
+    {
+        var lexer = new Core.Lexer.Lexer("#r \"unterminated");
+        var tokens = lexer.ScanTokens();
+
+        // エラーが発生してもEofトークンは生成される
+        Assert.Contains(tokens, t => t.Type == TokenType.Eof);
+    }
+
+    [Fact]
+    public void TestAssemblyRef_InvalidDirective()
+    {
+        var lexer = new Core.Lexer.Lexer("#x \"something\"");
+        var tokens = lexer.ScanTokens();
+
+        // #r 以外はエラー → AssemblyRefトークンは生成されない
+        Assert.DoesNotContain(tokens, t => t.Type == TokenType.AssemblyRef);
+    }
+
+    #endregion
 }

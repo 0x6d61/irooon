@@ -110,6 +110,7 @@ public class CodeGenerator
             ThrowStmt s => GenerateThrowStmt(s),
             ExportStmt s => GenerateExportStmt(s),
             ImportStmt s => GenerateImportStmt(s),
+            AssemblyRefStmt s => GenerateAssemblyRefStmt(s),
             _ => throw new NotImplementedException($"Unknown statement type: {stmt.GetType()}")
         };
     }
@@ -817,8 +818,8 @@ public class CodeGenerator
             // ドット区刁E��の型名をチェチE���E�侁E System.Text.StringBuilder�E�E
             var typeName = identExpr.Name;
 
-            // System で始まる場合、CLR型�Eコンストラクタと判断
-            if (typeName.StartsWith("System."))
+            // ドット区切りの名前をCLR型のコンストラクタとして解決を試みる
+            if (typeName.Contains(".") && RuntimeHelpers.ResolveCLRType(typeName) != null)
             {
                 var argExprsConstructor = expr.Arguments.Select(GenerateExpression).ToArray();
                 var argsArrayConstructor = ExprTree.NewArrayInit(typeof(object), argExprsConstructor);
@@ -915,24 +916,25 @@ public class CodeGenerator
             }
         }
 
-        // System で始まる場合、CLR型とみなぁE
-        if (parts.Count >= 2 && parts[0] == "System")
+        // 任意の名前空間のCLR型を解決（System制限なし）
+        if (parts.Count >= 2)
         {
-            // 型名全体を構築して確誁E
+            // 全体を型名として解決を試みる（コンストラクタ呼び出し）
             var fullTypeName = string.Join(".", parts);
-
-            // 型が解決できるかチェチE��
             var resolvedType = RuntimeHelpers.ResolveCLRType(fullTypeName);
             if (resolvedType != null)
             {
-                // コンストラクタ呼び出し（型名�E体で解決できた場合！E
                 return (true, fullTypeName, "");
             }
 
-            // 最後�E要素がメソチE��吁E
+            // 最後の要素をメソッド名として、残りを型名として解決を試みる
             var methodName = parts[^1];
             var typeName = string.Join(".", parts.Take(parts.Count - 1));
-            return (true, typeName, methodName);
+            resolvedType = RuntimeHelpers.ResolveCLRType(typeName);
+            if (resolvedType != null)
+            {
+                return (true, typeName, methodName);
+            }
         }
 
         return (false, "", "");
@@ -1814,6 +1816,14 @@ public class CodeGenerator
         {
             exportName = funcDef.Name;
         }
+        else if (stmt.Declaration is VarStmt varStmt)
+        {
+            exportName = varStmt.Name;
+        }
+        else if (stmt.Declaration is ClassDef classDef)
+        {
+            exportName = classDef.Name;
+        }
         else
         {
             throw new NotImplementedException($"Export of {stmt.Declaration.GetType().Name} is not supported");
@@ -1856,7 +1866,21 @@ public class CodeGenerator
     }
 
     /// <summary>
-    /// シェルコマンド実行式を生�EしまぁE
+    /// アセンブリ参照ディレクティブの変換
+    /// #r "path/to/assembly.dll" → RuntimeHelpers.LoadAssembly(path)
+    /// </summary>
+    private ExprTree GenerateAssemblyRefStmt(AssemblyRefStmt stmt)
+    {
+        return ExprTree.Call(
+            typeof(RuntimeHelpers),
+            nameof(RuntimeHelpers.LoadAssembly),
+            null,
+            ExprTree.Constant(stmt.AssemblyPath)
+        );
+    }
+
+    /// <summary>
+    /// シェルコマンド実行式の生成
     /// </summary>
     private ExprTree GenerateShellExpr(ShellExpr expr)
     {

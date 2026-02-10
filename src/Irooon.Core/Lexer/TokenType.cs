@@ -94,6 +94,9 @@ public enum TokenType
     Dollar,         // $
     Backtick,       // `
 
+    // ディレクティブ
+    AssemblyRef,    // #r "path"
+
     // 特殊
     Newline,        // 改行（パーサーで必要な場合）
     Eof,            // End of File
