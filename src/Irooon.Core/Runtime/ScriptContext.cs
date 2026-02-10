@@ -51,6 +51,22 @@ public class ScriptContext
     }
 
     /// <summary>
+    /// コンテキストのクローンを作成する（async関数のスコープ分離用）
+    /// Globals はシャローコピー、Classes/Prototypes は参照共有
+    /// </summary>
+    public ScriptContext Clone()
+    {
+        var clone = new ScriptContext();
+        foreach (var kv in Globals)
+            clone.Globals[kv.Key] = kv.Value;
+        foreach (var kv in Classes)
+            clone.Classes[kv.Key] = kv.Value;
+        foreach (var kv in Prototypes)
+            clone.Prototypes[kv.Key] = kv.Value;
+        return clone;
+    }
+
+    /// <summary>
     /// 標準ライブラリを初期化する（ScriptEngine経由で一度だけ呼ばれる）
     /// </summary>
     public void InitializeStdlib(Action<string, ScriptContext> executeFunc)
@@ -95,6 +111,10 @@ public class ScriptContext
 
         // 型チェック
         Globals["typeof"] = new BuiltinFunction("typeof", RuntimeHelpers.__typeOf);
+
+        // 非同期ユーティリティ
+        Globals["delay"] = new BuiltinFunction("delay", RuntimeHelpers.Delay);
+        Globals["awaitAll"] = new BuiltinFunction("awaitAll", RuntimeHelpers.AwaitAll);
 
         // 低レベルプリミティブ（stdlib.iro の基盤）
         Globals["__stringLength"] = new BuiltinFunction("__stringLength", RuntimeHelpers.__stringLength);

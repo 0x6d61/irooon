@@ -416,6 +416,14 @@ public static class RuntimeHelpers
 
         if (callee is IroCallable callable)
         {
+            // async 関数の場合: コンテキストをクローンして Task.Run で並行実行
+            if (callable is Closure asyncClosure && asyncClosure.IsAsync)
+            {
+                var clonedCtx = ctx.Clone();
+                var task = System.Threading.Tasks.Task.Run<object>(() => asyncClosure.Invoke(clonedCtx, args));
+                return task;
+            }
+
             // Closureの場合、パラメータ名とローカル変数名を保存/復元する
             // これにより、再帰呼び出しでパラメータやローカル変数が上書きされるのを防ぐ
             Dictionary<string, object>? savedParams = null;
@@ -1620,30 +1628,81 @@ public static class RuntimeHelpers
         if (taskObj == null)
             throw new RuntimeException("Cannot await null");
 
-        // Task<object>の場合
+        // Task<object> の場合（irooon async fn の戻り値）
         if (taskObj is System.Threading.Tasks.Task<object> taskOfObject)
         {
-            taskOfObject.Wait();
-            return taskOfObject.Result;
+            return taskOfObject.GetAwaiter().GetResult();
         }
 
-        // Taskの場合（結果なし）
+        // CLR Task<T> または void Task の場合
         if (taskObj is System.Threading.Tasks.Task task)
         {
-            task.Wait();
-            return null;
+            var taskType = task.GetType();
+            if (taskType.IsGenericType)
+            {
+                // Task<T> — リフレクションで Result を取得
+                task.GetAwaiter().GetResult();
+                var resultProp = taskType.GetProperty("Result");
+                return resultProp?.GetValue(task)!;
+            }
+            // void Task
+            task.GetAwaiter().GetResult();
+            return null!;
         }
 
-        // Taskでない場合はそのまま返す（同期的な値）
+        // Task でない場合はそのまま返す（同期的な値）
         return taskObj;
     }
 
     /// <summary>
-    /// 値をTask<object>でラップする
+    /// 指定ミリ秒後に完了する Task を返す
     /// </summary>
-    public static System.Threading.Tasks.Task<object> WrapInTask(object value)
+    public static object Delay(ScriptContext ctx, object[] args)
     {
-        return System.Threading.Tasks.Task.FromResult(value);
+        var ms = Convert.ToInt32(args.Length > 0 ? args[0] : 0);
+        return System.Threading.Tasks.Task.Run<object>(async () =>
+        {
+            await System.Threading.Tasks.Task.Delay(ms);
+            return null!;
+        });
+    }
+
+    /// <summary>
+    /// 全 Task の完了を待ち、結果リストを返す
+    /// </summary>
+    public static object AwaitAll(ScriptContext ctx, object[] args)
+    {
+        var taskList = args.Length > 0 ? args[0] as List<object> : null;
+        if (taskList == null)
+            throw new RuntimeException("awaitAll expects a list of tasks");
+
+        var tasks = taskList.Select(t =>
+        {
+            if (t is System.Threading.Tasks.Task<object> typed)
+                return typed;
+            if (t is System.Threading.Tasks.Task untyped)
+            {
+                var tType = untyped.GetType();
+                if (tType.IsGenericType)
+                {
+                    return System.Threading.Tasks.Task.Run<object>(() =>
+                    {
+                        untyped.GetAwaiter().GetResult();
+                        var resultProp = tType.GetProperty("Result");
+                        return resultProp?.GetValue(untyped)!;
+                    });
+                }
+                return System.Threading.Tasks.Task.Run<object>(() =>
+                {
+                    untyped.GetAwaiter().GetResult();
+                    return null!;
+                });
+            }
+            return System.Threading.Tasks.Task.FromResult(t);
+        }).ToArray();
+
+        System.Threading.Tasks.Task.WaitAll(tasks);
+        return new List<object>(tasks.Select(t => t.Result!));
     }
 
     /// <summary>
