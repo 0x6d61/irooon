@@ -48,8 +48,8 @@ public class Parser
             // fn の後が ( ならラムダ式（式として扱う）
             bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
 
-            // async fn は常に文として扱う
-            bool isAsyncFunctionDef = Check(TokenType.Async);
+            // async fn は文として扱う（async lambda は式）
+            bool isAsyncFunctionDef = Check(TokenType.Async) && PeekNext().Type == TokenType.Fn;
 
             // 文をパース（async fn, 関数定義、クラス定義、変数宣言、モジュール）
             if (isAsyncFunctionDef || isFunctionDef || Check(TokenType.Class) || Check(TokenType.Let) || Check(TokenType.Var) || Check(TokenType.For) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Export) || Check(TokenType.Import) || Check(TokenType.AssemblyRef))
@@ -544,6 +544,13 @@ public class Parser
     /// </summary>
     private Expression Primary()
     {
+        // async lambda: async (params) => expr / async x => expr
+        if (Check(TokenType.Async) && PeekNext().Type != TokenType.Fn)
+        {
+            Advance(); // async を消費
+            return AsyncLambdaExpression();
+        }
+
         // ラムダ式: fn (params) { body }
         if (Match(TokenType.Fn))
         {
@@ -682,7 +689,7 @@ public class Parser
     /// 括弧の後にアロー関数パターンかどうかを判定します。
     /// '(' は既に消費済みの状態で呼ばれます。
     /// </summary>
-    private bool TryParseArrowFunction(out Expression? result)
+    private bool TryParseArrowFunction(out Expression? result, bool isAsync = false)
     {
         result = null;
         int savedPosition = _current;
@@ -743,7 +750,7 @@ public class Parser
             body = Expression();
         }
 
-        result = new LambdaExpr(parameters, body, line, column);
+        result = new LambdaExpr(parameters, body, line, column, isAsync: isAsync);
         return true;
     }
 
@@ -765,8 +772,8 @@ public class Parser
             // fn の後が ( ならラムダ式（式として扱う）
             bool isFunctionDef = Check(TokenType.Fn) && PeekNext().Type != TokenType.LeftParen;
 
-            // async fn は常に文として扱う
-            bool isAsyncFunctionDef = Check(TokenType.Async);
+            // async fn は文として扱う（async lambda は式）
+            bool isAsyncFunctionDef = Check(TokenType.Async) && PeekNext().Type == TokenType.Fn;
 
             // 文の場合（async fn, fn, class, for, foreach, break, continue, return, throw, let, var）
             if (isAsyncFunctionDef || isFunctionDef || Check(TokenType.Class) || Check(TokenType.For) || Check(TokenType.Foreach) || Check(TokenType.Break) || Check(TokenType.Continue) || Check(TokenType.Return) || Check(TokenType.Throw) || Check(TokenType.Let) || Check(TokenType.Var))
@@ -1413,6 +1420,50 @@ public class Parser
         var body = BlockExpression();
 
         return new LambdaExpr(parameters, body, fnToken.Line, fnToken.Column);
+    }
+
+    /// <summary>
+    /// async lambda 式をパースします。
+    /// async (params) => expr / async (params) => { body } / async x => expr
+    /// 'async' は既に消費済みの状態で呼ばれます。
+    /// </summary>
+    private Expression AsyncLambdaExpression()
+    {
+        var asyncToken = Previous();
+        int line = asyncToken.Line;
+        int col = asyncToken.Column;
+
+        // async (params) => expr/block
+        if (Check(TokenType.LeftParen))
+        {
+            Advance(); // '(' を消費（TryParseArrowFunction は '(' 消費済み前提）
+            if (TryParseArrowFunction(out var arrowExpr, isAsync: true))
+            {
+                return arrowExpr!;
+            }
+            throw Error(Peek(), "Expected '=>' after async lambda parameters.");
+        }
+
+        // async x => expr（単一パラメータ）
+        if (Check(TokenType.Identifier))
+        {
+            var token = Advance();
+            Consume(TokenType.Arrow, "Expect '=>' after async lambda parameter.");
+            var param = new Parameter(token.Lexeme, token.Line, token.Column);
+            Expression body;
+            if (Check(TokenType.LeftBrace))
+            {
+                Advance();
+                body = BlockOrHashExpression();
+            }
+            else
+            {
+                body = Expression();
+            }
+            return new LambdaExpr(new List<Parameter> { param }, body, line, col, isAsync: true);
+        }
+
+        throw Error(Peek(), "Expected '(' or identifier after 'async'.");
     }
 
     /// <summary>

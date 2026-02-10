@@ -864,6 +864,18 @@ async fn fetchData() {
 - async 関数はクローンされたスコープで実行される（呼び出し元に副作用なし）
 - CLR の `Task<T>` も直接 `await` 可能
 
+### async lambda
+
+```iro
+let f = async (x) => x * 2
+let g = async (x, y) => { x + y }
+let h = async x => x + 1
+let i = async () => 42
+
+await f(5)    // 10
+await h(41)   // 42
+```
+
 ### ビルトイン非同期ユーティリティ
 
 ```iro
