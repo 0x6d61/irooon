@@ -482,4 +482,79 @@ public class CodeGenClassTests
     }
 
     #endregion
+
+    #region スタティックメソッド呼び出しテスト
+
+    [Fact]
+    public void TestStaticMethod_SimpleCall()
+    {
+        var source = @"
+        class Calculator {
+            public static fn add(a, b) {
+                a + b
+            }
+        }
+        Calculator.add(3, 4)
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(7.0, result);
+    }
+
+    [Fact]
+    public void TestStaticMethod_NoArgs()
+    {
+        var source = @"
+        class Factory {
+            public static fn create() {
+                42
+            }
+        }
+        Factory.create()
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(42.0, result);
+    }
+
+    [Fact]
+    public void TestStaticMethod_WithInstanceMethods()
+    {
+        var source = @"
+        class Counter {
+            public var value = 0
+
+            public static fn create(initial) {
+                let c = Counter()
+                c.value = initial
+                c
+            }
+
+            public fn getValue() {
+                value
+            }
+        }
+        let c = Counter.create(10)
+        c.getValue()
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal(10.0, result);
+    }
+
+    [Fact]
+    public void TestStaticMethod_Inherited()
+    {
+        var source = @"
+        class Base {
+            public static fn greet() {
+                ""hello""
+            }
+        }
+        class Child extends Base {
+        }
+        Child.greet()
+        ";
+        var result = CompileAndRun(source);
+        Assert.Equal("hello", result);
+    }
+
+    #endregion
 }

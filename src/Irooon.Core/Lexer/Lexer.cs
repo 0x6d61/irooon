@@ -47,6 +47,7 @@ public class Lexer
         { "export", TokenType.Export },
         { "from", TokenType.From },
         { "match", TokenType.Match },
+        { "instanceof", TokenType.InstanceOf },
         { "true", TokenType.True },
         { "false", TokenType.False },
         { "null", TokenType.Null },

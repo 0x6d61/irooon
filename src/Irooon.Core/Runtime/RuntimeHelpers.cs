@@ -653,6 +653,13 @@ public static class RuntimeHelpers
             throw new InvalidOperationException($"Member '{name}' not found on CLR type {type.Name}");
         }
 
+        if (target is IroClass iroClass)
+        {
+            var staticMethod = iroClass.GetStaticMethod(name);
+            if (staticMethod != null) return staticMethod;
+            throw new RuntimeException($"Static member '{name}' not found on class '{iroClass.Name}'");
+        }
+
         if (target is IroInstance instance)
         {
             // フィールドを優先
@@ -1800,10 +1807,28 @@ public static class RuntimeHelpers
     /// <summary>
     /// オブジェクトの型名を返す
     /// </summary>
+    /// <summary>
+    /// instanceof 演算子の実装。継承チェーンを辿ってクラスの一致を確認する。
+    /// </summary>
+    public static object IsInstanceOf(object obj, string className, ScriptContext ctx)
+    {
+        if (obj is not IroInstance instance) return false;
+        if (!ctx.Classes.TryGetValue(className, out var targetClass))
+            throw new RuntimeException($"Class '{className}' not found");
+
+        var current = instance.Class;
+        while (current != null)
+        {
+            if (current.Name == targetClass.Name) return true;
+            current = current.Parent;
+        }
+        return false;
+    }
+
     public static object __typeOf(params object[] args)
     {
         if (args.Length != 1)
-            throw new RuntimeException("__typeOf requires one argument");
+            throw new RuntimeException("typeof requires one argument");
         return args[0] switch
         {
             null => "Null",
@@ -1813,6 +1838,8 @@ public static class RuntimeHelpers
             List<object> => "List",
             Dictionary<string, object> => "Hash",
             IroInstance inst => inst.Class.Name,
+            IroClass => "Class",
+            IroCallable => "Function",
             _ => args[0].GetType().Name
         };
     }

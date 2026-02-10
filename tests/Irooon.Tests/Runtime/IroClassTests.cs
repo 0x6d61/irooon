@@ -149,6 +149,43 @@ public class IroClassTests
         Assert.False(field.IsStatic); // v0.1ではstaticフィールド未対応
     }
 
+    #region GetStaticMethod テスト
+
+    [Fact]
+    public void IroClass_GetStaticMethod_自クラスのスタティックメソッドを取得できる()
+    {
+        var method = new TestCallable();
+        var methodDef = new MethodDef("create", isPublic: true, isStatic: true, method);
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), new[] { methodDef });
+
+        var result = iroClass.GetStaticMethod("create");
+        Assert.NotNull(result);
+        Assert.Equal(method, result);
+    }
+
+    [Fact]
+    public void IroClass_GetStaticMethod_親クラスのスタティックメソッドを取得できる()
+    {
+        var method = new TestCallable();
+        var parentMethodDef = new MethodDef("create", isPublic: true, isStatic: true, method);
+        var parent = new IroClass("Parent", Array.Empty<FieldDef>(), new[] { parentMethodDef });
+        var child = new IroClass("Child", Array.Empty<FieldDef>(), Array.Empty<MethodDef>(), parent);
+
+        var result = child.GetStaticMethod("create");
+        Assert.NotNull(result);
+        Assert.Equal(method, result);
+    }
+
+    [Fact]
+    public void IroClass_GetStaticMethod_存在しないメソッドはnullを返す()
+    {
+        var iroClass = new IroClass("TestClass", Array.Empty<FieldDef>(), Array.Empty<MethodDef>());
+        var result = iroClass.GetStaticMethod("nonExistent");
+        Assert.Null(result);
+    }
+
+    #endregion
+
     // テスト用のIroCallable実装
     private class TestCallable : IroCallable
     {

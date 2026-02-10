@@ -180,7 +180,7 @@ public class MathAndInputTests
         // input関数がグローバルに登録されていることを確認
         var engine = CreateEngine();
         var result = engine.Execute(@"__typeOf(input)");
-        Assert.Equal("BuiltinFunction", result);
+        Assert.Equal("Function", result);
     }
 
     #endregion
