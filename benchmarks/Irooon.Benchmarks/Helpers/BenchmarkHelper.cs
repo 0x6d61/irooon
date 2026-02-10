@@ -19,7 +19,7 @@ public static class BenchmarkHelper
         var resolver = new Irooon.Core.Resolver.Resolver();
         resolver.Resolve(ast);
         var generator = new CodeGenerator();
-        var compiled = generator.Compile(ast);
+        var compiled = generator.Compile(ast, optimizeTopLevel: true);
         var ctx = new ScriptContext();
         return (compiled, ctx);
     }

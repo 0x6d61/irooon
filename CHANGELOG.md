@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.6] - 2026-02-11
+
+### Changed
+- **パフォーマンス最適化 #3: トップレベルスコープ Array 最適化** (#57)
+  - CodeGenerator: `Compile(ast, optimizeTopLevel)` パラメータ追加
+  - トップレベル let/var 変数を `ctx.Locals[]` 配列アクセスに最適化（内部関数がない場合）
+  - ScriptEngine: ワンショット実行（`Execute(string)`）で自動的に `optimizeTopLevel: true` を適用
+  - REPL は `optimizeTopLevel: false`（変数がセッション間で `ctx.Globals` に永続化されるため）
+  - BenchmarkHelper: PreCompile で `optimizeTopLevel: true` を適用
+  - RuntimeHelpers.Invoke: `ctx.Locals` を常に保存/復元（BoundMethod 経由の Closure 呼び出しでも Locals が破壊されない）
+  - LoopBenchmark: PreCompiled バリアント追加（コンパイルコスト vs ランタイムコスト分離）
+
+### Performance (v0.12.6 vs v0.12.5)
+
+| ベンチマーク | v0.12.5 | v0.12.6 | 改善 |
+|---|---|---|---|
+| loop(10K) PreCompiled | — (計測なし) | **385 μs** (C# 比 42x) | フルパイプライン 91ms → 純粋ランタイム **385μs** |
+| tarai(10,5,0) PreCompiled | 63 ms | **38 ms** | **1.66x 高速化** |
+| fibonacci(30) | 410 ms | **331 ms** | **1.24x 高速化** |
+
+- loop: Dictionary→Array 最適化がトップレベル変数に適用され、ランタイム性能が劇的改善
+- tarai/fibonacci: `ctx.Locals` 保存/復元の安定化による間接的な改善
+
+### 累積パフォーマンス改善 (v0.12.3 → v0.12.6)
+
+| ベンチマーク | v0.12.3 | v0.12.6 | 改善 |
+|---|---|---|---|
+| loop(10K) PreCompiled | — | **385 μs (42x)** | 16,950x → **42x** |
+| tarai(10,5,0) PreCompiled | 121 ms (334x) | **38 ms (91x)** | **3.2x 高速化** |
+| fibonacci(30) | 775 ms (224x) | **331 ms (95x)** | **2.3x 高速化** |
+
 ## [0.12.5] - 2026-02-11
 
 ### Changed

@@ -22,7 +22,7 @@ public class ScriptEngine
         var context = new ScriptContext();
         context.InitializeStdlib((code, ctx) => Execute(code, ctx));
         context.ModuleLoader = new ModuleLoader((code, ctx) => Execute(code, ctx));
-        return Execute(source, context);
+        return Execute(source, context, optimizeTopLevel: true);
     }
 
     /// <summary>
@@ -31,7 +31,7 @@ public class ScriptEngine
     /// <param name="source">ソースコード</param>
     /// <param name="context">スクリプトコンテキスト</param>
     /// <returns>実行結果</returns>
-    public object? Execute(string source, ScriptContext context)
+    public object? Execute(string source, ScriptContext context, bool optimizeTopLevel = false)
     {
         try
         {
@@ -64,7 +64,7 @@ public class ScriptEngine
 
             // 4. CodeGen: ExpressionTree生成とコンパイル
             var generator = new CodeGenerator();
-            var compiled = generator.Compile(ast);
+            var compiled = generator.Compile(ast, optimizeTopLevel);
 
             // 5. 実行
             return compiled(context);
