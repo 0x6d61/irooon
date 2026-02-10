@@ -9,6 +9,16 @@ public static class RuntimeHelpers
     // CLR型解決のキャッシュ
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Type?> _typeCache = new();
 
+    /// <summary>
+    /// キャッシュされた boxed true（比較演算の boxing 回避用）
+    /// </summary>
+    public static readonly object BoxedTrue = true;
+
+    /// <summary>
+    /// キャッシュされた boxed false（比較演算の boxing 回避用）
+    /// </summary>
+    public static readonly object BoxedFalse = false;
+
     #region Truthy Evaluation
 
     /// <summary>
@@ -70,6 +80,9 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Add(object a, object b, ScriptContext? ctx = null)
     {
+        if (a is double da && b is double db)
+            return da + db;
+
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot add null values");
 
@@ -80,9 +93,7 @@ public static class RuntimeHelpers
         if (a is string || b is string)
             return a.ToString() + b.ToString();
 
-        double da = Convert.ToDouble(a);
-        double db = Convert.ToDouble(b);
-        return da + db;
+        return Convert.ToDouble(a) + Convert.ToDouble(b);
     }
 
     /// <summary>
@@ -90,15 +101,16 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Sub(object a, object b, ScriptContext? ctx = null)
     {
+        if (a is double da && b is double db)
+            return da - db;
+
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot subtract null values");
 
         if (ctx != null && TryCallMagicMethod(a, "__sub__", new[] { b }, ctx, out var result))
             return result;
 
-        double da = Convert.ToDouble(a);
-        double db = Convert.ToDouble(b);
-        return da - db;
+        return Convert.ToDouble(a) - Convert.ToDouble(b);
     }
 
     /// <summary>
@@ -106,15 +118,16 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Mul(object a, object b, ScriptContext? ctx = null)
     {
+        if (a is double da && b is double db)
+            return da * db;
+
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot multiply null values");
 
         if (ctx != null && TryCallMagicMethod(a, "__mul__", new[] { b }, ctx, out var result))
             return result;
 
-        double da = Convert.ToDouble(a);
-        double db = Convert.ToDouble(b);
-        return da * db;
+        return Convert.ToDouble(a) * Convert.ToDouble(b);
     }
 
     /// <summary>
@@ -122,19 +135,26 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Div(object a, object b, ScriptContext? ctx = null)
     {
+        if (a is double da && b is double db)
+        {
+            if (db == 0.0)
+                throw new DivideByZeroException("Division by zero");
+            return da / db;
+        }
+
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot divide null values");
 
         if (ctx != null && TryCallMagicMethod(a, "__div__", new[] { b }, ctx, out var result))
             return result;
 
-        double da = Convert.ToDouble(a);
-        double db = Convert.ToDouble(b);
+        double da2 = Convert.ToDouble(a);
+        double db2 = Convert.ToDouble(b);
 
-        if (db == 0.0)
+        if (db2 == 0.0)
             throw new DivideByZeroException("Division by zero");
 
-        return da / db;
+        return da2 / db2;
     }
 
     /// <summary>
@@ -142,19 +162,23 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Mod(object a, object b, ScriptContext? ctx = null)
     {
+        if (a is double da && b is double db)
+            return da % db;
+
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot modulo null values");
 
         if (ctx != null && TryCallMagicMethod(a, "__mod__", new[] { b }, ctx, out var result))
             return result;
 
-        double da = Convert.ToDouble(a);
-        double db = Convert.ToDouble(b);
-        return da % db;
+        return Convert.ToDouble(a) % Convert.ToDouble(b);
     }
 
     public static object Power(object a, object b, ScriptContext? ctx = null)
     {
+        if (a is double da && b is double db)
+            return Math.Pow(da, db);
+
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot exponentiate null values");
 
@@ -211,6 +235,9 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Negate(object value, ScriptContext? ctx = null)
     {
+        if (value is double d)
+            return -d;
+
         if (value == null)
             throw new InvalidOperationException("Cannot negate null value");
 
@@ -225,11 +252,13 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Increment(object value)
     {
+        if (value is double d)
+            return d + 1.0;
+
         if (value == null)
             throw new InvalidOperationException("Cannot increment null value");
 
-        double d = Convert.ToDouble(value);
-        return d + 1.0;
+        return Convert.ToDouble(value) + 1.0;
     }
 
     /// <summary>
@@ -237,11 +266,13 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Decrement(object value)
     {
+        if (value is double d)
+            return d - 1.0;
+
         if (value == null)
             throw new InvalidOperationException("Cannot decrement null value");
 
-        double d = Convert.ToDouble(value);
-        return d - 1.0;
+        return Convert.ToDouble(value) - 1.0;
     }
 
     #endregion
@@ -253,6 +284,9 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Eq(object a, object b, ScriptContext? ctx = null)
     {
+        if (a is double da && b is double db)
+            return da == db ? BoxedTrue : BoxedFalse;
+
         if (ctx != null && a is IroInstance)
         {
             if (TryCallMagicMethod(a, "__eq__", new[] { b }, ctx, out var result))
@@ -260,34 +294,34 @@ public static class RuntimeHelpers
         }
 
         if (a == null && b == null)
-            return true;
+            return BoxedTrue;
 
         if (a == null || b == null)
-            return false;
+            return BoxedFalse;
 
         // 同一型の場合は型固有の比較
         if (a is string sa && b is string sb)
-            return sa == sb;
+            return sa == sb ? BoxedTrue : BoxedFalse;
 
         if (a is bool ba && b is bool bb)
-            return ba == bb;
+            return ba == bb ? BoxedTrue : BoxedFalse;
 
         // 数値比較（IConvertible実装型のみ）
         if (a is IConvertible && b is IConvertible)
         {
             try
             {
-                double da = Convert.ToDouble(a);
-                double db = Convert.ToDouble(b);
-                return da == db;
+                double da2 = Convert.ToDouble(a);
+                double db2 = Convert.ToDouble(b);
+                return da2 == db2 ? BoxedTrue : BoxedFalse;
             }
             catch (FormatException)
             {
-                return a.Equals(b);
+                return a.Equals(b) ? BoxedTrue : BoxedFalse;
             }
         }
 
-        return a.Equals(b);
+        return a.Equals(b) ? BoxedTrue : BoxedFalse;
     }
 
     /// <summary>
@@ -295,9 +329,12 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Ne(object a, object b, ScriptContext? ctx = null)
     {
+        if (a is double da && b is double db)
+            return da != db ? BoxedTrue : BoxedFalse;
+
         if (ctx != null && TryCallMagicMethod(a, "__ne__", new[] { b }, ctx, out var result))
             return result;
-        return !(bool)Eq(a, b, ctx);
+        return !(bool)Eq(a, b, ctx) ? BoxedTrue : BoxedFalse;
     }
 
     /// <summary>
@@ -305,6 +342,9 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Lt(object a, object b, ScriptContext? ctx = null)
     {
+        if (a is double da && b is double db)
+            return da < db ? BoxedTrue : BoxedFalse;
+
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot compare null values");
 
@@ -312,14 +352,12 @@ public static class RuntimeHelpers
             return result;
 
         if (a is string sa && b is string sb)
-            return string.Compare(sa, sb, StringComparison.Ordinal) < 0;
+            return string.Compare(sa, sb, StringComparison.Ordinal) < 0 ? BoxedTrue : BoxedFalse;
 
         if (a is not IConvertible || b is not IConvertible)
             throw new RuntimeException($"Cannot compare {a.GetType().Name} and {b.GetType().Name}");
 
-        double da = Convert.ToDouble(a);
-        double db = Convert.ToDouble(b);
-        return da < db;
+        return Convert.ToDouble(a) < Convert.ToDouble(b) ? BoxedTrue : BoxedFalse;
     }
 
     /// <summary>
@@ -327,6 +365,9 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Le(object a, object b, ScriptContext? ctx = null)
     {
+        if (a is double da && b is double db)
+            return da <= db ? BoxedTrue : BoxedFalse;
+
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot compare null values");
 
@@ -334,14 +375,12 @@ public static class RuntimeHelpers
             return result;
 
         if (a is string sa && b is string sb)
-            return string.Compare(sa, sb, StringComparison.Ordinal) <= 0;
+            return string.Compare(sa, sb, StringComparison.Ordinal) <= 0 ? BoxedTrue : BoxedFalse;
 
         if (a is not IConvertible || b is not IConvertible)
             throw new RuntimeException($"Cannot compare {a.GetType().Name} and {b.GetType().Name}");
 
-        double da = Convert.ToDouble(a);
-        double db = Convert.ToDouble(b);
-        return da <= db;
+        return Convert.ToDouble(a) <= Convert.ToDouble(b) ? BoxedTrue : BoxedFalse;
     }
 
     /// <summary>
@@ -349,6 +388,9 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Gt(object a, object b, ScriptContext? ctx = null)
     {
+        if (a is double da && b is double db)
+            return da > db ? BoxedTrue : BoxedFalse;
+
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot compare null values");
 
@@ -356,14 +398,12 @@ public static class RuntimeHelpers
             return result;
 
         if (a is string sa && b is string sb)
-            return string.Compare(sa, sb, StringComparison.Ordinal) > 0;
+            return string.Compare(sa, sb, StringComparison.Ordinal) > 0 ? BoxedTrue : BoxedFalse;
 
         if (a is not IConvertible || b is not IConvertible)
             throw new RuntimeException($"Cannot compare {a.GetType().Name} and {b.GetType().Name}");
 
-        double da = Convert.ToDouble(a);
-        double db = Convert.ToDouble(b);
-        return da > db;
+        return Convert.ToDouble(a) > Convert.ToDouble(b) ? BoxedTrue : BoxedFalse;
     }
 
     /// <summary>
@@ -371,6 +411,9 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Ge(object a, object b, ScriptContext? ctx = null)
     {
+        if (a is double da && b is double db)
+            return da >= db ? BoxedTrue : BoxedFalse;
+
         if (a == null || b == null)
             throw new InvalidOperationException("Cannot compare null values");
 
@@ -378,14 +421,12 @@ public static class RuntimeHelpers
             return result;
 
         if (a is string sa && b is string sb)
-            return string.Compare(sa, sb, StringComparison.Ordinal) >= 0;
+            return string.Compare(sa, sb, StringComparison.Ordinal) >= 0 ? BoxedTrue : BoxedFalse;
 
         if (a is not IConvertible || b is not IConvertible)
             throw new RuntimeException($"Cannot compare {a.GetType().Name} and {b.GetType().Name}");
 
-        double da = Convert.ToDouble(a);
-        double db = Convert.ToDouble(b);
-        return da >= db;
+        return Convert.ToDouble(a) >= Convert.ToDouble(b) ? BoxedTrue : BoxedFalse;
     }
 
     #endregion
@@ -397,7 +438,7 @@ public static class RuntimeHelpers
     /// </summary>
     public static object Not(object? v)
     {
-        return !IsTruthy(v);
+        return IsTruthy(v) ? BoxedFalse : BoxedTrue;
     }
 
     #endregion

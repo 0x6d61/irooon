@@ -65,34 +65,6 @@ public static class CallStack
 
 /// <summary>
 /// 関数呼び出しの情報を保持します。
+/// 値型（struct）としてスタックに直接格納され、ヒープアロケーションを回避します。
 /// </summary>
-public class CallFrame
-{
-    /// <summary>
-    /// 関数名
-    /// </summary>
-    public string FunctionName { get; }
-
-    /// <summary>
-    /// 行番号
-    /// </summary>
-    public int Line { get; }
-
-    /// <summary>
-    /// 列番号
-    /// </summary>
-    public int Column { get; }
-
-    /// <summary>
-    /// CallFrameの新しいインスタンスを初期化します。
-    /// </summary>
-    /// <param name="functionName">関数名</param>
-    /// <param name="line">行番号</param>
-    /// <param name="column">列番号</param>
-    public CallFrame(string functionName, int line, int column)
-    {
-        FunctionName = functionName;
-        Line = line;
-        Column = column;
-    }
-}
+public readonly record struct CallFrame(string FunctionName, int Line, int Column);

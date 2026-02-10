@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.5] - 2026-02-11
+
+### Changed
+- **パフォーマンス最適化 #2: Double Fast Path + Boolean Caching + CallFrame struct 化** (#55)
+  - RuntimeHelpers: 算術演算（Add/Sub/Mul/Div/Mod/Power）に `if (a is double)` fast path を追加
+  - RuntimeHelpers: 比較演算（Lt/Le/Gt/Ge/Eq/Ne）に double fast path + `BoxedTrue`/`BoxedFalse` キャッシュ
+  - RuntimeHelpers: 単項演算（Increment/Decrement/Negate）に double fast path
+  - RuntimeHelpers: `Not` メソッドに `BoxedTrue`/`BoxedFalse` 適用
+  - CallFrame: `class` → `readonly record struct` に変更（関数呼び出しのヒープアロケーション削減）
+
+### Performance (v0.12.5 vs v0.12.4)
+
+| ベンチマーク | v0.12.4 | v0.12.5 | 改善 | メモリ削減 |
+|---|---|---|---|---|
+| tarai(10,5,0) PreCompiled | 48 ms (97 MB) | 63 ms (56 MB) | メモリ **42% 削減** | 97 MB → 56 MB |
+| fibonacci(30) | 645 ms (878 MB) | 410 ms (511 MB) | **1.57x 高速化** | 878 MB → 511 MB |
+| loop(10K) | 158 ms (8.3 MB) | 91 ms (5.8 MB) | **1.74x 高速化** | 8.3 MB → 5.8 MB |
+
+- fibonacci: Convert.ToDouble() 回避 + bool boxing 削減で大幅改善
+- loop: トップレベルの算術/比較が fast path に乗り大幅改善
+- tarai: タイミング分散大だがメモリアロケーション42%削減
+
 ## [0.12.4] - 2026-02-11
 
 ### Changed
