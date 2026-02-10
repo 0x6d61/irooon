@@ -34,6 +34,7 @@ public class Resolver
     {
         _currentScope.Define("print", new VariableInfo("print", isReadOnly: true, _currentScope.Depth));
         _currentScope.Define("println", new VariableInfo("println", isReadOnly: true, _currentScope.Depth));
+        _currentScope.Define("typeof", new VariableInfo("typeof", isReadOnly: true, _currentScope.Depth));
     }
 
     /// <summary>
@@ -263,6 +264,9 @@ public class Resolver
                 break;
             case MatchExpr matchExpr:
                 ResolveMatchExpr(matchExpr);
+                break;
+            case InstanceOfExpr instanceOfExpr:
+                ResolveExpression(instanceOfExpr.Object);
                 break;
             default:
                 _errors.Add(new ResolveException(

@@ -42,6 +42,7 @@ public enum TokenType
     Export,
     From,
     Match,
+    InstanceOf,
 
     // 演算子
     Plus,           // +

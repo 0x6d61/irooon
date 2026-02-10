@@ -78,6 +78,7 @@ public class CodeGenerator
             SafeNavigationExpr e => GenerateSafeNavigationExpr(e),
             SuperExpr e => GenerateSuperExpr(e),
             MatchExpr e => GenerateMatchExpr(e),
+            InstanceOfExpr e => GenerateInstanceOfExpr(e),
             SpreadExpr e => GenerateExpression(e.Operand), // スプレッドは呼び出し側で処理
             _ => throw new NotImplementedException($"Unknown expression type: {expr.GetType()}")
         };
@@ -1414,12 +1415,22 @@ public class CodeGenerator
             parentClassExpr
         );
 
-        // ctx.Classes[name] = class
+        // ctx.Classes[name] = class, ctx.Globals[name] = class
         var classesExpr = ExprTree.Property(_ctxParam, "Classes");
         var nameExpr = ExprTree.Constant(stmt.Name);
-        var itemProperty = ExprTree.Property(classesExpr, "Item", nameExpr);
+        var classesItem = ExprTree.Property(classesExpr, "Item", nameExpr);
 
-        return ExprTree.Assign(itemProperty, classNew);
+        var globalsExpr = ExprTree.Property(_ctxParam, "Globals");
+        var globalsItem = ExprTree.Property(globalsExpr, "Item", ExprTree.Constant(stmt.Name));
+
+        var tempClass = ExprTree.Variable(typeof(IroClass), "tempClass");
+        return ExprTree.Block(
+            typeof(object),
+            new[] { tempClass },
+            ExprTree.Assign(tempClass, classNew),
+            ExprTree.Assign(classesItem, tempClass),
+            ExprTree.Assign(globalsItem, ExprTree.Convert(tempClass, typeof(object)))
+        );
     }
 
     /// <summary>
@@ -2120,6 +2131,18 @@ public class CodeGenerator
     /// 3. 親クラスのメソチE��を取征E
     /// 4. メソチE��を返す�E�呼び出し�ECallExprで行われる�E�E
     /// </summary>
+    private ExprTree GenerateInstanceOfExpr(InstanceOfExpr expr)
+    {
+        var objExpr = GenerateExpression(expr.Object);
+        var method = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.IsInstanceOf))!;
+        return ExprTree.Convert(
+            ExprTree.Call(method,
+                ExprTree.Convert(objExpr, typeof(object)),
+                ExprTree.Constant(expr.ClassName),
+                _ctxParam),
+            typeof(object));
+    }
+
     private ExprTree GenerateMatchExpr(MatchExpr expr)
     {
         // match式をif-elseチェーンに展開

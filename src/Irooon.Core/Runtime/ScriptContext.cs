@@ -93,6 +93,9 @@ public class ScriptContext
         // 日時
         Globals["now"] = new BuiltinFunction("now", RuntimeHelpers.Now);
 
+        // 型チェック
+        Globals["typeof"] = new BuiltinFunction("typeof", RuntimeHelpers.__typeOf);
+
         // 低レベルプリミティブ（stdlib.iro の基盤）
         Globals["__stringLength"] = new BuiltinFunction("__stringLength", RuntimeHelpers.__stringLength);
         Globals["__charAt"] = new BuiltinFunction("__charAt", RuntimeHelpers.__charAt);

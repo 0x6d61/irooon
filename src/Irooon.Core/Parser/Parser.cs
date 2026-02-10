@@ -274,6 +274,14 @@ public class Parser
             expr = new BinaryExpr(expr, op.Type, right, op.Line, op.Column);
         }
 
+        // instanceof 演算子
+        if (Match(TokenType.InstanceOf))
+        {
+            var op = Previous();
+            var className = Consume(TokenType.Identifier, "Expect class name after 'instanceof'.");
+            expr = new InstanceOfExpr(expr, className.Lexeme, op.Line, op.Column);
+        }
+
         return expr;
     }
 

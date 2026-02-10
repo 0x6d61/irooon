@@ -89,4 +89,19 @@ public class IroClass
         // 親クラスから検索
         return Parent?.GetMethod(name);
     }
+
+    /// <summary>
+    /// スタティックメソッドを取得します（親クラスも検索）
+    /// </summary>
+    /// <param name="name">メソッド名</param>
+    /// <returns>メソッド（見つからない場合はnull）</returns>
+    public IroCallable? GetStaticMethod(string name)
+    {
+        if (StaticMethods.TryGetValue(name, out var method))
+        {
+            return method;
+        }
+
+        return Parent?.GetStaticMethod(name);
+    }
 }
