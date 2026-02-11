@@ -1,3 +1,5 @@
+using Irooon.Core.Diagnostics;
+
 namespace Irooon.Core.Runtime;
 
 /// <summary>
@@ -5,6 +7,11 @@ namespace Irooon.Core.Runtime;
 /// </summary>
 public class RuntimeException : Exception
 {
+    /// <summary>
+    /// Rust 風のフォーマット済みエラーメッセージ（設定されている場合）
+    /// </summary>
+    public string? DetailedMessage { get; set; }
+
     /// <summary>
     /// エラーが発生した行番号
     /// </summary>

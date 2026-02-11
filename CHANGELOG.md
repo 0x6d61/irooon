@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-02-11
+
+### Added
+- **エラーメッセージ改善: Rust コンパイラ風フォーマット** (#61)
+  - `Diagnostics/SourceLocation` — ソースコード位置情報（ファイルパス、行、列、幅）
+  - `Diagnostics/ErrorCode` — エラーコード enum（E001-E311、Lexer/Parser/Resolver/Runtime）
+  - `Diagnostics/DiagnosticFormatter` — Rust 風エラーフォーマッタ（ソースコード行表示 + `^^^` ポインタ）
+  - `Diagnostics/Suggestions` — ErrorCode → サジェスチョンマッピング（修正ヒント表示）
+  - `Lexer/LexException` — Lexer エラー専用例外クラス
+  - `ScriptException.DetailedMessage` — Rust 風フォーマット済みエラーメッセージ
+  - `ScriptEngine.Execute()` にファイルパス引数追加
+  - Lexer エラーの正式な例外化（以前はサイレントに失われていた）
+  - CLI: ファイルパス付きエラー表示、`DetailedMessage` 使用
+  - REPL: `DetailedMessage` によるエラー表示改善
+
+### エラー表示の改善例
+
+改善前:
+```
+Script error: Resolve errors:
+[Line 3, Col 1] Resolve error: Cannot assign to 'let' variable 'x'
+```
+
+改善後:
+```
+error[E201]: Cannot assign to 'let' variable 'x'
+ --> script.iro:3:1
+  |
+3 | x = 20
+  | ^ Cannot assign to 'let' variable 'x'
+  |
+  = help: Use 'var' instead of 'let' if you need to reassign
+```
+
+### 後方互換性
+- `Exception.Message` プロパティは従来テキストを維持（既存コードへの影響なし）
+- 新フォーマットは `DetailedMessage` プロパティで提供
+- 既存テスト 1,236 件は全て合格
+
 ## [0.12.7] - 2026-02-11
 
 ### Changed

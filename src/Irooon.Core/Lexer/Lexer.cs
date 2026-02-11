@@ -83,6 +83,15 @@ public class Lexer
     }
 
     /// <summary>
+    /// Lexer エラーのリストを取得します。
+    /// TokenType.Error のトークンをエラー情報として返します。
+    /// </summary>
+    public List<Token> GetErrors()
+    {
+        return _tokens.Where(t => t.Type == TokenType.Error).ToList();
+    }
+
+    /// <summary>
     /// 1つのトークンをスキャンします。
     /// </summary>
     private void ScanToken()

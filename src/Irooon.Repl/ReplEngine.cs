@@ -34,6 +34,11 @@ public class ReplEngine
         {
             return _engine.Execute(input, _context);
         }
+        catch (ScriptException ex)
+        {
+            Console.Error.WriteLine(ex.DetailedMessage ?? ex.Message);
+            return null;
+        }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Error: {ex.Message}");

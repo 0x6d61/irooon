@@ -165,9 +165,9 @@ static int RunScript(string scriptPath)
         // スクリプトを読み込み
         var source = File.ReadAllText(scriptPath);
 
-        // ScriptEngineで実行
+        // ScriptEngineで実行（ファイルパスを渡してエラー表示に反映）
         var engine = new ScriptEngine();
-        var result = engine.Execute(source);
+        var result = engine.Execute(source, filePath: scriptPath);
 
         // 結果を出力（nullでない場合のみ）
         if (result != null)
@@ -179,7 +179,7 @@ static int RunScript(string scriptPath)
     }
     catch (ScriptException ex)
     {
-        Console.Error.WriteLine($"Script error: {ex.Message}");
+        Console.Error.WriteLine(ex.DetailedMessage ?? ex.Message);
         return 1;
     }
     catch (Exception ex)

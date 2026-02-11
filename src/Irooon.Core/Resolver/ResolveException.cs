@@ -1,3 +1,5 @@
+using Irooon.Core.Diagnostics;
+
 namespace Irooon.Core.Resolver;
 
 /// <summary>
@@ -16,6 +18,16 @@ public class ResolveException : Exception
     public int Column { get; }
 
     /// <summary>
+    /// エラーコード（設定されている場合）
+    /// </summary>
+    public ErrorCode? Code { get; init; }
+
+    /// <summary>
+    /// エラーの元メッセージ（フォーマットなし）
+    /// </summary>
+    public string RawMessage { get; }
+
+    /// <summary>
     /// ResolveExceptionの新しいインスタンスを初期化します。
     /// </summary>
     /// <param name="message">エラーメッセージ</param>
@@ -26,5 +38,6 @@ public class ResolveException : Exception
     {
         Line = line;
         Column = column;
+        RawMessage = message;
     }
 }
