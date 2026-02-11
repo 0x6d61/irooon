@@ -10,4 +10,8 @@
     <EmbeddedResource Include="stdlib.iro" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Irooon.Tests" />
+  </ItemGroup>
+
 </Project>

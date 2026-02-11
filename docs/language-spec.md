@@ -848,6 +848,40 @@ async fn compute(x) { x * 2 }
 let results = awaitAll([compute(1), compute(2), compute(3)])  // [2, 4, 6]
 ```
 
+### fetch / http — HTTP クライアント
+
+```iro
+// fetch(url, options?) — 汎用 HTTP リクエスト
+// 戻り値: Task<Hash> — await で { status, body, headers, ok } を取得
+async fn main() {
+    let res = await fetch("https://api.example.com/data")
+    println(res.status)   // 200
+    println(res.body)     // レスポンスボディ
+    println(res.ok)       // true
+
+    // POST リクエスト（オプション指定）
+    let res = await fetch("https://api.example.com/users", {
+        method: "POST",
+        body: jsonStringify({ name: "Alice" }),
+        headers: { "Content-Type": "application/json" },
+        timeout: 5000
+    })
+}
+```
+
+```iro
+// http オブジェクト — 便利メソッド
+async fn main() {
+    let res = await http.get("https://api.example.com/users")
+    let users = jsonParse(res.body)
+
+    let res = await http.post(url, body, headers)
+    let res = await http.put(url, body, headers)
+    let res = await http.delete(url, headers)
+    let res = await http.patch(url, body, headers)
+}
+```
+
 ---
 
 ## 16. CLR 相互運用
