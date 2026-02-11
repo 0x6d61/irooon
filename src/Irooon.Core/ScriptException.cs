@@ -1,3 +1,5 @@
+using Irooon.Core.Diagnostics;
+
 namespace Irooon.Core;
 
 /// <summary>
@@ -5,6 +7,12 @@ namespace Irooon.Core;
 /// </summary>
 public class ScriptException : Exception
 {
+    /// <summary>
+    /// Rust 風のフォーマット済みエラーメッセージ。
+    /// CLI/REPL ではこちらを表示に使用する。
+    /// </summary>
+    public string? DetailedMessage { get; init; }
+
     /// <summary>
     /// ScriptExceptionの新しいインスタンスを初期化します。
     /// </summary>
