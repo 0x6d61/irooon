@@ -465,11 +465,34 @@ public static class RuntimeHelpers
                 return task;
             }
 
+            // ★ Fast path: array スコープ + インスタンスメソッドでない場合
+            // tarai/fibonacci 等の再帰呼び出しで数百万回通過するホットパス。
+            // Dictionary 変数宣言、IroInstance チェック、複雑な finally を全てスキップ。
+            if (thisArg == null && callable is Closure fastClosure && fastClosure.SlotCount > 0)
+            {
+                var savedLocals = ctx.Locals;
+                try
+                {
+                    return fastClosure.Invoke(ctx, args);
+                }
+                finally
+                {
+                    ctx.Locals = savedLocals;
+                }
+            }
+
+            // ★ Fast path: BuiltinFunction（thisArg なし）
+            if (thisArg == null && callable is BuiltinFunction)
+            {
+                return callable.Invoke(ctx, args);
+            }
+
+            // Slow path: dictionary スコープまたはインスタンスメソッド
             // 呼び出し先が ctx.Locals を上書きする可能性があるため、常に保存する
             // (BoundMethod 経由の Closure 呼び出しでも ctx.Locals が破壊される)
             Dictionary<string, object>? savedParams = null;
             List<string>? paramNames = null;
-            Dictionary<string, object>? savedLocals = null;
+            Dictionary<string, object>? savedLocals2 = null;
             List<string>? localNames = null;
             object?[]? savedLocalsArray = ctx.Locals;
             bool useArrayScope = false;
@@ -500,12 +523,12 @@ public static class RuntimeHelpers
                     if (closure.LocalNames.Count > 0)
                     {
                         localNames = closure.LocalNames;
-                        savedLocals = new Dictionary<string, object>();
+                        savedLocals2 = new Dictionary<string, object>();
                         foreach (var name in localNames)
                         {
                             if (ctx.Globals.TryGetValue(name, out var value))
                             {
-                                savedLocals[name] = value;
+                                savedLocals2[name] = value;
                             }
                         }
                     }
@@ -602,11 +625,11 @@ public static class RuntimeHelpers
                     }
 
                     // ローカル変数を元の値に復元（または削除）
-                    if (savedLocals != null && localNames != null)
+                    if (savedLocals2 != null && localNames != null)
                     {
                         foreach (var name in localNames)
                         {
-                            if (savedLocals.TryGetValue(name, out var savedValue))
+                            if (savedLocals2.TryGetValue(name, out var savedValue))
                             {
                                 ctx.Globals[name] = savedValue;
                             }

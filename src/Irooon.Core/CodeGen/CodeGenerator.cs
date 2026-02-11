@@ -28,6 +28,9 @@ public class CodeGenerator
     // Array-based scope optimization: 変数名 → ctx.Locals のスロットインデックス
     private Dictionary<string, int>? _currentSlotMap;
 
+    // インライン最適化制御: 関数本体内では false（IL サイズ増大による JIT 劣化を回避）
+    private bool _inlineOps = false;
+
     // ループ�Ebreak/continueラベルを管琁E��るスタチE��
     private Stack<(LabelTarget breakLabel, LabelTarget? continueLabel)> _loopLabels = new();
 
@@ -45,6 +48,8 @@ public class CodeGenerator
     /// <returns>実行可能なデリゲート</returns>
     public Func<ScriptContext, object?> Compile(BlockExpr program, bool optimizeTopLevel = false)
     {
+        _inlineOps = optimizeTopLevel;
+
         if (optimizeTopLevel && !ContainsInnerFunction(program))
         {
             var (slotMap, slotCount) = BuildSlotMap(new List<Ast.Parameter>(), program);
@@ -297,8 +302,9 @@ public class CodeGenerator
     #region Task #14: 演算子�E実裁E
 
     /// <summary>
-    /// 二頁E��算式�E変換
-    /// 仕槁E すべてRuntimeHelpersに委譲
+    /// 二項演算式の変換。
+    /// Add/Sub/Mul/Lt/Le/Gt/Ge は double fast path をインライン展開し、
+    /// その他は RuntimeHelpers に委譲。
     /// </summary>
     private ExprTree GenerateBinaryExpr(BinaryExpr expr)
     {
@@ -311,20 +317,34 @@ public class CodeGenerator
 
         return expr.Operator switch
         {
-            // 算術演算子
-            TokenType.Plus => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Add), null, left, right, ctxExpr),
-            TokenType.Minus => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Sub), null, left, right, ctxExpr),
-            TokenType.Star => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Mul), null, left, right, ctxExpr),
+            // 算術演算子（トップレベルのみインライン化、関数本体は RuntimeHelpers 委譲）
+            TokenType.Plus => _inlineOps
+                ? EmitInlineBinaryOp(left, right, ctxExpr, ExprTree.Add, nameof(RuntimeHelpers.Add))
+                : ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Add), null, left, right, ctxExpr),
+            TokenType.Minus => _inlineOps
+                ? EmitInlineBinaryOp(left, right, ctxExpr, ExprTree.Subtract, nameof(RuntimeHelpers.Sub))
+                : ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Sub), null, left, right, ctxExpr),
+            TokenType.Star => _inlineOps
+                ? EmitInlineBinaryOp(left, right, ctxExpr, ExprTree.Multiply, nameof(RuntimeHelpers.Mul))
+                : ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Mul), null, left, right, ctxExpr),
             TokenType.Slash => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Div), null, left, right, ctxExpr),
             TokenType.Percent => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Mod), null, left, right, ctxExpr),
 
-            // 比較演算子
+            // 比較演算子（トップレベルのみインライン化）
             TokenType.EqualEqual => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Eq), null, left, right, ctxExpr),
             TokenType.BangEqual => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Ne), null, left, right, ctxExpr),
-            TokenType.Less => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Lt), null, left, right, ctxExpr),
-            TokenType.LessEqual => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Le), null, left, right, ctxExpr),
-            TokenType.Greater => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Gt), null, left, right, ctxExpr),
-            TokenType.GreaterEqual => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Ge), null, left, right, ctxExpr),
+            TokenType.Less => _inlineOps
+                ? EmitInlineBinaryOp(left, right, ctxExpr, ExprTree.LessThan, nameof(RuntimeHelpers.Lt), returnsBool: true)
+                : ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Lt), null, left, right, ctxExpr),
+            TokenType.LessEqual => _inlineOps
+                ? EmitInlineBinaryOp(left, right, ctxExpr, ExprTree.LessThanOrEqual, nameof(RuntimeHelpers.Le), returnsBool: true)
+                : ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Le), null, left, right, ctxExpr),
+            TokenType.Greater => _inlineOps
+                ? EmitInlineBinaryOp(left, right, ctxExpr, ExprTree.GreaterThan, nameof(RuntimeHelpers.Gt), returnsBool: true)
+                : ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Gt), null, left, right, ctxExpr),
+            TokenType.GreaterEqual => _inlineOps
+                ? EmitInlineBinaryOp(left, right, ctxExpr, ExprTree.GreaterThanOrEqual, nameof(RuntimeHelpers.Ge), returnsBool: true)
+                : ExprTree.Call(runtimeType, nameof(RuntimeHelpers.Ge), null, left, right, ctxExpr),
 
             // ビット演算子
             TokenType.Ampersand => ExprTree.Call(runtimeType, nameof(RuntimeHelpers.BitwiseAnd), null, left, right, ctxExpr),
@@ -340,6 +360,57 @@ public class CodeGenerator
 
             _ => throw new NotImplementedException($"Operator {expr.Operator} not implemented")
         };
+    }
+
+    /// <summary>
+    /// 二項演算の double fast path インライン生成。
+    /// 両オペランドが double の場合、ExprTree レベルで直接演算し、
+    /// 非 double の場合は RuntimeHelpers にフォールバックする。
+    /// </summary>
+    private ExprTree EmitInlineBinaryOp(
+        ExprTree left, ExprTree right, ExprTree ctxExpr,
+        Func<ExprTree, ExprTree, ExprTree> doubleOp,
+        string fallbackMethodName,
+        bool returnsBool = false)
+    {
+        var tmpL = ExprTree.Variable(typeof(object), "tmpL");
+        var tmpR = ExprTree.Variable(typeof(object), "tmpR");
+        var unboxL = ExprTree.Unbox(tmpL, typeof(double));
+        var unboxR = ExprTree.Unbox(tmpR, typeof(double));
+
+        ExprTree fastPath;
+        if (returnsBool)
+        {
+            // 比較演算: bool → BoxedTrue/BoxedFalse（型を object に明示指定）
+            fastPath = ExprTree.Condition(
+                doubleOp(unboxL, unboxR),
+                ExprTree.Constant(RuntimeHelpers.BoxedTrue, typeof(object)),
+                ExprTree.Constant(RuntimeHelpers.BoxedFalse, typeof(object))
+            );
+        }
+        else
+        {
+            // 算術演算: double → object (boxing)
+            fastPath = ExprTree.Convert(doubleOp(unboxL, unboxR), typeof(object));
+        }
+
+        var fallback = ExprTree.Call(
+            typeof(RuntimeHelpers), fallbackMethodName, null, tmpL, tmpR, ctxExpr);
+
+        return ExprTree.Block(
+            typeof(object),
+            new[] { tmpL, tmpR },
+            ExprTree.Assign(tmpL, left),
+            ExprTree.Assign(tmpR, right),
+            ExprTree.Condition(
+                ExprTree.AndAlso(
+                    ExprTree.TypeIs(tmpL, typeof(double)),
+                    ExprTree.TypeIs(tmpR, typeof(double))
+                ),
+                fastPath,
+                fallback
+            )
+        );
     }
 
     /// <summary>
@@ -1086,7 +1157,7 @@ public class CodeGenerator
             }
         }
 
-        // 本体を実行（一時的に _ctxParam, _returnLabel, _currentSlotMap を切り替える）
+        // 本体を実行（一時的に _ctxParam, _returnLabel, _currentSlotMap, _inlineOps を切り替える）
         var savedCtxParam = _ctxParam;
         var savedReturnLabel = _returnLabel;
         var savedReturnType = _currentReturnType;
@@ -1094,6 +1165,7 @@ public class CodeGenerator
         var savedFuncLine = _currentFuncLine;
         var savedFuncColumn = _currentFuncColumn;
         var savedSlotMap = _currentSlotMap;
+        var savedInlineOps = _inlineOps;
         _ctxParam = ctxParamForFunc;
         _returnLabel = ExprTree.Label(typeof(object), "return_lambda");
         _currentReturnType = expr.ReturnType;
@@ -1101,6 +1173,7 @@ public class CodeGenerator
         _currentFuncLine = expr.Line;
         _currentFuncColumn = expr.Column;
         _currentSlotMap = useSlots ? slotMap : null;
+        _inlineOps = false;
         var bodyExpr = GenerateExpression(expr.Body);
 
         // 暗黙的 return の戻り値型チェック
@@ -1121,6 +1194,7 @@ public class CodeGenerator
         _currentFuncLine = savedFuncLine;
         _currentFuncColumn = savedFuncColumn;
         _currentSlotMap = savedSlotMap;
+        _inlineOps = savedInlineOps;
 
         var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
 
@@ -1276,7 +1350,7 @@ public class CodeGenerator
             }
         }
 
-        // 本体を実行（一時的に _ctxParam, _returnLabel, _currentSlotMap を切り替える）
+        // 本体を実行（一時的に _ctxParam, _returnLabel, _currentSlotMap, _inlineOps を切り替える）
         var savedCtxParam = _ctxParam;
         var savedReturnLabel = _returnLabel;
         var savedReturnType = _currentReturnType;
@@ -1284,6 +1358,7 @@ public class CodeGenerator
         var savedFuncLine = _currentFuncLine;
         var savedFuncColumn = _currentFuncColumn;
         var savedSlotMap = _currentSlotMap;
+        var savedInlineOps = _inlineOps;
         _ctxParam = ctxParamForFunc;
         _returnLabel = ExprTree.Label(typeof(object), "return_func");
         _currentReturnType = stmt.ReturnType;
@@ -1291,6 +1366,7 @@ public class CodeGenerator
         _currentFuncLine = stmt.Line;
         _currentFuncColumn = stmt.Column;
         _currentSlotMap = useSlots ? slotMap : null;
+        _inlineOps = false;
         var bodyExpr = GenerateExpression(stmt.Body);
 
         // 暗黙的 return の戻り値型チェック
@@ -1311,6 +1387,7 @@ public class CodeGenerator
         _currentFuncLine = savedFuncLine;
         _currentFuncColumn = savedFuncColumn;
         _currentSlotMap = savedSlotMap;
+        _inlineOps = savedInlineOps;
 
         var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
 
@@ -1434,7 +1511,7 @@ public class CodeGenerator
                 (slotMap, slotCount) = BuildSlotMap(m.Parameters, m.Body);
             }
 
-            // 一時的にctxParam, _returnLabel, _currentSlotMapを切り替える
+            // 一時的にctxParam, _returnLabel, _currentSlotMap, _inlineOpsを切り替える
             var savedCtxParam = _ctxParam;
             var savedReturnLabel = _returnLabel;
             var savedReturnType = _currentReturnType;
@@ -1442,6 +1519,7 @@ public class CodeGenerator
             var savedFuncLine = _currentFuncLine;
             var savedFuncColumn = _currentFuncColumn;
             var savedSlotMap = _currentSlotMap;
+            var savedInlineOps = _inlineOps;
             _ctxParam = ctxParamForFunc;
             _returnLabel = ExprTree.Label(typeof(object), "return_method");
             _currentReturnType = m.ReturnType;
@@ -1449,6 +1527,7 @@ public class CodeGenerator
             _currentFuncLine = m.Line;
             _currentFuncColumn = m.Column;
             _currentSlotMap = useSlots ? slotMap : null;
+            _inlineOps = false;
 
             var bodyExprs = new List<ExprTree>();
 
@@ -1499,6 +1578,7 @@ public class CodeGenerator
             _currentFuncLine = savedFuncLine;
             _currentFuncColumn = savedFuncColumn;
             _currentSlotMap = savedSlotMap;
+            _inlineOps = savedInlineOps;
 
             var bodyBlock = ExprTree.Block(typeof(object), bodyExprs);
             var lambda = ExprTree.Lambda<Func<ScriptContext, object[], object>>(
