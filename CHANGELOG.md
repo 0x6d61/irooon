@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.7] - 2026-02-11
+
+### Changed
+- **パフォーマンス最適化 #4: 比較/算術インライン化 + Invoke ファストパス** (#59)
+  - CodeGenerator: `EmitInlineBinaryOp()` ヘルパー追加 — double-double の場合に ExprTree レベルで算術/比較を直接生成
+  - CodeGenerator: `_inlineOps` フラグで条件付きインライン化 — トップレベルのみ適用、関数本体では RuntimeHelpers 委譲を維持（IL サイズ増大による JIT 劣化を回避）
+  - CodeGenerator: Add/Sub/Mul/Lt/Le/Gt/Ge の 7 演算をインライン化対象に
+  - RuntimeHelpers.Invoke: array スコープ + thisArg=null の場合にファストパス（Dictionary 変数宣言・IroInstance チェック・複雑 finally をスキップ）
+  - RuntimeHelpers.Invoke: BuiltinFunction + thisArg=null の場合にファストパス
+
+### Performance (v0.12.7 vs v0.12.6)
+
+| ベンチマーク | v0.12.6 | v0.12.7 | 改善 |
+|---|---|---|---|
+| loop(10K) PreCompiled | 385 μs (C# 比 42x) | **223 μs** (C# 比 27x) | **1.73x 高速化** |
+| tarai(10,5,0) PreCompiled | 38 ms (C# 比 91x) | **36 ms** (C# 比 82x) | **1.06x 高速化** |
+| fibonacci(30) | 331 ms (C# 比 95x) | **393 ms** (C# 比 102x) | ~同等 |
+
+- loop: トップレベルの Add×2 + Lt がインライン化され、メソッド呼び出しオーバーヘッド 30K 回が削減
+- tarai: Invoke ファストパスにより再帰呼び出しのオーバーヘッドが軽減
+- fibonacci: 関数本体ではインライン化を無効にしているため回帰なし
+
+### 累積パフォーマンス改善 (v0.12.3 → v0.12.7)
+
+| ベンチマーク | v0.12.3 | v0.12.7 | 改善 |
+|---|---|---|---|
+| loop(10K) PreCompiled | — | **223 μs (27x)** | 16,950x → **27x** |
+| tarai(10,5,0) PreCompiled | 121 ms (334x) | **36 ms (82x)** | **3.4x 高速化** |
+| fibonacci(30) | 775 ms (224x) | **393 ms (102x)** | **2.0x 高速化** |
+
 ## [0.12.6] - 2026-02-11
 
 ### Changed
