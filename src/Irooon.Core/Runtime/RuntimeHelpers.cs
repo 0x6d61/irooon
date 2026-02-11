@@ -9,6 +9,15 @@ public static class RuntimeHelpers
     // CLR型解決のキャッシュ
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Type?> _typeCache = new();
 
+    // HTTP クライアント（static 共有 — .NET ベストプラクティス）
+    private static System.Net.Http.HttpClient _httpClient = new();
+
+    /// <summary>テスト用: HttpClient を差し替える</summary>
+    internal static void SetHttpClient(System.Net.Http.HttpClient client) => _httpClient = client;
+
+    /// <summary>テスト用: HttpClient をデフォルトにリセットする</summary>
+    internal static void ResetHttpClient() => _httpClient = new();
+
     /// <summary>
     /// キャッシュされた boxed true（比較演算の boxing 回避用）
     /// </summary>
@@ -703,6 +712,14 @@ public static class RuntimeHelpers
     {
         if (target == null)
             throw new InvalidOperationException("Cannot get member of null");
+
+        // Hash の場合: キーアクセスをプロトタイプより優先
+        // （ユーザーが hash["delete"] = fn(...) のように関数を格納した場合、
+        //  Hash プロトタイプの delete メソッドより優先されるべき）
+        if (target is Dictionary<string, object> hashFirst && hashFirst.TryGetValue(name, out var hashValue))
+        {
+            return hashValue;
+        }
 
         // プロトタイプ検索（全型共通、ctxがある場合のみ）
         var typeName = target switch
@@ -2405,6 +2422,80 @@ public static class RuntimeHelpers
         if (args.Length > 0)
             Console.Write(args[0]?.ToString() ?? "");
         return Console.ReadLine() ?? "";
+    }
+
+    // ========================================
+    // HTTP プリミティブ
+    // ========================================
+
+    /// <summary>
+    /// HTTP リクエストを送信し、レスポンスをハッシュオブジェクトとして返す。
+    /// args[0]: method (string) — "GET", "POST", "PUT", "DELETE", "PATCH"
+    /// args[1]: url (string)
+    /// args[2]: headers (Dictionary&lt;string, object&gt; or null)
+    /// args[3]: body (string or null)
+    /// args[4]: timeout (double ミリ秒, or null でデフォルト30000)
+    /// </summary>
+    public static object __httpRequest(ScriptContext ctx, object[] args)
+    {
+        var method = args.Length > 0 ? args[0]?.ToString() ?? "GET" : "GET";
+        var url = args.Length > 1 ? args[1]?.ToString() : null;
+        var headers = args.Length > 2 ? args[2] as Dictionary<string, object> : null;
+        var body = args.Length > 3 ? args[3]?.ToString() : null;
+        var timeoutMs = args.Length > 4 && args[4] != null
+            ? Convert.ToInt32(args[4])
+            : 30000;
+
+        if (string.IsNullOrEmpty(url))
+            throw new RuntimeException("__httpRequest: URL is required");
+
+        return System.Threading.Tasks.Task.Run<object>(async () =>
+        {
+            using var cts = new System.Threading.CancellationTokenSource(timeoutMs);
+            var request = new System.Net.Http.HttpRequestMessage(
+                new System.Net.Http.HttpMethod(method), url);
+
+            // ヘッダ設定
+            string contentType = "text/plain";
+            if (headers != null)
+            {
+                foreach (var kv in headers)
+                {
+                    var headerValue = kv.Value?.ToString() ?? "";
+                    if (kv.Key.Equals("Content-Type", StringComparison.OrdinalIgnoreCase))
+                    {
+                        contentType = headerValue;
+                        continue;
+                    }
+                    request.Headers.TryAddWithoutValidation(kv.Key, headerValue);
+                }
+            }
+
+            // ボディ設定
+            if (body != null)
+            {
+                request.Content = new System.Net.Http.StringContent(
+                    body, System.Text.Encoding.UTF8, contentType);
+            }
+
+            var response = await _httpClient.SendAsync(request, cts.Token);
+
+            // レスポンスをハッシュに変換
+            var result = new Dictionary<string, object>();
+            result["status"] = (double)(int)response.StatusCode;
+            result["body"] = await response.Content.ReadAsStringAsync();
+            result["ok"] = response.IsSuccessStatusCode;
+
+            // レスポンスヘッダをハッシュに変換
+            var respHeaders = new Dictionary<string, object>();
+            foreach (var h in response.Headers)
+                respHeaders[h.Key] = string.Join(", ", h.Value);
+            foreach (var h in response.Content.Headers)
+                respHeaders[h.Key] = string.Join(", ", h.Value);
+            result["headers"] = respHeaders;
+
+            return (object)result;
+        });
     }
 
     /// <summary>

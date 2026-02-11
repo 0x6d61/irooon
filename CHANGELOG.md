@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-02-12
+
+### Added - HTTP クライアント (#63)
+
+- **`fetch(url, options?)`** — 汎用 HTTP リクエスト関数
+  - `options`: `{ method, headers, body, timeout }` で詳細設定
+  - 戻り値: `Task<Hash>` — await で `{ status, body, headers, ok }` を取得
+- **`http` オブジェクト** — 便利メソッド
+  - `http.get(url, headers?)` — GET リクエスト
+  - `http.post(url, body?, headers?)` — POST リクエスト
+  - `http.put(url, body?, headers?)` — PUT リクエスト
+  - `http.delete(url, headers?)` — DELETE リクエスト
+  - `http.patch(url, body?, headers?)` — PATCH リクエスト
+- C# プリミティブ `__httpRequest` (HttpClient ベース、async/await 対応)
+- テスト用 `RuntimeHelpers.SetHttpClient()` / `ResetHttpClient()` (InternalsVisibleTo)
+
+### Fixed
+
+- Hash の GetMember でキーアクセスがプロトタイプメソッドより優先されるように修正
+  - `hash["delete"] = fn(...)` のようにキーに関数を格納した場合、Hash プロトタイプの `delete` メソッドではなくキーの値が返される
+
 ## [0.13.0] - 2026-02-11
 
 ### Added

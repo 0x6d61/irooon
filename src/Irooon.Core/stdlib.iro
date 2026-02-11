@@ -621,3 +621,91 @@ fn jsonParse(input) {
     skipWS()
     result
 }
+
+// ========================================
+// HTTP CLIENT
+// ========================================
+
+// fetch(url, options?) — 汎用 HTTP リクエスト関数
+// options: { method, headers, body, timeout }
+// 戻り値: Task<Hash> — await で { status, body, headers, ok } を取得
+fn fetch(url, options) {
+    var method = "GET"
+    var headers = null
+    var body = null
+    var timeout = null
+
+    if (options != null) {
+        if (__hashHas(options, "method")) {
+            method = options["method"]
+        }
+        if (__hashHas(options, "headers")) {
+            headers = options["headers"]
+        }
+        if (__hashHas(options, "body")) {
+            body = options["body"]
+        }
+        if (__hashHas(options, "timeout")) {
+            timeout = options["timeout"]
+        }
+    }
+
+    __httpRequest(method, url, headers, body, timeout)
+}
+
+// http オブジェクト — 便利メソッド
+var http = __hashNew()
+
+http["get"] = fn(url, headers) {
+    var opts = __hashNew()
+    opts["method"] = "GET"
+    if (headers != null) {
+        opts["headers"] = headers
+    }
+    fetch(url, opts)
+}
+
+http["post"] = fn(url, body, headers) {
+    var opts = __hashNew()
+    opts["method"] = "POST"
+    if (body != null) {
+        opts["body"] = body
+    }
+    if (headers != null) {
+        opts["headers"] = headers
+    }
+    fetch(url, opts)
+}
+
+http["put"] = fn(url, body, headers) {
+    var opts = __hashNew()
+    opts["method"] = "PUT"
+    if (body != null) {
+        opts["body"] = body
+    }
+    if (headers != null) {
+        opts["headers"] = headers
+    }
+    fetch(url, opts)
+}
+
+http["delete"] = fn(url, headers) {
+    var opts = __hashNew()
+    opts["method"] = "DELETE"
+    if (headers != null) {
+        opts["headers"] = headers
+    }
+    fetch(url, opts)
+}
+
+http["patch"] = fn(url, body, headers) {
+    var opts = __hashNew()
+    opts["method"] = "PATCH"
+    if (body != null) {
+        opts["body"] = body
+    }
+    if (headers != null) {
+        opts["headers"] = headers
+    }
+    fetch(url, opts)
+}

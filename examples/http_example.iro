@@ -1,0 +1,41 @@
+// HTTP クライアントのサンプル
+// 注意: async fn 内で await を使用する必要があります
+
+// シンプルな GET リクエスト
+async fn fetchExample() {
+    let res = await fetch("https://httpbin.org/get")
+    println("Status:", res.status)
+    println("OK:", res.ok)
+    println("Body:", res.body)
+}
+
+// POST リクエスト（JSON）
+async fn postExample() {
+    let headers = { "Content-Type": "application/json" }
+    let body = jsonStringify({ name: "Alice", age: 30 })
+    let res = await http.post("https://httpbin.org/post", body, headers)
+    println("POST Status:", res.status)
+    let data = jsonParse(res.body)
+    println("Response:", data)
+}
+
+// カスタムヘッダ付き GET
+async fn authExample() {
+    let headers = {
+        "Authorization": "Bearer my-token",
+        "Accept": "application/json"
+    }
+    let res = await http.get("https://httpbin.org/headers", headers)
+    println("Auth Status:", res.status)
+}
+
+// エラーハンドリング
+async fn errorExample() {
+    let res = await fetch("https://httpbin.org/status/404")
+    if (not res.ok) {
+        println("Error:", res.status)
+    }
+}
+
+// 実行
+let t = fetchExample()

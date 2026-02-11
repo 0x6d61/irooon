@@ -166,5 +166,8 @@ public class ScriptContext
         Globals["__mathRandom"] = new BuiltinFunction("__mathRandom", RuntimeHelpers.__mathRandom);
 
         Globals["__registerPrototype"] = new BuiltinFunction("__registerPrototype", RuntimeHelpers.__registerPrototype);
+
+        // HTTP プリミティブ
+        Globals["__httpRequest"] = new BuiltinFunction("__httpRequest", RuntimeHelpers.__httpRequest);
     }
 }
